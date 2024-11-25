@@ -23,7 +23,6 @@ export class UserService {
   async findById(userId: number): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['userOrganizations', 'userOrganizations.organization'],
     });
     if (!user) {
       throw new NotFoundException('El usuario no existe.');

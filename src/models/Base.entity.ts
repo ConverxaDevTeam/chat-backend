@@ -7,8 +7,8 @@ export abstract class BaseEntity {
   id: number;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  create?: Date;
+  created_at?: Date;
 
   @UpdateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  update?: Date;
+  updated_at?: Date;
 }
