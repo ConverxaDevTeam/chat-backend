@@ -25,7 +25,7 @@ export class JwtAuthRolesGuard implements CanActivate {
       const { user, sessionId } = await this.authService.validateSession(accessToken);
       request.user = user;
       request.sessionId = sessionId;
-      if (!allowedRoles.includes(user.role)) {
+      if (!user.is_super_admin) {
         throw new ForbiddenException('You do not have permission to access this resource');
       }
       return true;

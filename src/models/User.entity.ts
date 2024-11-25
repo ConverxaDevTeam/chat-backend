@@ -3,11 +3,6 @@ import { BaseEntity } from './Base.entity';
 import { Session } from './Session.entity';
 import { UserOrganization } from './UserOrganization.entity';
 
-export enum UserRoleType {
-  ADMIN = 'admin',
-  USER = 'user',
-}
-
 @Entity({ name: 'Users' })
 export class User extends BaseEntity {
   @Index({ unique: true })
@@ -20,8 +15,8 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 128, nullable: false, select: false })
   password: string;
 
-  @Column({ type: 'enum', enum: UserRoleType, default: UserRoleType.USER })
-  role: UserRoleType;
+  @Column({ type: 'boolean', default: false })
+  is_super_admin: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
   last_login?: Date;
