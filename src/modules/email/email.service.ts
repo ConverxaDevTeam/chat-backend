@@ -23,15 +23,15 @@ export class EmailService {
     });
   }
 
-  async sendPasswordDemo(first_name, last_name, email, password): Promise<void> {
-    const template = await this.loadTemplate('user-demo');
+  async sendUserWellcome(email: string, password: string): Promise<void> {
+    const template = await this.loadTemplate('user-welcome');
 
     const compiledTemplate = handlebars.compile(template);
 
     const html = compiledTemplate({
-      first_name: `${first_name}`,
-      last_name: `${last_name}`,
-      password: `${password}`,
+      email,
+      password,
+      link: 'https://sofiacall.com',
     });
 
     const mailOptions = {
@@ -44,29 +44,8 @@ export class EmailService {
     await this.transporter.sendMail(mailOptions);
   }
 
-  async sendTestingEmail({ webhook, email, data }): Promise<void> {
-    const template = await this.loadTemplate('testing');
-
-    const compiledTemplate = handlebars.compile(template);
-
-    const html = compiledTemplate({
-      data: data,
-      webhook: webhook,
-      email: email,
-    });
-
-    const mailOptions = {
-      from: this.configService.get<string>('nodemailer.from'),
-      to: 'leo@pixeldigita.com',
-      subject: 'testing',
-      html,
-    };
-
-    await this.transporter.sendMail(mailOptions);
-  }
-
   private async loadTemplate(templateName: string): Promise<string> {
-    const templatePath = join(process.cwd(), 'src', 'template', `${templateName}.hbs`);
+    const templatePath = join(process.cwd(), 'src', 'infrastructure', 'template', `${templateName}.hbs`);
     const templateContent = await fs.readFile(templatePath, 'utf-8');
     return templateContent;
   }
