@@ -12,10 +12,4 @@ export class Autenticador extends BaseEntity {
 
   @OneToMany(() => Funcion, (funcion) => funcion.autenticador)
   funciones: Funcion[];
-
-  @Column({ type: 'timestamp', nullable: true })
-  created_at: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  updated_at: Date;
 }

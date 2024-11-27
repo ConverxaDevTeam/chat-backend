@@ -21,10 +21,4 @@ export class Funcion extends BaseEntity {
   @ManyToOne(() => Autenticador, (autenticador) => autenticador.funciones)
   @JoinColumn({ name: 'autenticador' })
   autenticador: Autenticador;
-
-  @Column({ type: 'timestamp', nullable: true })
-  created_at: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  updated_at: Date;
 }

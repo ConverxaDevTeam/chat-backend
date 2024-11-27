@@ -15,12 +15,6 @@ export class Chat extends BaseEntity {
   @JoinColumn({ name: 'departamento_id' })
   departamento: Departamento;
 
-  @Column({ type: 'timestamp', nullable: true })
-  started_at: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  ended_at: Date;
-
   @OneToMany(() => Agente, (agente) => agente.chat)
   agentes: Agente[];
 }

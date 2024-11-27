@@ -12,10 +12,4 @@ export class Departamento extends BaseEntity {
 
   @OneToMany(() => Chat, (chat) => chat.departamento)
   chats: Chat[];
-
-  @Column({ type: 'timestamp', nullable: true })
-  created_at: Date;
-
-  @Column({ type: 'timestamp', nullable: true })
-  updated_at: Date;
 }
