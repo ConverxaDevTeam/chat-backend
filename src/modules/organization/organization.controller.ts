@@ -24,7 +24,11 @@ export class OrganizationController {
   @Get('')
   async getAll() {
     const organizations = await this.organizationService.getAll();
-    return { ok: true, organizations };
+    const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => ({
+      ...organization,
+      users: userOrganizations.length,
+    }));
+    return { ok: true, organizations: formattedOrganization };
   }
 
   @UseGuards(JwtAuthGuard)

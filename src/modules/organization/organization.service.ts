@@ -19,7 +19,7 @@ export class OrganizationService {
   ) {}
 
   async getAll(): Promise<Organization[]> {
-    return this.organizationRepository.find({});
+    return this.organizationRepository.find({ relations: ['userOrganizations'] });
   }
 
   async createOrganization(createOrganizationDto: CreateOrganizationDto): Promise<Organization> {
