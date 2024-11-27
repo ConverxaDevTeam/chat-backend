@@ -32,7 +32,7 @@ async function bootstrap() {
     preflightContinue: false,
     optionsSuccessStatus: 204,
     credentials: true,
-    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://back-chat-v2.sofiacall.com'],
+    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com'],
   });
   app.setGlobalPrefix('api');
 
