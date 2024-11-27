@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import { ClientMap } from './socket.type';
+import { ClientMap } from './socket.type';  // Asumo que tienes un ClientMap que maneja las conexiones
+import { timeout } from 'rxjs';
+import { getAgentResponse } from 'src/services/agentServer';
 
 @Injectable()
 export class SocketService {
@@ -9,50 +11,44 @@ export class SocketService {
   private readonly connectedClients: ClientMap = new ClientMap();
   private readonly logger = new Logger(SocketService.name);
 
+  // Establecer el servidor de sockets
   setServer(server: Server) {
     this.logger.debug('Setting socket server');
     this.socketServer = server;
   }
 
+  // Manejar la conexión de un socket
   handleConnection(socketId: string, socket: Socket, userId: number): void {
-    console.log(`New connection - socket ${socketId}`);
+    this.logger.debug(`New connection - socket ${socketId}`);
     this.connectedClients.addClient(socketId, socket, userId);
 
-    socket.on('join', function (room) {
-      console.log(`Joining room test ${room}`);
+    // Cuando un cliente se une a un room
+    socket.on('join', (room: string) => {
+      console.log(`Socket ${socketId} joining room ${room}`);
+      // El room se crea de manera implícita si no existe
       socket.join(room);
+      console.log(`Socket ${socketId} joined room ${room}`);
     });
 
-    socket.on('leave', function (room) {
-      console.log(`Leaving room test ${room}`);
+    // Cuando un cliente deja un room
+    socket.on('leave', (room: string) => {
+      console.log(`Socket ${socketId} leaving room ${room}`);
       socket.leave(room);
     });
+
+   
   }
 
+  // Manejar la desconexión de un socket
   handleDisconnect(socketId: string): void {
-    console.log(`Disconnect - socket ${socketId}`);
+    console.log(`Socket ${socketId} disconnected`);
     this.connectedClients.removeClient(socketId);
   }
 
-  getConnectedUsersCount(): number {
-    const count = this.connectedClients.getConnectedUsersCount();
-    return count;
-  }
-
-  async sendMessageToRoom(room: string, message: any): Promise<void> {
-    if (!this.socketServer) {
-      this.logger.error('Socket server not initialized');
-      return;
-    }
-    this.socketServer.emit(room, message);
-  }
-
-  sendMessageForUserIdBalance(userId: number): void {
-    const userConections = this.connectedClients.getClientsByUserId(userId);
-    for (const userConection of userConections) {
-      userConection.socket?.emit('message', {
-        action: 'balance-update',
-      });
-    }
+  async sendToBot(message: string, room:string, botId:number) {
+    this.socketServer.to(room).emit('typing', message);
+    const response = await getAgentResponse(botId, message)
+    this.socketServer.to(room).emit('message', { sender: 'agent', text: response });
+    return
   }
 }

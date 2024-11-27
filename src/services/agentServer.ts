@@ -1,15 +1,18 @@
+import { timeout } from "rxjs";
 
 class DummyAgent {
   constructor(private agentId: number) {
     console.log(`Agent ${agentId} created`);
   }
   
-  response(message: string): Promise<string> {
+  async response(message: string): Promise<string> {
+    await new Promise(resolve => setTimeout(resolve, 800));
     return Promise.resolve(`Dummy response to: ${message}`);
   }
 }
 
-export const getAgentResponse = (agent_id:number, message: string): Promise<string> => {
+export const getAgentResponse = async (agent_id:number, message: string): Promise<string> => {
   const agente = new DummyAgent(agent_id);
-  return agente.response(message)
+  
+  return await agente.response(message)
 }
