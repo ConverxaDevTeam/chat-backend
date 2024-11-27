@@ -2,8 +2,7 @@ import { Repository } from 'typeorm';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@models/User.entity';
-import { ConfigService } from '@nestjs/config';
-import { EmailService } from './email.service';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -12,8 +11,6 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-    private readonly configService: ConfigService,
-    private readonly emailService: EmailService,
   ) {}
 
   async save(user: User): Promise<User> {
@@ -51,6 +48,23 @@ export class UserService {
 
   async getAllUsers(): Promise<User[]> {
     return this.userRepository.find();
+  }
+
+  async getUserForEmailOrCreate(email: string) {
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!user) {
+      const newUser = new User();
+      newUser.email = email;
+      const password = this.generateRandomPassword();
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(password, salt);
+      newUser.password = hashedPassword;
+      await this.userRepository.save(newUser);
+      return { created: true, user: newUser, password };
+    }
+
+    return { created: false, user };
   }
 
   generateRandomPassword(): string {

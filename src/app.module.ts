@@ -10,6 +10,7 @@ import { AuthModule } from '@modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrganizationModule } from '@modules/organization/organization.module';
 import { SocketModule } from '@modules/socket/socket.module';
+import { EmailModule } from '@modules/email/email.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SocketModule } from '@modules/socket/socket.module';
     AuthModule,
     OrganizationModule,
     SocketModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],
