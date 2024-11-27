@@ -9,10 +9,9 @@ import { ConfigService } from '@nestjs/config';
 import { SessionService } from '@modules/auth/session.service';
 import { Session } from '@models/Session.entity';
 import { UserController } from './user.controller';
-import { EmailService } from './email.service';
 
 @Module({
-  providers: [UserService, AuthService, JwtService, SessionService, EmailService],
+  providers: [UserService, AuthService, JwtService, SessionService],
   controllers: [UserController],
   imports: [
     TypeOrmModule.forFeature([User, Session]),
@@ -27,6 +26,6 @@ import { EmailService } from './email.service';
     }),
     forwardRef(() => AuthModule),
   ],
-  exports: [UserService, EmailService],
+  exports: [UserService],
 })
 export class UserModule {}

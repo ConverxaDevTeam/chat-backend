@@ -1,0 +1,54 @@
+name: Auto deploy sofia-chat-backend-v2 development in VPS
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+      - 'index.html'
+      - 'package.json'
+      - 'public/**'
+      - 'scripts/**'
+      - 'src/**'
+      - 'vite.config.js'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy using ssh
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEVELOPMENT_SSH_HOST }}
+          username: ${{ secrets.DEVELOPMENT_SSH_USERNAME }}
+          key: ${{ secrets.DEVELOPMENT_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /root/repos/sofia-chat-backend-v2
+            git pull origin main
+            cat <<EOF > .env
+            NODE_ENV=production
+            LOG_LEVEL=production
+            TYPEORM_HOST=${{ secrets.TYPEORM_HOST }}
+            TYPEORM_PORT=${{ secrets.TYPEORM_PORT }}
+            TYPEORM_USERNAME=${{ secrets.TYPEORM_USERNAME }}
+            TYPEORM_PASSWORD=${{ secrets.TYPEORM_PASSWORD }}
+            TYPEORM_DB_NAME=${{ secrets.TYPEORM_DB_NAME }}
+            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            JWT_SECRET_KEY_REFRESH=${{ secrets.JWT_SECRET_KEY_REFRESH }}
+            NODEMAILER_HOST=${{ secrets.NODEMAILER_HOST }}
+            NODEMAILER_PORT=${{ secrets.NODEMAILER_PORT }}
+            NODEMAILER_USER=${{ secrets.NODEMAILER_USER }}
+            NODEMAILER_PASS=${{ secrets.NODEMAILER_PASS }}
+            NODEMAILER_FROM=${{ secrets.NODEMAILER_FROM }}
+            EOF
+            docker-compose build
+            docker-compose down -v
+            docker-compose up -d
