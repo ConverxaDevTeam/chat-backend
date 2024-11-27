@@ -3,7 +3,7 @@ name: Auto deploy sofia-chat-backend-v2 development in VPS
 on:
   push:
     branches:
-      - development
+      - main
     paths:
       - '.github/workflows/**'
       - 'index.html'
