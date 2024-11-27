@@ -2,14 +2,20 @@ import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../Base.entity';
 import { Chat } from '../Chat.entity';
 import { Funcion } from './Function.entity';
+import { AgenteType } from 'src/interfaces/agent';
+
 
 @Entity({ name: 'agente' })
 export class Agente extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: false })
   name: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: false })
-  type: string;
+  @Column({
+    type: 'enum',
+    enum: AgenteType,
+    nullable: false,
+  })
+  type: AgenteType;
 
   @Column({ type: 'json', nullable: true })
   config: Record<string, unknown>;

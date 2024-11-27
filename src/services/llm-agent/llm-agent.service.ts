@@ -5,6 +5,7 @@ import { Agente } from '@models/agent/Agente.entity';
 import { Chat } from '@models/Chat.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
+import { AgenteType } from 'src/interfaces/agent';
 
 @Injectable()
 export class LlmAgentService {
@@ -18,23 +19,33 @@ export class LlmAgentService {
   ) {}
 
   // Obtener agente por ID
-  async getAgentById(id: number): Promise<Agente> {
-    const agent = await this.agentRepository.findOne({ where: { id } });
+  async getAgentById(id: number, organizacion_id?: number): Promise<Agente> {
+    let agent = await this.agentRepository.findOne({ where: { id } });
     if (!agent) {
-      throw new Error(`Agente con ID ${id} no encontrado`);
+      if (!organizacion_id) {
+        throw new Error('Organización no especificada');
+      }
+      agent = await this.createAgent({
+        name: 'default agent',
+        type: AgenteType.LLM1_ASISTENTE,
+        organization_id: organizacion_id,
+        config: {
+          instruccion: 'Eres un asistente para registrar las quejas de los usuarios'
+        },
+      }, organizacion_id);
     }
     return agent;
   }
 
   // Crear un nuevo agente
-  async createAgent(data: CreateAgentDto): Promise<Agente> {
+  async createAgent(data: CreateAgentDto, organizacion_id: number): Promise<Agente> {
     const { chat_id, departamento_id, ...rest } = data;
   
     // Verificar o crear Chat predeterminado
     const chat = await this.getOrCreateDefaultChat(chat_id);
   
     // Verificar o crear Departamento predeterminado
-    const departamento = await this.getOrCreateDefaultDepartamento(departamento_id);
+    const departamento = await this.getOrCreateDefaultDepartamento(organizacion_id, departamento_id);
   
     // Crear el agente
     const newAgent = this.agentRepository.create({
@@ -86,7 +97,7 @@ export class LlmAgentService {
   
 
   // Método auxiliar: Obtener o crear Departamento predeterminado
-  private async getOrCreateDefaultDepartamento(departamento_id?: number): Promise<Departamento> {
+  private async getOrCreateDefaultDepartamento(organizacion_id:number, departamento_id?: number): Promise<Departamento> {
     if (departamento_id) {
       const departamento = await this.departamentoRepository.findOne({
         where: { id: departamento_id },
@@ -96,7 +107,7 @@ export class LlmAgentService {
 
     // Crear Departamento predeterminado si no existe
     const defaultDepartamento = this.departamentoRepository.create({
-      organization_id: 'default-org',
+      organizacion: { id: organizacion_id },
       name: 'Default Department',
     });
     return this.departamentoRepository.save(defaultDepartamento);

@@ -7,6 +7,9 @@ export class CreateAgentDto {
   @IsString()
   type: string;
 
+  @IsNumber()
+  organization_id: number;
+
   @IsOptional()
   @IsNumber()
   chat_id?: number;
