@@ -1,7 +1,20 @@
+import { IsString, IsOptional, IsNumber } from 'class-validator';
+
 export class CreateAgentDto {
+  @IsString()
   name: string;
+
+  @IsString()
   type: string;
+
+  @IsOptional()
+  @IsNumber()
+  chat_id?: number;
+
+  @IsOptional()
+  @IsNumber()
+  departamento_id?: number;
+
+  @IsOptional()
   config?: Record<string, unknown>;
-  chat_id?: number; // Opcional para asociar un chat existente
-  departamento_id?: number; // Opcional para asociar un departamento existente
 }

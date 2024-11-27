@@ -4,7 +4,7 @@ import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { Chat } from '@models/Chat.entity';
 import { Departamento } from '@models/Departamento.entity';
-import { CreateAgentDto } from './dto/CreateAgent.dto';
+import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
 
 @Injectable()
 export class LlmAgentService {
