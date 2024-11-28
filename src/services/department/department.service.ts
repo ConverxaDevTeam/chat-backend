@@ -7,7 +7,6 @@ import { Organization } from '@models/Organization.entity';
 import { Chat } from '@models/Chat.entity';
 import { LlmAgentService } from '../llm-agent/llm-agent.service';
 import { AgenteType } from 'src/interfaces/agent';
-import { User } from '@models/User.entity'; // Import User entity
 import { DataSource } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 
@@ -19,8 +18,6 @@ export class DepartmentService {
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
     @InjectRepository(Chat)
-    private readonly chatRepository: Repository<Chat>,
-    private readonly llmAgentService: LlmAgentService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -150,7 +147,6 @@ export class DepartmentService {
       department: cleanDepartment,
       chat: cleanChat,
       agents: cleanAgents,
-      integrations: [], // TODO: Implementar integrations
     };
   }
 }

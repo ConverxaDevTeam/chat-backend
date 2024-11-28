@@ -5,8 +5,6 @@ import { Agente } from './agent/Agente.entity';
 
 @Entity({ name: 'chat' })
 export class Chat extends BaseEntity {
-  @Column({ type: 'varchar', length: 255, nullable: false })
-  usuario_id: string;
 
   @Column({ type: 'int', nullable: false })
   departamento_id: number;
