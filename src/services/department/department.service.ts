@@ -5,16 +5,24 @@ import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from '@modules/department/dto/create-department.dto';
 import { Organization } from '@models/Organization.entity';
 import { Chat } from '@models/Chat.entity';
-import { LlmAgentService } from '../llm-agent/llm-agent.service';
 import { AgenteType } from 'src/interfaces/agent';
 import { DataSource } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
+
+interface DefaultDepartmentDataInterface {
+  id: number;
+  name: string;
+  organizacion: { id: number };
+  chats: { id: number; agentes: { id: number }[] }[];
+}
 
 @Injectable()
 export class DepartmentService {
   constructor(
     @InjectRepository(Departamento)
     private readonly departmentRepository: Repository<Departamento>,
+    @InjectRepository(Departamento)
+    private readonly defaultDepartmentRepository: Repository<DefaultDepartmentDataInterface>,
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
     @InjectRepository(Chat)
@@ -72,11 +80,16 @@ export class DepartmentService {
   }
 
   async getDefaultDepartment(organizationId: number) {
-    // Buscar departamento con sus relaciones en una sola consulta
-    let department = await this.departmentRepository
+    // Buscar solo los IDs necesarios
+    let department = await this.defaultDepartmentRepository
       .createQueryBuilder('department')
-      .leftJoinAndSelect('department.chats', 'chat')
-      .leftJoinAndSelect('chat.agentes', 'agente')
+      .select(['department.id', 'department.name'])
+      .leftJoin('department.organizacion', 'organizacion')
+      .addSelect(['organizacion.id'])
+      .leftJoin('department.chats', 'chat')
+      .addSelect('chat.id')
+      .leftJoin('chat.agentes', 'agente')
+      .addSelect('agente.id')
       .where('department.organization_id = :organizationId', { organizationId })
       .orderBy('department.created_at', 'ASC')
       .getOne();
@@ -87,7 +100,7 @@ export class DepartmentService {
         // Crear departamento
         const newDepartment = manager.create(Departamento, {
           name: 'Departamento Default',
-          organizacion: { id: organizationId }, // Usar la relación en lugar del ID directo
+          organizacion: { id: organizationId },
         });
         await manager.save(newDepartment);
 
@@ -108,45 +121,37 @@ export class DepartmentService {
         });
         await manager.save(chat);
 
-        // Retornar departamento con sus relaciones ya creadas
-        newDepartment.chats = [chat];
-        chat.agentes = [agent];
-        return newDepartment;
+        // Retornar solo los IDs necesarios
+        return {
+          id: newDepartment.id,
+          name: newDepartment.name,
+          organizacion: { id: newDepartment.organizacion.id },
+          chats: [{
+            id: chat.id,
+            agentes: [{
+              id: agent.id
+            }]
+          }]
+        };
       });
     }
 
-    // Extraer datos sin anidación
     const firstChat = department.chats[0];
     const agents = firstChat.agentes || [];
 
-    // Limpiar datos anidados
-    const cleanDepartment = {
-      id: department.id,
-      name: department.name,
-      created_at: department.created_at,
-      updated_at: department.updated_at,
-    };
-
-    const cleanChat = {
-      id: firstChat.id,
-      created_at: firstChat.created_at,
-      updated_at: firstChat.updated_at,
-    };
-
-    const cleanAgents = agents.map(agent => ({
-      id: agent.id,
-      name: agent.name,
-      type: agent.type,
-      config: agent.config,
-      created_at: agent.created_at,
-      updated_at: agent.updated_at,
-    }));
-
     return {
       ok: true,
-      department: cleanDepartment,
-      chat: cleanChat,
-      agents: cleanAgents,
+      department: {
+        id: department.id,
+        name: department.name,
+        organizacion: { id: department.organizacion.id }
+      },
+      chat: {
+        id: firstChat.id
+      },
+      agents: agents.map(agent => ({
+        id: agent.id
+      }))
     };
   }
 }
