@@ -2,14 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { ClientMap } from './socket.type';  // Asumo que tienes un ClientMap que maneja las conexiones
-import { timeout } from 'rxjs';
-import { getAgentResponse } from 'src/services/agentServer';
+import { AgentService } from 'src/services/agentServer';
 
 @Injectable()
 export class SocketService {
   private socketServer: Server;
   private readonly connectedClients: ClientMap = new ClientMap();
   private readonly logger = new Logger(SocketService.name);
+
+  constructor(
+    private readonly agentService: AgentService
+  ) {}
 
   // Establecer el servidor de sockets
   setServer(server: Server) {
@@ -47,7 +50,7 @@ export class SocketService {
 
   async sendToBot(message: string, room: string, chatId: number) {
     this.socketServer.to(room).emit('typing', message);
-    const response = await getAgentResponse(message, { type: 'chat', chat_id: chatId });
+    const response = await this.agentService.getAgentResponse(message, { type: 'chat', chat_id: chatId });
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response });
     return;
   }
