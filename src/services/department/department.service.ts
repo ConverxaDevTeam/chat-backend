@@ -108,7 +108,7 @@ export class DepartmentService {
         // Crear agente
         const agent = manager.create(Agente, {
           name: 'Agente Default',
-          type: AgenteType.LLM1_ASISTENTE,
+          type: AgenteType.SOFIA_ASISTENTE,
           organization_id: organizationId,
           config: {
             instruccion: 'Eres un asistente para registrar las quejas de los usuarios'
