@@ -40,11 +40,7 @@ export class DepartmentController {
   @ApiOperation({ summary: 'Get or create default department with chat and agent' })
   async getDefaultDepartment(
     @Param('organizationId', ParseIntPipe) organizationId: number) {
-    const result = await this.departmentService.getDefaultDepartment(organizationId);
-    return {
-      ok: true,
-      ...result
-    };
+    return await this.departmentService.getDefaultDepartment(organizationId);
   }
 
   @Delete(':id')

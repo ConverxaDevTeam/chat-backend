@@ -8,6 +8,8 @@ import { Chat } from '@models/Chat.entity';
 import { LlmAgentService } from '../llm-agent/llm-agent.service';
 import { AgenteType } from 'src/interfaces/agent';
 import { User } from '@models/User.entity'; // Import User entity
+import { DataSource } from 'typeorm';
+import { Agente } from '@models/agent/Agente.entity';
 
 @Injectable()
 export class DepartmentService {
@@ -19,6 +21,7 @@ export class DepartmentService {
     @InjectRepository(Chat)
     private readonly chatRepository: Repository<Chat>,
     private readonly llmAgentService: LlmAgentService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createDepartmentDto: CreateDepartmentDto): Promise<Departamento> {
@@ -72,55 +75,82 @@ export class DepartmentService {
   }
 
   async getDefaultDepartment(organizationId: number) {
-    // Verificar que la organización existe
-    const organization = await this.organizationRepository.findOne({
-      where: { id: organizationId },
-    });
+    // Buscar departamento con sus relaciones en una sola consulta
+    let department = await this.departmentRepository
+      .createQueryBuilder('department')
+      .leftJoinAndSelect('department.chats', 'chat')
+      .leftJoinAndSelect('chat.agentes', 'agente')
+      .where('department.organization_id = :organizationId', { organizationId })
+      .orderBy('department.created_at', 'ASC')
+      .getOne();
 
-    if (!organization) {
-      throw new NotFoundException('La organización no existe');
-    }
-
-    // Buscar el primer departamento de la organización
-    let department = await this.departmentRepository.findOne({
-      where: { organizacion: { id: organizationId } },
-      relations: ['chats', 'chats.agentes'],
-    });
-
-    // Si no existe, crear uno nuevo
+    // Si no existe, crear todo en una transacción
     if (!department) {
-      department = await this.create({
-        name: 'Departamento Default',
-        organizacion_id: organizationId,
+      department = await this.dataSource.transaction(async (manager) => {
+        // Crear departamento
+        const newDepartment = manager.create(Departamento, {
+          name: 'Departamento Default',
+          organizacion: { id: organizationId }, // Usar la relación en lugar del ID directo
+        });
+        await manager.save(newDepartment);
+
+        // Crear agente
+        const agent = manager.create(Agente, {
+          name: 'Agente Default',
+          type: AgenteType.LLM1_ASISTENTE,
+          organization_id: organizationId,
+        });
+        await manager.save(agent);
+
+        // Crear chat con el agente
+        const chat = manager.create(Chat, {
+          nombre: 'Chat Default',
+          descripcion: 'Chat creado automáticamente',
+          departamento: newDepartment,
+          agentes: [agent],
+        });
+        await manager.save(chat);
+
+        // Retornar departamento con sus relaciones ya creadas
+        newDepartment.chats = [chat];
+        chat.agentes = [agent];
+        return newDepartment;
       });
     }
 
-    // Buscar el primer chat del departamento
-    let chat = department.chats?.[0];
+    // Extraer datos sin anidación
+    const firstChat = department.chats[0];
+    const agents = firstChat.agentes || [];
 
-    // Si no existe chat o agente, crearlos
-    if (!chat || !chat.agentes?.length) {
-      // Crear agente default
-      const agent = await this.llmAgentService.createAgent({
-        name: 'Agente Default',
-        type: AgenteType.LLM1_ASISTENTE,
-        organization_id: organizationId,
-      });
+    // Limpiar datos anidados
+    const cleanDepartment = {
+      id: department.id,
+      name: department.name,
+      created_at: department.created_at,
+      updated_at: department.updated_at,
+    };
 
-      // Crear chat default
-      chat = await this.chatRepository.save({
-        nombre: 'Chat Default',
-        descripcion: 'Chat creado automáticamente',
-        departamento: department,
-        agentes: [agent],
-      });
-    }
+    const cleanChat = {
+      id: firstChat.id,
+      created_at: firstChat.created_at,
+      updated_at: firstChat.updated_at,
+    };
+
+    const cleanAgents = agents.map(agent => ({
+      id: agent.id,
+      name: agent.name,
+      type: agent.type,
+      config: agent.config,
+      created_at: agent.created_at,
+      updated_at: agent.updated_at,
+    }));
 
     return {
-      department,
-      chat,
-      agent: chat.agentes,
-      integrations: [], // TODO: Implementar integrations si es necesario
+      ok: true,
+      department: cleanDepartment,
+      chat: cleanChat,
+      agents: cleanAgents,
+      integrations: [], // TODO: Implementar integrations
     };
   }
 }
