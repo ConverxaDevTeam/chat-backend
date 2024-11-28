@@ -1,12 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from '@modules/department/dto/create-department.dto';
 import { Organization } from '@models/Organization.entity';
 import { Chat } from '@models/Chat.entity';
 import { AgenteType } from 'src/interfaces/agent';
-import { DataSource } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 
 interface DefaultDepartmentDataInterface {
@@ -26,6 +25,8 @@ export class DepartmentService {
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
     @InjectRepository(Chat)
+    private readonly chatRepository: Repository<Chat>,
+    @Inject(DataSource)
     private readonly dataSource: DataSource,
   ) {}
 
@@ -109,6 +110,9 @@ export class DepartmentService {
           name: 'Agente Default',
           type: AgenteType.LLM1_ASISTENTE,
           organization_id: organizationId,
+          config: {
+            instruccion: 'Eres un asistente para registrar las quejas de los usuarios'
+          },
         });
         await manager.save(agent);
 
