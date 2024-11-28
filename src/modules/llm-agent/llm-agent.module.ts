@@ -10,5 +10,6 @@ import { Departamento } from '@models/Departamento.entity';
   imports: [TypeOrmModule.forFeature([Agente, Chat, Departamento])],
   controllers: [LlmAgentController],
   providers: [LlmAgentService],
+  exports: [LlmAgentService],
 })
 export class LlmAgentModule {}

@@ -25,10 +25,8 @@ export class LlmAgentController {
   @Post('/')
   async createAgent(
     @Body() createAgentDto: CreateAgentDto, // El body incluirá `organizacion_id`
-    @Req() request: Request,
   ): Promise<Agente> {
-    const { organization_id } = createAgentDto;
-    return this.llmAgentService.createAgent(createAgentDto, organization_id);
+    return this.llmAgentService.createAgent(createAgentDto);
   }
 
   @ApiBody({ type: CreateAgentDto })
