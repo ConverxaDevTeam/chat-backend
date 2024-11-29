@@ -36,14 +36,9 @@ export class AgentManagerService {
   }
 
   async updateAgent(id: number, updateData: Partial<Agente>): Promise<Agente> {
-    const agente = await this.agenteRepository.findOne({
-      where: { id }
+    return await this.agenteRepository.save({
+      id,
+      ...updateData,
     });
-    if (!agente) {
-      throw new Error(`Agente con ID ${id} no encontrado`);
-    }
-
-    Object.assign(agente, updateData);
-    return await this.agenteRepository.save(agente);
   }
 }
