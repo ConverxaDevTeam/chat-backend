@@ -13,6 +13,7 @@ import { SocketModule } from '@modules/socket/socket.module';
 import { EmailModule } from '@modules/email/email.module';
 import { LlmAgentModule } from './modules/llm-agent/llm-agent.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { DepartmentModule } from './modules/department/department.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
     SocketModule,
     EmailModule,
     LlmAgentModule,
+    DepartmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

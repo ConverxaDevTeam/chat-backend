@@ -27,25 +27,25 @@ export class LlmAgentService {
       }
       agent = await this.createAgent({
         name: 'default agent',
-        type: AgenteType.LLM1_ASISTENTE,
+        type: AgenteType.SOFIA_ASISTENTE,
         organization_id: organizacion_id,
         config: {
           instruccion: 'Eres un asistente para registrar las quejas de los usuarios'
         },
-      }, organizacion_id);
+      });
     }
     return agent;
   }
 
   // Crear un nuevo agente
-  async createAgent(data: CreateAgentDto, organizacion_id: number): Promise<Agente> {
-    const { chat_id, departamento_id, ...rest } = data;
+  async createAgent(data: CreateAgentDto): Promise<Agente> {
+    const { chat_id, departamento_id, organization_id, ...rest } = data;
   
     // Verificar o crear Chat predeterminado
     const chat = await this.getOrCreateDefaultChat(chat_id);
   
     // Verificar o crear Departamento predeterminado
-    const departamento = await this.getOrCreateDefaultDepartamento(organizacion_id, departamento_id);
+    const departamento = await this.getOrCreateDefaultDepartamento(organization_id, departamento_id);
   
     // Crear el agente
     const newAgent = this.agentRepository.create({
