@@ -39,7 +39,6 @@ export class AgentManagerService {
     const agente = await this.agenteRepository.findOne({
       where: { id }
     });
-
     if (!agente) {
       throw new Error(`Agente con ID ${id} no encontrado`);
     }

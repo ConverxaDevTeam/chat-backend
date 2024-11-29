@@ -1,11 +1,12 @@
 import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { AgenteType } from 'src/interfaces/agent';
 
 export class CreateAgentDto {
   @IsString()
   name: string;
 
   @IsString()
-  type: string;
+  type: AgenteType;
 
   @IsNumber()
   organization_id: number;
