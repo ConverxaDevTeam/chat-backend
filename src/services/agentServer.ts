@@ -1,18 +1,32 @@
-import { timeout } from "rxjs";
-
 class DummyAgent {
-  constructor(private agentId: number) {
-    console.log(`Agent ${agentId} created`);
+  constructor(private identifier: agentIdentifier) {
+    if (identifier.type === 'chat') {
+      console.log(`Chat Agent created for chat_id: ${identifier.chat_id}`);
+    } else {
+      console.log(`Threat Agent created for threat_id: ${identifier.threat_id}`);
+    }
   }
   
   async response(message: string): Promise<string> {
     await new Promise(resolve => setTimeout(resolve, 800));
-    return Promise.resolve(`Dummy response to: ${message}`);
+    const agentType = this.identifier.type === 'chat' ? 'Chat' : 'Threat';
+    return Promise.resolve(`${agentType} Agent response to: ${message}`);
   }
 }
 
-export const getAgentResponse = async (agent_id:number, message: string): Promise<string> => {
-  const agente = new DummyAgent(agent_id);
+interface ChatAgentIdentifier {
+  chat_id?: number;
+  type: 'chat'
+}
+interface ThreatAgentIdentifier {
+  threat_id?: string;
+  type: 'threat'
+}
+type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier
+/*** puede venir con chat_id o con threat_id uno de los dos es necesario */
+export const getAgentResponse = async (message: string, identifier: agentIdentifier): Promise<string> => {
+  
+  const agente = new DummyAgent(identifier);
   
   return await agente.response(message)
 }

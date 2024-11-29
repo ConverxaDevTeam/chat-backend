@@ -45,10 +45,10 @@ export class SocketService {
     this.connectedClients.removeClient(socketId);
   }
 
-  async sendToBot(message: string, room:string, botId:number) {
+  async sendToBot(message: string, room: string, chatId: number) {
     this.socketServer.to(room).emit('typing', message);
-    const response = await getAgentResponse(botId, message)
+    const response = await getAgentResponse(message, { type: 'chat', chat_id: chatId });
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response });
-    return
+    return;
   }
 }
