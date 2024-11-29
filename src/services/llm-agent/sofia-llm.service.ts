@@ -66,7 +66,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  public async getResponse(threadId: string): Promise<string> {
+  private async getResponse(threadId: string): Promise<string> {
     const messages = await this.openai.beta.threads.messages.list(threadId);
     const lastMessage = messages.data[0];
 
