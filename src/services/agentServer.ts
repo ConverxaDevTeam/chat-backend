@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AgentConfig, agentIdentifier } from "src/interfaces/agent";
+import {
+  AgentConfig,
+  agentIdentifier,
+  AgentIdentifierType,
+  ChatAgentIdentifier,
+  StartAgentConfig,
+  RunAgentConfig,
+} from "src/interfaces/agent";
 import { SofiaLLMService } from "./llm-agent/sofia-llm.service";
 import { Agente } from "@models/agent/Agente.entity";
 import { Repository } from "typeorm";
@@ -9,6 +16,7 @@ import { Repository } from "typeorm";
 interface AgentResponse {
   message: string;
   threadId?: string;
+  agentId?: string;
 }
 
 /**
@@ -17,9 +25,9 @@ interface AgentResponse {
  * @param name nombre del agente
  * @returns configuracion del agente
  */
-function setAgentConfig(config: Record<string, any>, name: string): AgentConfig {
+function setStartAgentConfig(config: Record<string, any>, name: string): StartAgentConfig {
   if (!config.instruccion) {
-    throw new Error("No se pudo obtener la instruccion del agente");
+    throw new Error("No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name");
   }
   return {
     instruccion: config.instruccion,
@@ -49,28 +57,41 @@ export class AgentService {
    */
   async getAgentResponse(message: string, identifier: agentIdentifier): Promise<AgentResponse> {
     let agenteConfig: AgentConfig | null = null;
-    if (identifier.type === "chat") {
-      const result = await this.agenteRepository
+    if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
+      console.log('Identifier:', identifier);
+      const queryBuilder = this.agenteRepository
         .createQueryBuilder('agente')
         .select(['agente.config', 'agente.name'])
         .leftJoin('agente.chat', 'chat')
-        .where('chat.id = :chatId', { chatId: identifier.chat_id })
-        .getOne();
-      
+        .where('chat.id = :chatId', { chatId: (identifier as ChatAgentIdentifier).chatId });
+
+
+      const result = await queryBuilder.getOne();
       if (!result) {
         throw new Error("No hay un agente configurado para este chat");
       }
-      
-      agenteConfig = setAgentConfig(result.config, result.name);
+
+      agenteConfig = setStartAgentConfig(result.config, result.name);
+    }
+
+    if (identifier.type === AgentIdentifierType.TEST) {
+      agenteConfig = {
+        agentId: identifier.agentId,
+        threadId: identifier.threatId
+      } as RunAgentConfig;
     }
 
     if (!agenteConfig) {
       throw new Error("No se pudo obtener la configuracion del agente");
     }
-    
+
     const llmService = new SofiaLLMService(identifier, agenteConfig);
     await llmService.init();
     const response = await llmService.response(message);
-    return { message: response, threadId: llmService.getThreadId() };
+    const responseObj: AgentResponse = { message: response, threadId: llmService.getThreadId()};
+    if ([AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
+      responseObj.agentId = llmService.getAgentId();
+    }
+    return responseObj;
   }
 }

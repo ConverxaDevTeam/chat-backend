@@ -4,25 +4,39 @@ export enum AgenteType {
   GROK = 'grok',
 }
 
+export enum AgentIdentifierType {
+  CHAT = 'chat',
+  CHAT_TEST = 'chatTest',
+  THREAT = 'threat',
+  TEST = 'test',
+}
+
 export interface ChatAgentIdentifier {
-  chat_id?: number;
-  type: 'chat';
+  chatId?: number;
+  type: AgentIdentifierType.CHAT | AgentIdentifierType.CHAT_TEST;
 }
 
 export interface ThreatAgentIdentifier {
-  threat_id?: string;
-  type: 'threat';
+  threatId?: string;
+  type: AgentIdentifierType.THREAT;
 }
 
 export interface TestAgentIdentifier {
-  threat_id: string;
+  threatId: string;
+  agentId: string;
   agent: AgenteType;
-  type: 'test';
+  type: AgentIdentifierType.TEST;
 }
 
-export interface AgentConfig {
+export interface StartAgentConfig {
   instruccion: string;
   name?: string;
 }
 
-export type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier;
+export interface RunAgentConfig {
+  agentId: string;
+  threadId: string;
+}
+export type AgentConfig = StartAgentConfig | RunAgentConfig;
+
+export type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier | TestAgentIdentifier;

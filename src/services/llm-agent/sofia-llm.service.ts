@@ -1,10 +1,10 @@
 import OpenAI from 'openai';
-import { AgentConfig, agentIdentifier } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, RunAgentConfig, StartAgentConfig } from 'src/interfaces/agent';
 import { BaseAgent } from './base-agent';
 
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
-  private assistant: OpenAI.Beta.Assistant | null = null;
+  private assistantId: string | null = null;
 
   constructor(
     identifier: agentIdentifier,
@@ -21,15 +21,21 @@ export class SofiaLLMService extends BaseAgent {
   }
 
   protected async initializeAgent(): Promise<void> {
-    if (!this.assistant) {
-      console.log(this.agenteConfig);
-      if (!this.agenteConfig) throw new Error("No se pudo obtener la configuracion del agente");
-      this.assistant = await this.openai.beta.assistants.create({
-        name: this.agenteConfig.name,
-        instructions: this.getContextualizedInstructions() + '\n' + this.agenteConfig.instruccion,
+    if (this.assistantId) return;
+    console.log(this.agenteConfig);
+    if ((this.agenteConfig as StartAgentConfig)?.instruccion) {
+      const assistant = await this.openai.beta.assistants.create({
+        name: (this.agenteConfig as StartAgentConfig).name,
+        instructions: this.getContextualizedInstructions() + '\n' + (this.agenteConfig as StartAgentConfig).instruccion,
         model: 'gpt-4o-mini',
       });
+      this.assistantId = assistant.id;
+      this.threadId = await this.createThread();
+      return;
     }
+    if (!(this.agenteConfig as RunAgentConfig)?.threadId) throw new Error("No se pudo obtener la configuracion del agente");  
+    this.threadId = (this.agenteConfig as RunAgentConfig).threadId;
+    this.assistantId = (this.agenteConfig as RunAgentConfig).agentId;
   }
 
   protected async createThread(): Promise<string> {
@@ -38,21 +44,19 @@ export class SofiaLLMService extends BaseAgent {
     return thread.id;
   }
 
-  protected async addMessageToThread(threadId: string, message: string): Promise<void> {
-    await this.openai.beta.threads.messages.create(threadId, {
+  protected async addMessageToThread(message: string): Promise<void> {
+    if (!this.threadId) throw new Error('Thread not initialized');
+    await this.openai.beta.threads.messages.create(this.threadId, {
       role: 'user',
       content: message,
     });
   }
 
-  protected async runAgent(threadId: string): Promise<void> {
-    if (!this.assistant) {
-      throw new Error('Assistant not initialized');
-    }
-
-    const run = await this.openai.beta.threads.runs.create(threadId, {
-      assistant_id: this.assistant.id,
-    });
+  protected async runAgent(threadId: string): Promise<any> {
+    const run = await this.openai.beta.threads.runs.create(
+      threadId,
+      { assistant_id: this.assistantId! }
+    );
 
     // Wait for the run to complete
     let runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
@@ -66,8 +70,9 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  private async getResponse(threadId: string): Promise<string> {
-    const messages = await this.openai.beta.threads.messages.list(threadId);
+  protected async getResponse(): Promise<string> {
+    if (!this.threadId) throw new Error('Thread not initialized');
+    const messages = await this.openai.beta.threads.messages.list(this.threadId);
     const lastMessage = messages.data[0];
 
     if (lastMessage.role !== 'assistant') {
@@ -80,11 +85,15 @@ export class SofiaLLMService extends BaseAgent {
   async response(message: string, context?: any): Promise<string> {
     await this.initializeAgent();
 
-    const threadId = await this.createThread();
-    await this.addMessageToThread(threadId, message);
-    await this.runAgent(threadId);
-    const response = await this.getResponse(threadId);
+    await this.addMessageToThread( message);
+    await this.runAgent(this.threadId!);
+    const response = await this.getResponse();
 
     return this.validateResponse(response);
+  }
+
+  public getAgentId(): string {
+    if (!this.assistantId) throw new Error('Assistant not initialized');
+    return this.assistantId;
   }
 }

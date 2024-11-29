@@ -4,7 +4,6 @@ import { Logger } from '@nestjs/common';
 import { SocketService } from './socket.service';
 import { AuthService } from '@modules/auth/auth.service';
 import { agentIdentifier } from 'src/interfaces/agent';
-import { identity } from 'rxjs';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',

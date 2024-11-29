@@ -3,7 +3,8 @@ import { agentIdentifier } from 'src/interfaces/agent';
 export abstract class BaseAgent {
   protected threadId: string | null = null;
 
-  constructor(protected identifier: agentIdentifier) {}
+  constructor(protected identifier: agentIdentifier) {
+  }
 
   public getThreadId(): string | undefined {
     return this.threadId || undefined;
