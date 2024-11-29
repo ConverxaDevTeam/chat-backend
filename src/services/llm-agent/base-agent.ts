@@ -3,12 +3,8 @@ import { agentIdentifier } from 'src/interfaces/agent';
 export abstract class BaseAgent {
   protected threadId: string | null = null;
 
-  constructor(private identifier: agentIdentifier) {
-    if (this.identifier.type === 'chat') {
-      this.initializeAgent();
-      return
-    }
-  }
+  constructor(protected identifier: agentIdentifier) {}
+
   public getThreadId(): string | undefined {
     return this.threadId || undefined;
   }
@@ -48,5 +44,11 @@ export abstract class BaseAgent {
   protected getContextualizedInstructions(): string {
     const baseInstructions = '';
     return  baseInstructions;
+  }
+
+  async init(): Promise<void> {
+    if (this.identifier.type === 'chat') {
+      await this.initializeAgent();
+    }
   }
 }

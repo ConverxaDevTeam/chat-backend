@@ -3,6 +3,8 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { SocketService } from './socket.service';
 import { AuthService } from '@modules/auth/auth.service';
+import { agentIdentifier } from 'src/interfaces/agent';
+import { identity } from 'rxjs';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -48,14 +50,17 @@ export class SocketGateway {
   }
 
   @SubscribeMessage('message')
-  handleMessage(@MessageBody() data:{room:string, text:string}, @ConnectedSocket() client: Socket): void {
-    const { room, text } = data;
-    console.log(JSON.stringify(data));
+  handleMessage(
+    @MessageBody() data:{room:string, text:string, identifier?:agentIdentifier},
+    @ConnectedSocket() client: Socket
+  ): void {
+    const { room, text, identifier } = data;
     if (!client.rooms.has(room)) {
       return;
     }
     if (room.startsWith('test-chat-')) {
-      this.socketService.sendToBot(text, room, parseInt(room.replace('test-chat-', '')));
+      if (!identifier) throw new Error('No se pudo obtener el identificador del agente');
+      this.socketService.sendToBot(text, room, identifier);
     }
   }
 }

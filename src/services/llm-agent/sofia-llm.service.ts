@@ -1,9 +1,7 @@
-import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
 import { AgentConfig, agentIdentifier } from 'src/interfaces/agent';
 import { BaseAgent } from './base-agent';
 
-@Injectable()
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
   private assistant: OpenAI.Beta.Assistant | null = null;
@@ -18,8 +16,13 @@ export class SofiaLLMService extends BaseAgent {
     });
   }
 
+  async init(): Promise<void> {
+    await super.init();
+  }
+
   protected async initializeAgent(): Promise<void> {
     if (!this.assistant) {
+      console.log(this.agenteConfig);
       if (!this.agenteConfig) throw new Error("No se pudo obtener la configuracion del agente");
       this.assistant = await this.openai.beta.assistants.create({
         name: this.agenteConfig.name,
@@ -63,7 +66,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  protected async getResponse(threadId: string): Promise<string> {
+  public async getResponse(threadId: string): Promise<string> {
     const messages = await this.openai.beta.threads.messages.list(threadId);
     const lastMessage = messages.data[0];
 

@@ -50,11 +50,12 @@ export class AgentService {
   async getAgentResponse(message: string, identifier: agentIdentifier): Promise<AgentResponse> {
     let agenteConfig: AgentConfig | null = null;
     if (identifier.type === "chat") {
-      const result = await this.agenteRepository.findOne({ 
-        select: ['config', 'name'],
-        where: { chat: { id: identifier.chat_id } },
-        relations: ['chat'] 
-      });
+      const result = await this.agenteRepository
+        .createQueryBuilder('agente')
+        .select(['agente.config', 'agente.name'])
+        .leftJoin('agente.chat', 'chat')
+        .where('chat.id = :chatId', { chatId: identifier.chat_id })
+        .getOne();
       
       if (!result) {
         throw new Error("No hay un agente configurado para este chat");
@@ -63,18 +64,13 @@ export class AgentService {
       agenteConfig = setAgentConfig(result.config, result.name);
     }
 
-    if (agenteConfig === null) {
-      throw new Error("No se pudo obtener el agente");
+    if (!agenteConfig) {
+      throw new Error("No se pudo obtener la configuracion del agente");
     }
     
-    const agente = new SofiaLLMService(identifier, agenteConfig);
-    
-    const response = await agente.response(message);
-
-    const threadId = agente.getThreadId();
-    return {
-      message: response,
-      threadId
-    };
+    const llmService = new SofiaLLMService(identifier, agenteConfig);
+    await llmService.init();
+    const response = await llmService.response(message);
+    return { message: response, threadId: llmService.getThreadId() };
   }
 }
