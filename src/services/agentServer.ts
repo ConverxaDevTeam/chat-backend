@@ -1,32 +1,97 @@
-class DummyAgent {
-  constructor(private identifier: agentIdentifier) {
-    if (identifier.type === 'chat') {
-      console.log(`Chat Agent created for chat_id: ${identifier.chat_id}`);
-    } else {
-      console.log(`Threat Agent created for threat_id: ${identifier.threat_id}`);
-    }
-  }
-  
-  async response(message: string): Promise<string> {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    const agentType = this.identifier.type === 'chat' ? 'Chat' : 'Threat';
-    return Promise.resolve(`${agentType} Agent response to: ${message}`);
-  }
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  AgentConfig,
+  agentIdentifier,
+  AgentIdentifierType,
+  ChatAgentIdentifier,
+  StartAgentConfig,
+  RunAgentConfig,
+} from "src/interfaces/agent";
+import { SofiaLLMService } from "./llm-agent/sofia-llm.service";
+import { Agente } from "@models/agent/Agente.entity";
+import { Repository } from "typeorm";
+
+/*** puede venir con chat_id o con threat_id uno de los dos es necesario */
+interface AgentResponse {
+  message: string;
+  threadId?: string;
+  agentId?: string;
 }
 
-interface ChatAgentIdentifier {
-  chat_id?: number;
-  type: 'chat'
+/**
+ * Funcion que setea la configuracion del agente
+ * @param config configuracion del agente
+ * @param name nombre del agente
+ * @returns configuracion del agente
+ */
+function setStartAgentConfig(config: Record<string, any>, name: string): StartAgentConfig {
+  if (!config.instruccion) {
+    throw new Error("No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name");
+  }
+  return {
+    instruccion: config.instruccion,
+    name: name
+  };
 }
-interface ThreatAgentIdentifier {
-  threat_id?: string;
-  type: 'threat'
-}
-type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier
-/*** puede venir con chat_id o con threat_id uno de los dos es necesario */
-export const getAgentResponse = async (message: string, identifier: agentIdentifier): Promise<string> => {
-  
-  const agente = new DummyAgent(identifier);
-  
-  return await agente.response(message)
+
+/**
+ * Servicio que se encarga de obtener la respuesta del agente
+ */
+@Injectable()
+export class AgentService {
+  /**
+   * Constructor del servicio
+   * @param agenteRepository repositorio de agentes
+   */
+  constructor(
+    @InjectRepository(Agente)
+    private readonly agenteRepository: Repository<Agente>
+  ) {}
+
+  /**
+   * Obtiene la respuesta del agente
+   * @param message mensaje a enviar al agente
+   * @param identifier identificador del agente
+   * @returns respuesta del agente
+   */
+  async getAgentResponse(message: string, identifier: agentIdentifier): Promise<AgentResponse> {
+    let agenteConfig: AgentConfig | null = null;
+    if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
+      console.log('Identifier:', identifier);
+      const queryBuilder = this.agenteRepository
+        .createQueryBuilder('agente')
+        .select(['agente.config', 'agente.name'])
+        .leftJoin('agente.chat', 'chat')
+        .where('chat.id = :chatId', { chatId: (identifier as ChatAgentIdentifier).chatId });
+
+
+      const result = await queryBuilder.getOne();
+      if (!result) {
+        throw new Error("No hay un agente configurado para este chat");
+      }
+
+      agenteConfig = setStartAgentConfig(result.config, result.name);
+    }
+
+    if (identifier.type === AgentIdentifierType.TEST) {
+      agenteConfig = {
+        agentId: identifier.agentId,
+        threadId: identifier.threatId
+      } as RunAgentConfig;
+    }
+
+    if (!agenteConfig) {
+      throw new Error("No se pudo obtener la configuracion del agente");
+    }
+
+    const llmService = new SofiaLLMService(identifier, agenteConfig);
+    await llmService.init();
+    const response = await llmService.response(message);
+    const responseObj: AgentResponse = { message: response, threadId: llmService.getThreadId()};
+    if ([AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
+      responseObj.agentId = llmService.getAgentId();
+    }
+    return responseObj;
+  }
 }

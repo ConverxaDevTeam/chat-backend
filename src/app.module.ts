@@ -12,6 +12,7 @@ import { OrganizationModule } from '@modules/organization/organization.module';
 import { SocketModule } from '@modules/socket/socket.module';
 import { EmailModule } from '@modules/email/email.module';
 import { LlmAgentModule } from './modules/llm-agent/llm-agent.module';
+import { DepartmentModule } from './modules/department/department.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { LlmAgentModule } from './modules/llm-agent/llm-agent.module';
     SocketModule,
     EmailModule,
     LlmAgentModule,
+    DepartmentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

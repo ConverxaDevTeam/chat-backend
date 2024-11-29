@@ -3,10 +3,17 @@ import { SocketGateway } from './socket.gateway';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SocketService } from './socket.service';
 import { AuthModule } from '@modules/auth/auth.module';
+import { AgentService } from 'src/services/agentServer';
+import { Agente } from '@models/agent/Agente.entity';
+import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([]), forwardRef(() => AuthModule)],
-  providers: [SocketGateway, SocketService],
+  imports: [
+    TypeOrmModule.forFeature([Agente]), 
+    forwardRef(() => AuthModule),
+    LlmAgentModule
+  ],
+  providers: [SocketGateway, SocketService, AgentService],
   exports: [SocketService],
 })
 export class SocketModule {}
