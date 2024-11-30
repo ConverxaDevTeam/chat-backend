@@ -57,8 +57,6 @@ export class LlmAgentService {
     return this.agentRepository.save(newAgent);
   }
   
-  
-
   // Actualizar un agente existente
   async updateAgent(id: number, data: Partial<Agente>): Promise<Agente> {
     const agent = await this.getAgentById(id);

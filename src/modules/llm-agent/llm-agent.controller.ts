@@ -34,10 +34,6 @@ export class LlmAgentController {
     @Param('id') id: number,
     @Body() updateAgentDto: Partial<CreateAgentDto>,
   ): Promise<Agente> {
-    const agenteData: Partial<Agente> = {
-      ...updateAgentDto,
-      type: updateAgentDto.type as AgenteType,
-    };
-    return this.agentManagerService.updateAgent(id, agenteData);
+    return this.agentManagerService.updateAgent(id, updateAgentDto);
   }
 }
