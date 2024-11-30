@@ -20,8 +20,20 @@ import { IntegrationModule } from '@modules/integration/integration.module';
   imports: [
     ConfigModule.forRoot(ConfigModuleOptions),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'files'),
-      serveRoot: '/files',
+      rootPath: join(__dirname, '..', '..', 'assets'),
+      serveRoot: '/assets',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'chats'),
+      serveRoot: '/sofia-chat',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'logos'),
+      serveRoot: '/logos',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'scripts'),
+      serveRoot: '/scripts',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

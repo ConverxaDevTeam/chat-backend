@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fs from 'fs';
 import { join } from 'path';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class IntegrationService {
@@ -18,6 +19,7 @@ export class IntegrationService {
     private readonly integrationRepository: Repository<Integration>,
     private readonly organizationService: OrganizationService,
     private readonly departmentService: DepartmentService,
+    private readonly configService: ConfigService,
   ) {}
 
   async getIntegrationWebChat(user: User, organizationId: number, departamentoId: number): Promise<Integration> {
@@ -57,20 +59,21 @@ export class IntegrationService {
       newIntegration.departamento = departamento;
       await this.integrationRepository.save(newIntegration);
 
-      const script = `
-      (async () => {
-        const sofiaChat = await import('http://localhost:3001/files/sofia-chat.js');
-        const config = {
-          title: 'Sofia Chat',
-          description: 'Bienvenido a nuestro chat con IA',
-          logo: 'http://localhost:3000/demo/default-user-avatar.png',
-          radius: 10,
-          fontFamily: 'Arial, sans-serif',
-          theme: 'Light',
-        };
-        sofiaChat.default.init(config);
-      })();
-    `;
+      const script = `(async () => {
+  const sofiaChat = await import('${this.configService.get<string>('url.files')}/files/sofia-chat.js');
+  const config = {
+    id: '${newIntegration.id}',
+    title: '${config.title}',
+    sub_title: '${config.sub_title}',
+    description: '${config.description}',
+    logo: '${this.configService.get<string>('url.files')}/logos/${config.logo}',
+    horizontal_logo: '${this.configService.get<string>('url.files')}/logos/${config.horizontal_logo}',
+    icon_chat: '${this.configService.get<string>('url.files')}/assets/${config.icon_chat}',
+    icon_close: '${this.configService.get<string>('url.files')}/assets/${config.icon_close}',
+  };
+  sofiaChat.default.init(config);
+})();
+`;
 
       const scriptPath = join(process.cwd(), 'uploads', 'chats', `sofia-chat-${newIntegration.id}.js`);
 

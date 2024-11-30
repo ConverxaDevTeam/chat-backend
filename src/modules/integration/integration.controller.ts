@@ -16,9 +16,16 @@ export class IntegrationController {
   @Get('web-chat/:organizationId/:departamentoId')
   async getIntegrationWebChat(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('departamentoId') departamentoId: number) {
     const integration = await this.integrationService.getIntegrationWebChat(user, organizationId, departamentoId);
+    const integrationConfig = JSON.parse(integration.config);
+
+    const integrationFormatted = {
+      ...integration,
+      config: integrationConfig,
+    };
+
     return {
       ok: true,
-      integration,
+      integration: integrationFormatted,
     };
   }
 }
