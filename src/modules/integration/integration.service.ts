@@ -60,7 +60,7 @@ export class IntegrationService {
       await this.integrationRepository.save(newIntegration);
 
       const script = `(async () => {
-  const sofiaChat = await import('${this.configService.get<string>('url.files')}/files/sofia-chat.js');
+  const sofiaChat = await import('${this.configService.get<string>('url.files')}/files/chat.min.js');
   const config = {
     id: '${newIntegration.id}',
     title: '${config.title}',
@@ -75,7 +75,7 @@ export class IntegrationService {
 })();
 `;
 
-      const scriptPath = join(process.cwd(), 'uploads', 'chats', `sofia-chat-${newIntegration.id}.js`);
+      const scriptPath = join(process.cwd(), 'uploads', 'chats', `CI${newIntegration.id}.js`);
 
       fs.writeFileSync(scriptPath, script);
 
