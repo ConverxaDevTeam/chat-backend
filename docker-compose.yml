@@ -12,6 +12,8 @@ services:
       - '3001:3001'
     networks:
       - sofia_chat_network
+    volumes:
+      - ./uploads:/app/uploads
 
 networks:
   sofia_chat_network:

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
@@ -29,5 +29,24 @@ export class UserOrganizationService {
       },
       relations: ['organization'],
     });
+  }
+
+  async getUserOrganization(user: User, organizationId: number): Promise<UserOrganization> {
+    const userOrganization = await this.userOrganizationRepository.findOne({
+      where: {
+        user: {
+          id: user.id,
+        },
+        organization: {
+          id: organizationId,
+        },
+      },
+    });
+
+    if (!userOrganization) {
+      throw new NotFoundException('No perteneces a esta organización');
+    }
+
+    return userOrganization;
   }
 }
