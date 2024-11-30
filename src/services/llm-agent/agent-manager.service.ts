@@ -4,12 +4,14 @@ import { Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
 import { AgenteType } from 'src/interfaces/agent';
+import { SocketService } from '@modules/socket/socket.service';
 
 @Injectable()
 export class AgentManagerService {
   constructor(
     @InjectRepository(Agente)
-    private readonly agenteRepository: Repository<Agente>
+    private readonly agenteRepository: Repository<Agente>,
+    private readonly socketService: SocketService
   ) {}
 
   async getAgentById(id: number): Promise<Agente> {
@@ -36,9 +38,14 @@ export class AgentManagerService {
   }
 
   async updateAgent(id: number, updateData: Partial<Agente>): Promise<Agente> {
-    return await this.agenteRepository.save({
+    const updatedAgent = await this.agenteRepository.save({
       id,
       ...updateData,
     });
+
+    // Emit socket event for agent update to specific room
+    const room = `test-chat-${updatedAgent.id}`;
+    this.socketService.sendToRoom('agent:updated', room);
+    return updatedAgent;
   }
 }

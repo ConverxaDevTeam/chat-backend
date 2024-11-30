@@ -10,7 +10,6 @@ export class ClientMap {
 
   public addClient(id: string, socket: Socket, userId: number): void {
     this.connectedClients.set(id, { socket, userId });
-    console.log(`Client added: ${id} for user ${userId}`);
   }
 
   public getClientById(id: string): ClientData | undefined {
@@ -19,8 +18,7 @@ export class ClientMap {
 
   public getClientsByUserId(userId: number): ClientData[] {
     const clientsWithUserId: ClientData[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    for (const [id, clientData] of this.connectedClients) {
+    for (const [_, clientData] of this.connectedClients) {
       if (clientData.userId === userId) {
         clientsWithUserId.push(clientData);
       }
