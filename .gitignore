@@ -2,9 +2,6 @@
 /dist
 /node_modules
 .env
-uploads/avatar/*
-!uploads/avatar/default-user-avatar.png
-!uploads/avatar/index.html
 # Logs
 logs
 *.log
@@ -38,3 +35,17 @@ postgresdb
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# Uploader files
+uploads/assets/*
+!uploads/assets/icon-chat.png
+!uploads/assets/icon-close.png
+!uploads/assets/index.html
+
+uploads/logos/*
+!uploads/logos/logo.png
+!uploads/logos/horizontal-logo.png
+!uploads/logos/index.html
+
+uploads/chats/*
+!uploads/chats/index.html

@@ -7,6 +7,7 @@ import { UserService } from '@modules/user/user.service';
 import { EmailService } from '@modules/email/email.service';
 import { UserOrganizationService } from './UserOrganization.service';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
+import { User } from '@models/User.entity';
 
 @Injectable()
 export class OrganizationService {
@@ -41,5 +42,10 @@ export class OrganizationService {
     });
 
     return organization;
+  }
+
+  async getRolInOrganization(user: User, organizationId: number): Promise<OrganizationRoleType> {
+    const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
+    return userOrganization.role;
   }
 }

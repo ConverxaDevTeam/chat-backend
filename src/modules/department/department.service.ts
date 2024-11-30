@@ -63,4 +63,19 @@ export class DepartmentService {
       throw new NotFoundException(`Department with ID ${id} not found`);
     }
   }
+
+  async getDepartmentByOrganizationAndDepartmentId(organizationId: number, departmentId: number): Promise<Departamento> {
+    const department = await this.departmentRepository.findOne({
+      where: {
+        organizacion: { id: organizationId },
+        id: departmentId,
+      },
+    });
+
+    if (!department) {
+      throw new NotFoundException(`Department with ID ${departmentId} not found`);
+    }
+
+    return department;
+  }
 }

@@ -12,11 +12,29 @@ import { OrganizationModule } from '@modules/organization/organization.module';
 import { SocketModule } from '@modules/socket/socket.module';
 import { EmailModule } from '@modules/email/email.module';
 import { LlmAgentModule } from './modules/llm-agent/llm-agent.module';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { DepartmentModule } from './modules/department/department.module';
+import { IntegrationModule } from '@modules/integration/integration.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(ConfigModuleOptions),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'assets'),
+      serveRoot: '/assets',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'chats'),
+      serveRoot: '/sofia-chat',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'logos'),
+      serveRoot: '/logos',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'scripts'),
+      serveRoot: '/scripts',
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -39,6 +57,7 @@ import { DepartmentModule } from './modules/department/department.module';
     EmailModule,
     LlmAgentModule,
     DepartmentModule,
+    IntegrationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

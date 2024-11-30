@@ -19,4 +19,7 @@ export default (): any => ({
     password: process.env.NODEMAILER_PASS,
     from: process.env.NODEMAILER_FROM,
   },
+  url: {
+    files: process.env.URL_FILES,
+  },
 });

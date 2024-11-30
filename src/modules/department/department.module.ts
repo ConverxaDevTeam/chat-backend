@@ -7,13 +7,10 @@ import { Organization } from '@models/Organization.entity';
 import { AuthModule } from '@modules/auth/auth.module';
 import { Chat } from '@models/Chat.entity';
 import { LlmAgentModule } from '../llm-agent/llm-agent.module';
+import { User } from '@models/User.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Departamento, Organization, Chat]),
-    AuthModule,
-    LlmAgentModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Departamento, Organization, Chat, User]), AuthModule, LlmAgentModule],
   controllers: [DepartmentController],
   providers: [DepartmentService],
   exports: [DepartmentService],
