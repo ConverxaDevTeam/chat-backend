@@ -64,9 +64,9 @@ export class AgentService {
         .select(['agente.config', 'agente.name'])
         .leftJoin('agente.departamento', 'departamento')
         .where('departamento.id = :departamentoId', { departamentoId: (identifier as ChatAgentIdentifier).departamentoId });
-
-
+      console.log('Query:', queryBuilder.getSql());
       const result = await queryBuilder.getOne();
+      console.log('Result:', result);
       if (!result) {
         throw new Error("No hay un agente configurado para este departamento");
       }

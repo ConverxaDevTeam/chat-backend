@@ -53,13 +53,18 @@ export class SocketGateway {
     @MessageBody() data:{room:string, text:string, identifier?:agentIdentifier},
     @ConnectedSocket() client: Socket
   ): void {
-    const { room, text, identifier } = data;
-    if (!client.rooms.has(room)) {
-      return;
+    try {
+      const { room, text, identifier } = data;
+      if (!client.rooms.has(room)) {
+        return;
+      }
+      if (room.startsWith('test-chat-')) {
+        if (!identifier) throw new Error('No se pudo obtener el identificador del agente');
+        this.socketService.sendToChatBot(text, room, identifier);
+      }
+    } catch (error) {
+      this.logger.error(`Error handling message: ${error}`);
     }
-    if (room.startsWith('test-chat-')) {
-      if (!identifier) throw new Error('No se pudo obtener el identificador del agente');
-      this.socketService.sendToChatBot(text, room, identifier);
-    }
+    
   }
 }
