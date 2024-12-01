@@ -64,6 +64,7 @@ export class SocketGateway {
       }
     } catch (error) {
       this.logger.error(`Error handling message: ${error}`);
+      this.server.emit('error', { message: 'Error handling message' });
     }
     
   }

@@ -5,7 +5,6 @@ import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
 import { AgenteType } from 'src/interfaces/agent';
 import { SocketService } from '@modules/socket/socket.service';
-import { SocketService } from '@modules/socket/socket.service';
 
 @Injectable()
 export class AgentManagerService {
