@@ -10,6 +10,7 @@ import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
   imports: [
+    
     TypeOrmModule.forFeature([Agente, Departamento]),
     forwardRef(() => SocketModule),
     forwardRef(() => AuthModule)

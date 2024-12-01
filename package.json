@@ -18,7 +18,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "build:chat": "npx babel src/infrastructure/template/web-chat.js --out-file uploads/scripts/chat.min.js --presets=@babel/preset-env --minified"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^1.11.2",
@@ -55,6 +56,8 @@
     "winston-syslog": "^2.7.0"
   },
   "devDependencies": {
+    "@babel/cli": "^7.25.9",
+    "@babel/preset-env": "^7.26.0",
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@nestjs/testing": "^10.0.0",

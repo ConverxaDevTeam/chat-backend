@@ -48,6 +48,7 @@ jobs:
             NODEMAILER_USER=${{ secrets.NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.NODEMAILER_PASS }}
             NODEMAILER_FROM=${{ secrets.NODEMAILER_FROM }}
+            URL_FILES=${{ secrets.URL_FILES }}
             EOF
             docker-compose build
             docker-compose down -v

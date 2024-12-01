@@ -44,7 +44,6 @@ export class SocketService {
   }
 
   async sendToChatBot(message: string, room: string, identifier: agentIdentifier) {
-    console.log('Sending message to bot:', message);
     this.socketServer.to(room).emit('typing', message);
     const {message: response, ...conf} = await this.agentService.getAgentResponse(message, identifier);
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });

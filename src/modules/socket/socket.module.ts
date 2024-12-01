@@ -11,7 +11,7 @@ import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
   imports: [
     TypeOrmModule.forFeature([Agente]), 
     forwardRef(() => AuthModule),
-    LlmAgentModule
+    forwardRef(() => LlmAgentModule)
   ],
   providers: [SocketGateway, SocketService, AgentService],
   exports: [SocketService],
