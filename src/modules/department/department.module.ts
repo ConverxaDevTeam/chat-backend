@@ -5,12 +5,11 @@ import { DepartmentController } from './department.controller';
 import { Departamento } from '@models/Departamento.entity';
 import { Organization } from '@models/Organization.entity';
 import { AuthModule } from '@modules/auth/auth.module';
-import { Chat } from '@models/Chat.entity';
 import { LlmAgentModule } from '../llm-agent/llm-agent.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Departamento, Organization, Chat]),
+    TypeOrmModule.forFeature([Departamento, Organization]),
     AuthModule,
     LlmAgentModule,
   ],
