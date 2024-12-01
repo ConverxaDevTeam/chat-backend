@@ -59,7 +59,7 @@ export class SocketGateway {
     }
     if (room.startsWith('test-chat-')) {
       if (!identifier) throw new Error('No se pudo obtener el identificador del agente');
-      this.socketService.sendToBot(text, room, identifier);
+      this.socketService.sendToChatBot(text, room, identifier);
     }
   }
 }
