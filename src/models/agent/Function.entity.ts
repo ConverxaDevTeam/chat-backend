@@ -2,14 +2,15 @@ import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../Base.entity';
 import { Agente } from './Agente.entity';
 import { Autenticador } from './Autenticador.entity';
+import { FunctionType } from 'src/interfaces/agent';
 
 @Entity({ name: 'funcion' })
 export class Funcion extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: false })
   name: string;
 
-  @Column({ type: 'enum', enum: ['type1', 'type2'], nullable: false }) // Ajusta los tipos del enum según tu aplicación
-  type: string;
+  @Column({ type: 'enum', enum: FunctionType, nullable: false }) // Ajusta los tipos del enum según tu aplicación
+  type: FunctionType;
 
   @Column({ type: 'json', nullable: true })
   config: Record<string, unknown>;

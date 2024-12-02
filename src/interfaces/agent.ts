@@ -11,6 +11,10 @@ export enum AgentIdentifierType {
   TEST = 'test',
 }
 
+export enum FunctionType {
+  API_ENDPOINT = 'apiEndpoint',
+}
+
 export interface ChatAgentIdentifier {
   departamentoId?: number;
   type: AgentIdentifierType.CHAT | AgentIdentifierType.CHAT_TEST;

@@ -4,7 +4,6 @@ import { Funcion } from './Function.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Departamento } from '@models/Departamento.entity';
 
-
 @Entity({ name: 'agente' })
 export class Agente extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: false })
