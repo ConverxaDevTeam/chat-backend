@@ -7,9 +7,10 @@ import { Organization } from '@models/Organization.entity';
 import { AuthModule } from '@modules/auth/auth.module';
 import { LlmAgentModule } from '../llm-agent/llm-agent.module';
 import { User } from '@models/User.entity';
+import { Agente } from '@models/agent/Agente.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Departamento, Organization, User]), AuthModule, LlmAgentModule],
+  imports: [TypeOrmModule.forFeature([Departamento, Organization, User, Agente]), AuthModule, LlmAgentModule],
   controllers: [DepartmentController],
   providers: [DepartmentService],
   exports: [DepartmentService],

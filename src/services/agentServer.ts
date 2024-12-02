@@ -1,16 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  AgentConfig,
-  agentIdentifier,
-  AgentIdentifierType,
-  StartAgentConfig,
-  RunAgentConfig,
-  ChatAgentIdentifier,
-} from "src/interfaces/agent";
-import { SofiaLLMService } from "./llm-agent/sofia-llm.service";
-import { Agente } from "@models/agent/Agente.entity";
-import { Repository } from "typeorm";
+import { AgentConfig, agentIdentifier, AgentIdentifierType, StartAgentConfig, RunAgentConfig, ChatAgentIdentifier, AgenteType } from 'src/interfaces/agent';
+import { SofiaLLMService } from './llm-agent/sofia-llm.service';
+import { Agente } from '@models/agent/Agente.entity';
+import { Repository } from 'typeorm';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -27,11 +20,11 @@ interface AgentResponse {
  */
 function setStartAgentConfig(config: Record<string, any>, name: string): StartAgentConfig {
   if (!config.instruccion) {
-    throw new Error("No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name");
+    throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
   return {
     instruccion: config.instruccion,
-    name: name
+    name: name,
   };
 }
 
@@ -46,7 +39,7 @@ export class AgentService {
    */
   constructor(
     @InjectRepository(Agente)
-    private readonly agenteRepository: Repository<Agente>
+    private readonly agenteRepository: Repository<Agente>,
   ) {}
 
   /**
@@ -68,27 +61,36 @@ export class AgentService {
       const result = await queryBuilder.getOne();
       console.log('Result:', result);
       if (!result) {
-        throw new Error("No hay un agente configurado para este departamento");
+        // Create a new agent for this department
+        const newAgent = await this.agenteRepository.save({
+          name: 'Asistente por defecto',
+          type: AgenteType.SOFIA_ASISTENTE,
+          departamento: { id: (identifier as ChatAgentIdentifier).departamentoId },
+          config: {
+            instruccion: 'Eres un asistente virtual para atender consultas de usuarios',
+          },
+        });
+        agenteConfig = setStartAgentConfig(newAgent.config, newAgent.name);
+      } else {
+        agenteConfig = setStartAgentConfig(result.config, result.name);
       }
-
-      agenteConfig = setStartAgentConfig(result.config, result.name);
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {
       agenteConfig = {
         agentId: identifier.agentId,
-        threadId: identifier.threatId
+        threadId: identifier.threatId,
       } as RunAgentConfig;
     }
 
     if (!agenteConfig) {
-      throw new Error("No se pudo obtener la configuracion del agente");
+      throw new Error('No se pudo obtener la configuracion del agente');
     }
 
     const llmService = new SofiaLLMService(identifier, agenteConfig);
     await llmService.init();
     const response = await llmService.response(message);
-    const responseObj: AgentResponse = { message: response, threadId: llmService.getThreadId()};
+    const responseObj: AgentResponse = { message: response, threadId: llmService.getThreadId() };
     if ([AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       responseObj.agentId = llmService.getAgentId();
     }
