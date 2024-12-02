@@ -39,6 +39,7 @@ export class IntegrationService {
     const integration = await this.integrationRepository.findOne({
       where: {
         departamento: { id: departamentoId },
+        type: IntegrationType.CHAT_WEB,
       },
     });
 
