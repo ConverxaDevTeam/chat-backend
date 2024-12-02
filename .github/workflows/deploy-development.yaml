@@ -49,6 +49,7 @@ jobs:
             NODEMAILER_PASS=${{ secrets.NODEMAILER_PASS }}
             NODEMAILER_FROM=${{ secrets.NODEMAILER_FROM }}
             URL_FILES=${{ secrets.URL_FILES }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             EOF
             docker-compose build
             docker-compose down -v
