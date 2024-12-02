@@ -49,10 +49,7 @@ export class SocketGateway {
   }
 
   @SubscribeMessage('message')
-  handleMessage(
-    @MessageBody() data:{room:string, text:string, identifier?:agentIdentifier},
-    @ConnectedSocket() client: Socket
-  ): void {
+  handleMessage(@MessageBody() data: { room: string; text: string; identifier?: agentIdentifier }, @ConnectedSocket() client: Socket): void {
     try {
       const { room, text, identifier } = data;
       if (!client.rooms.has(room)) {
@@ -66,6 +63,5 @@ export class SocketGateway {
       this.logger.error(`Error handling message: ${error}`);
       this.server.emit('error', { message: 'Error handling message' });
     }
-    
   }
 }
