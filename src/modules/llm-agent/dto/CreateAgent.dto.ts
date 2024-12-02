@@ -13,10 +13,6 @@ export class CreateAgentDto {
 
   @IsOptional()
   @IsNumber()
-  chat_id?: number;
-
-  @IsOptional()
-  @IsNumber()
   departamento_id?: number;
 
   @IsOptional()

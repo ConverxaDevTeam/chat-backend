@@ -12,7 +12,7 @@ export enum AgentIdentifierType {
 }
 
 export interface ChatAgentIdentifier {
-  chatId?: number;
+  departamentoId?: number;
   type: AgentIdentifierType.CHAT | AgentIdentifierType.CHAT_TEST;
 }
 
