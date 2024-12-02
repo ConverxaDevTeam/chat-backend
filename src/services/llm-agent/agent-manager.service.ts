@@ -37,15 +37,26 @@ export class AgentManagerService {
     return await this.agenteRepository.save(agente);
   }
 
-  async updateAgent(id: number, updateData: Partial<Agente>): Promise<Agente> {
-    const updatedAgent = await this.agenteRepository.save({
-      id,
-      ...updateData,
+  async updateAgent(id: number, updateData: Partial<Agente>, userId: number): Promise<Agente> {
+    const agente = await this.agenteRepository.findOne({
+      where: { id }
     });
 
-    // Emit socket event for agent update to specific room
-    const room = `test-chat-${updatedAgent.id}`;
-    this.socketService.sendToRoom('agent:updated', room);
+    if (!agente) {
+      throw new Error(`Agente con ID ${id} no encontrado`);
+    }
+
+    Object.assign(agente, updateData);
+    const updatedAgent = await this.agenteRepository.save(agente);
+    
+    // Emit update event to the specific chat room
+    const room = `test-chat-${id}`;
+    this.socketService.sendMessageToRoom(room, 'agent:updated', {
+      agentId: id,
+      updatedBy: userId,
+      updates: updateData
+    });
+    
     return updatedAgent;
   }
 }

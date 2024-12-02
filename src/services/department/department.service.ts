@@ -4,15 +4,19 @@ import { Repository, DataSource } from 'typeorm';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from '@modules/department/dto/create-department.dto';
 import { Organization } from '@models/Organization.entity';
-import { Chat } from '@models/Chat.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
 
-interface DefaultDepartmentDataInterface {
+interface DepartmentWithAgents {
   id: number;
   name: string;
   organizacion: { id: number };
-  chats: { id: number; agentes: { id: number }[] }[];
+  agentes: { id: number }[];
+}
+
+interface DepartmentResponse {
+  ok: boolean;
+  department: DepartmentWithAgents;
 }
 
 @Injectable()
@@ -20,12 +24,10 @@ export class DepartmentService {
   constructor(
     @InjectRepository(Departamento)
     private readonly departmentRepository: Repository<Departamento>,
-    @InjectRepository(Departamento)
-    private readonly defaultDepartmentRepository: Repository<DefaultDepartmentDataInterface>,
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
-    @InjectRepository(Chat)
-    private readonly chatRepository: Repository<Chat>,
+    @InjectRepository(Agente)
+    private readonly agentRepository: Repository<Agente>,
     @Inject(DataSource)
     private readonly dataSource: DataSource,
   ) {}
@@ -49,14 +51,14 @@ export class DepartmentService {
 
   async findAll(): Promise<Departamento[]> {
     return this.departmentRepository.find({
-      relations: ['organizacion', 'chats'],
+      relations: ['organizacion', 'departamentos'],
     });
   }
 
   async findOne(id: number): Promise<Departamento> {
     const department = await this.departmentRepository.findOne({
       where: { id },
-      relations: ['organizacion', 'chats'],
+      relations: ['organizacion', 'departamentos'],
     });
 
     if (!department) {
@@ -69,7 +71,7 @@ export class DepartmentService {
   async findByOrganization(organizationId: number): Promise<Departamento[]> {
     return this.departmentRepository.find({
       where: { organizacion: { id: organizationId } },
-      relations: ['chats'],
+      relations: ['departamentos'],
     });
   }
 
@@ -80,82 +82,61 @@ export class DepartmentService {
     }
   }
 
-  async getDefaultDepartment(organizationId: number) {
-    // Buscar solo los IDs necesarios
-    let department = await this.defaultDepartmentRepository
-      .createQueryBuilder('department')
-      .select(['department.id', 'department.name'])
-      .leftJoin('department.organizacion', 'organizacion')
-      .addSelect(['organizacion.id'])
-      .leftJoin('department.chats', 'chat')
-      .addSelect('chat.id')
-      .leftJoin('chat.agentes', 'agente')
-      .addSelect('agente.id')
-      .where('department.organization_id = :organizationId', { organizationId })
-      .orderBy('department.created_at', 'ASC')
-      .getOne();
+  async getDefaultDepartment(organizationId: number): Promise<DepartmentResponse> {
+    // First check if department exists
+    let department = await this.departmentRepository.findOne({
+      where: {
+        name: 'default',
+        organizacion: { id: organizationId },
+      },
+      relations: ['organizacion', 'agentes'],
+    });
 
-    // Si no existe, crear todo en una transacción
+    // If department doesn't exist, create it
     if (!department) {
-      department = await this.dataSource.transaction(async (manager) => {
-        // Crear departamento
-        const newDepartment = manager.create(Departamento, {
-          name: 'Departamento Default',
-          organizacion: { id: organizationId },
-        });
-        await manager.save(newDepartment);
+      department = await this.departmentRepository.save({
+        name: 'default',
+        organizacion: { id: organizationId },
+      });
 
-        // Crear agente
-        const agent = manager.create(Agente, {
-          name: 'Agente Default',
-          type: AgenteType.SOFIA_ASISTENTE,
-          organization_id: organizationId,
-          config: {
-            instruccion: 'Eres un asistente para registrar las quejas de los usuarios'
-          },
-        });
-        await manager.save(agent);
-
-        // Crear chat con el agente
-        const chat = manager.create(Chat, {
-          nombre: 'Chat Default',
-          descripcion: 'Chat creado automáticamente',
-          departamento: newDepartment,
-          agentes: [agent],
-        });
-        await manager.save(chat);
-
-        // Retornar solo los IDs necesarios
-        return {
-          id: newDepartment.id,
-          name: newDepartment.name,
-          organizacion: { id: newDepartment.organizacion.id },
-          chats: [{
-            id: chat.id,
-            agentes: [{
-              id: agent.id
-            }]
-          }]
-        };
+      // Refresh department to get relations
+      department = await this.departmentRepository.findOne({
+        where: { id: department.id },
+        relations: ['organizacion', 'agentes'],
       });
     }
 
-    const firstChat = department.chats[0];
-    const agents = firstChat.agentes || [];
+    if (department === null) {
+      throw new NotFoundException('Could not create default department');
+    }
+
+    // Check if agent exists for the department
+    const agents = department.agentes === null ? [] : department.agentes;
+
+    if (agents.length === 0) {
+      // Create agent if it doesn't exist
+      const agent = await this.agentRepository.save({
+        name: 'default agent',
+        departamento: { id: department.id },
+        type: AgenteType.SOFIA_ASISTENTE,
+        organization_id: organizationId,
+        config: {
+          instruccion: 'Eres un asistente para registrar las quejas de los usuarios',
+        },
+      });
+      agents.push(agent);
+    }
+
+    const departmentResponse: DepartmentWithAgents = {
+      id: department.id,
+      name: department.name,
+      organizacion: { id: department.organizacion.id },
+      agentes: agents.map((agent) => ({ id: agent.id })),
+    };
 
     return {
       ok: true,
-      department: {
-        id: department.id,
-        name: department.name,
-        organizacion: { id: department.organizacion.id }
-      },
-      chat: {
-        id: firstChat.id
-      },
-      agents: agents.map(agent => ({
-        id: agent.id
-      }))
+      department: departmentResponse,
     };
   }
 }
