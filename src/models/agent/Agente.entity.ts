@@ -1,8 +1,8 @@
 import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../Base.entity';
-import { Chat } from '../Chat.entity';
 import { Funcion } from './Function.entity';
 import { AgenteType } from 'src/interfaces/agent';
+import { Departamento } from '@models/Departamento.entity';
 
 
 @Entity({ name: 'agente' })
@@ -20,9 +20,9 @@ export class Agente extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   config: Record<string, unknown>;
 
-  @ManyToOne(() => Chat, (chat) => chat.agentes)
-  @JoinColumn({ name: 'chat_id' })
-  chat: Chat;
+  @ManyToOne(() => Departamento, (departamento) => departamento.agentes)
+  @JoinColumn({ name: 'departamento_id' })
+  departamento: Departamento;
 
   @OneToMany(() => Funcion, (funcion) => funcion.agente)
   funciones: Funcion[];

@@ -4,7 +4,6 @@ import { Repository, DataSource } from 'typeorm';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from '@modules/department/dto/create-department.dto';
 import { Organization } from '@models/Organization.entity';
-import { Chat } from '@models/Chat.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
 
@@ -12,7 +11,7 @@ interface DefaultDepartmentDataInterface {
   id: number;
   name: string;
   organizacion: { id: number };
-  chats: { id: number; agentes: { id: number }[] }[];
+  agentes: { id: number }[] 
 }
 
 @Injectable()
@@ -24,8 +23,6 @@ export class DepartmentService {
     private readonly defaultDepartmentRepository: Repository<DefaultDepartmentDataInterface>,
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
-    @InjectRepository(Chat)
-    private readonly chatRepository: Repository<Chat>,
     @Inject(DataSource)
     private readonly dataSource: DataSource,
   ) {}
@@ -49,14 +46,14 @@ export class DepartmentService {
 
   async findAll(): Promise<Departamento[]> {
     return this.departmentRepository.find({
-      relations: ['organizacion', 'chats'],
+      relations: ['organizacion', 'departamentos'],
     });
   }
 
   async findOne(id: number): Promise<Departamento> {
     const department = await this.departmentRepository.findOne({
       where: { id },
-      relations: ['organizacion', 'chats'],
+      relations: ['organizacion', 'departamentos'],
     });
 
     if (!department) {
@@ -69,7 +66,7 @@ export class DepartmentService {
   async findByOrganization(organizationId: number): Promise<Departamento[]> {
     return this.departmentRepository.find({
       where: { organizacion: { id: organizationId } },
-      relations: ['chats'],
+      relations: ['departamentos'],
     });
   }
 
@@ -87,9 +84,7 @@ export class DepartmentService {
       .select(['department.id', 'department.name'])
       .leftJoin('department.organizacion', 'organizacion')
       .addSelect(['organizacion.id'])
-      .leftJoin('department.chats', 'chat')
-      .addSelect('chat.id')
-      .leftJoin('chat.agentes', 'agente')
+      .leftJoin('department.agentes', 'agente')
       .addSelect('agente.id')
       .where('department.organization_id = :organizationId', { organizationId })
       .orderBy('department.created_at', 'ASC')
@@ -116,46 +111,28 @@ export class DepartmentService {
         });
         await manager.save(agent);
 
-        // Crear chat con el agente
-        const chat = manager.create(Chat, {
-          nombre: 'Chat Default',
-          descripcion: 'Chat creado automáticamente',
-          departamento: newDepartment,
-          agentes: [agent],
-        });
-        await manager.save(chat);
-
         // Retornar solo los IDs necesarios
         return {
           id: newDepartment.id,
           name: newDepartment.name,
           organizacion: { id: newDepartment.organizacion.id },
-          chats: [{
-            id: chat.id,
-            agentes: [{
-              id: agent.id
-            }]
+          agentes: [{
+            id: agent.id
           }]
         };
       });
     }
 
-    const firstChat = department.chats[0];
-    const agents = firstChat.agentes || [];
+    const agents = department?.agentes || [];
 
     return {
       ok: true,
       department: {
         id: department.id,
         name: department.name,
-        organizacion: { id: department.organizacion.id }
-      },
-      chat: {
-        id: firstChat.id
-      },
-      agents: agents.map(agent => ({
-        id: agent.id
-      }))
+        organizacion: { id: department.organizacion.id },
+        agentes: agents
+      }
     };
   }
 }

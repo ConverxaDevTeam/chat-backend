@@ -4,15 +4,15 @@ import {
   AgentConfig,
   agentIdentifier,
   AgentIdentifierType,
-  ChatAgentIdentifier,
   StartAgentConfig,
   RunAgentConfig,
+  ChatAgentIdentifier,
 } from "src/interfaces/agent";
 import { SofiaLLMService } from "./llm-agent/sofia-llm.service";
 import { Agente } from "@models/agent/Agente.entity";
 import { Repository } from "typeorm";
 
-/*** puede venir con chat_id o con threat_id uno de los dos es necesario */
+/*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
   message: string;
   threadId?: string;
@@ -62,13 +62,13 @@ export class AgentService {
       const queryBuilder = this.agenteRepository
         .createQueryBuilder('agente')
         .select(['agente.config', 'agente.name'])
-        .leftJoin('agente.chat', 'chat')
-        .where('chat.id = :chatId', { chatId: (identifier as ChatAgentIdentifier).chatId });
-
-
+        .leftJoin('agente.departamento', 'departamento')
+        .where('departamento.id = :departamentoId', { departamentoId: (identifier as ChatAgentIdentifier).departamentoId });
+      console.log('Query:', queryBuilder.getSql());
       const result = await queryBuilder.getOne();
+      console.log('Result:', result);
       if (!result) {
-        throw new Error("No hay un agente configurado para este chat");
+        throw new Error("No hay un agente configurado para este departamento");
       }
 
       agenteConfig = setStartAgentConfig(result.config, result.name);

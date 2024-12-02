@@ -43,15 +43,12 @@ export class SocketService {
     this.connectedClients.removeClient(socketId);
   }
 
-  async sendToBot(message: string, room: string, identifier: agentIdentifier) {
+  async sendToChatBot(message: string, room: string, identifier: agentIdentifier) {
     this.socketServer.to(room).emit('typing', message);
     const {message: response, ...conf} = await this.agentService.getAgentResponse(message, identifier);
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
-
-  sendToRoom(message: string, room: string) {
-    if (this.socketServer) {
-      this.socketServer.to(room).emit(message);
-    }
+  async sendMessageToRoom(room: string, type: string, data: unknown) {
+    this.socketServer.to(room).emit(type, data);
   }
 }
