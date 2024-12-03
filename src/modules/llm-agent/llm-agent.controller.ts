@@ -1,8 +1,7 @@
-import { Controller, Get, Post, Put, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from './dto/CreateAgent.dto';
-import { AgenteType } from 'src/interfaces/agent';
 import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
@@ -15,18 +14,14 @@ export class LlmAgentController {
 
   @ApiOperation({ summary: 'Obtiene un agente por su ID' })
   @Get('/:id')
-  async getAgentById(
-    @Param('id') id: number
-  ): Promise<Agente> {
+  async getAgentById(@Param('id') id: number): Promise<Agente> {
     return this.agentManagerService.getAgentById(id);
   }
 
   @ApiBody({ type: CreateAgentDto })
   @ApiOperation({ summary: 'Crea un nuevo agente' })
   @Post('/')
-  async createAgent(
-    @Body() createAgentDto: CreateAgentDto,
-  ): Promise<Agente> {
+  async createAgent(@Body() createAgentDto: CreateAgentDto): Promise<Agente> {
     return this.agentManagerService.createAgent(createAgentDto);
   }
 
@@ -34,11 +29,7 @@ export class LlmAgentController {
   @ApiBody({ type: CreateAgentDto })
   @ApiOperation({ summary: 'Actualiza un agente existente' })
   @Put('/:id')
-  async updateAgent(
-    @Param('id') id: number,
-    @Body() updateAgentDto: Partial<CreateAgentDto>,
-    @GetUser() user: User
-  ): Promise<Agente> {
+  async updateAgent(@Param('id') id: number, @Body() updateAgentDto: Partial<CreateAgentDto>, @GetUser() user: User): Promise<Agente> {
     return this.agentManagerService.updateAgent(id, updateAgentDto, user.id);
   }
 }

@@ -15,6 +15,7 @@ import { LlmAgentModule } from './modules/llm-agent/llm-agent.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { DepartmentModule } from './modules/department/department.module';
 import { IntegrationModule } from '@modules/integration/integration.module';
+import { FunctionModule } from '@modules/Function/function.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { IntegrationModule } from '@modules/integration/integration.module';
     LlmAgentModule,
     DepartmentModule,
     IntegrationModule,
+    FunctionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

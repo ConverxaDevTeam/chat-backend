@@ -2,7 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../Base.entity';
 import { Agente } from './Agente.entity';
 import { Autenticador } from './Autenticador.entity';
-import { FunctionType } from 'src/interfaces/agent';
+import { FunctionType } from 'src/interfaces/function.interface';
 
 @Entity({ name: 'funcion' })
 export class Funcion extends BaseEntity {
