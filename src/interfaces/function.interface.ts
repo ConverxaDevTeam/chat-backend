@@ -9,12 +9,21 @@ export enum HttpMethod {
   DELETE = 'DELETE',
 }
 
-export interface HttpRequestConfig {
-  url?: string;
-  method?: HttpMethod;
-  requestBody?: any; // Por ahora lo dejamos como any hasta implementar FunctionParam
+export interface FunctionParam {
+  id?: string;
+  name: string;
+  type: string;
+  description: string;
 }
 
+export interface HttpRequestFunction {
+  type: FunctionType.API_ENDPOINT;
+  config: {
+    url?: string;
+    method?: HttpMethod;
+    requestBody?: FunctionParam[];
+  };
+}
 export interface CreateFunctionDto {
   name: string;
   type: FunctionType;
@@ -23,10 +32,10 @@ export interface CreateFunctionDto {
   autenticadorId?: number;
 }
 
-export interface UpdateFunctionDto {
-  name?: string;
-  type?: FunctionType;
-  config?: Record<string, unknown>;
+export interface UpdateFunctionDto<T extends { type: string; config: Record<string, unknown> }> {
+  name: string;
+  type: T['type'];
+  config: T['config'];
   autenticadorId?: number;
 }
 
