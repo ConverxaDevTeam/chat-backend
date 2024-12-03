@@ -1,5 +1,12 @@
+import { IsString, IsEnum, IsObject, IsNumber, IsOptional, ValidateNested, IsArray, IsDate, IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
+
 export enum FunctionType {
   API_ENDPOINT = 'apiEndpoint',
+  // Futuros tipos de funciones
+  // WEBSOCKET = 'websocket',
+  // DATABASE = 'database',
+  // etc...
 }
 
 export enum HttpMethod {
@@ -9,43 +16,99 @@ export enum HttpMethod {
   DELETE = 'DELETE',
 }
 
-export interface FunctionParam {
+export class FunctionParam {
+  @IsOptional()
+  @IsString()
   id?: string;
+
+  @IsString()
   name: string;
+
+  @IsString()
   type: string;
+
+  @IsString()
   description: string;
 }
 
-export interface HttpRequestFunction {
-  type: FunctionType.API_ENDPOINT;
-  config: {
-    url?: string;
-    method?: HttpMethod;
-    requestBody?: FunctionParam[];
-  };
+export class HttpRequestConfig {
+  @IsOptional()
+  @IsString()
+  url?: string;
+
+  @IsOptional()
+  @IsEnum(HttpMethod)
+  method?: HttpMethod;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FunctionParam)
+  requestBody?: FunctionParam[];
 }
-export interface CreateFunctionDto {
+
+// Tipos de configuración según el tipo de función
+export type FunctionConfig = {
+  [FunctionType.API_ENDPOINT]: HttpRequestConfig;
+  // [FunctionType.WEBSOCKET]: WebSocketConfig;
+  // [FunctionType.DATABASE]: DatabaseConfig;
+  // etc...
+};
+
+export class BaseFunctionDto {
+  @IsString()
   name: string;
-  type: FunctionType;
-  config: Record<string, unknown>;
+
+  @IsNumber()
+  @IsNotEmpty()
   agentId: number;
+
+  @IsOptional()
+  @IsNumber()
   autenticadorId?: number;
 }
 
-export interface UpdateFunctionDto<T extends { type: string; config: Record<string, unknown> }> {
-  name: string;
-  type: T['type'];
-  config: T['config'];
-  autenticadorId?: number;
+export class CreateFunctionDto<T extends FunctionType = FunctionType> extends BaseFunctionDto {
+  @IsEnum(FunctionType)
+  type: T;
+
+  @IsObject()
+  @ValidateNested()
+  config: FunctionConfig[T];
 }
 
-export interface FunctionResponse {
+export class UpdateFunctionDto<T extends FunctionType = FunctionType> extends BaseFunctionDto {
+  @IsEnum(FunctionType)
+  type: T;
+
+  @IsObject()
+  @ValidateNested()
+  config: FunctionConfig[T];
+}
+
+export class FunctionResponse {
+  @IsNumber()
   id: number;
+
+  @IsString()
   name: string;
+
+  @IsEnum(FunctionType)
   type: FunctionType;
+
+  @IsObject()
   config: Record<string, unknown>;
+
+  @IsNumber()
   agentId: number;
+
+  @IsOptional()
+  @IsNumber()
   autenticadorId?: number;
+
+  @IsDate()
   createdAt: Date;
+
+  @IsDate()
   updatedAt: Date;
 }

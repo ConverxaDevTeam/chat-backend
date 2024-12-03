@@ -1,14 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
-import { FunctionService } from '../../services/function/function.service';
-import { CreateFunctionDto, HttpRequestFunction, UpdateFunctionDto } from '../../interfaces/function.interface';
-import { Funcion } from '../../models/agent/Function.entity';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, ValidationPipe } from '@nestjs/common';
+import { Funcion } from '@models/agent/Function.entity';
+import { FunctionService } from 'src/services/function/function.service';
+import { CreateFunctionDto, UpdateFunctionDto, FunctionType } from 'src/interfaces/function.interface';
 
 @Controller('functions')
 export class FunctionController {
   constructor(private readonly functionService: FunctionService) {}
 
   @Post()
-  create(@Body() createFunctionDto: CreateFunctionDto): Promise<Funcion> {
+  create(@Body(new ValidationPipe({ transform: true })) createFunctionDto: CreateFunctionDto<FunctionType>): Promise<Funcion> {
     return this.functionService.create(createFunctionDto);
   }
 
@@ -28,7 +28,7 @@ export class FunctionController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateFunctionDto: UpdateFunctionDto<HttpRequestFunction>): Promise<Funcion> {
+  update(@Param('id', ParseIntPipe) id: number, @Body(new ValidationPipe({ transform: true })) updateFunctionDto: UpdateFunctionDto<FunctionType>): Promise<Funcion> {
     return this.functionService.update(id, updateFunctionDto);
   }
 

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Funcion } from '../../models/agent/Function.entity';
-import { CreateFunctionDto, HttpRequestFunction, UpdateFunctionDto } from '../../interfaces/function.interface';
+import { CreateFunctionDto, UpdateFunctionDto, FunctionType } from '../../interfaces/function.interface';
 
 @Injectable()
 export class FunctionService {
@@ -11,8 +11,9 @@ export class FunctionService {
     private functionRepository: Repository<Funcion>,
   ) {}
 
-  async create(createFunctionDto: CreateFunctionDto): Promise<Funcion> {
-    const function_ = this.functionRepository.create(createFunctionDto);
+  async create(createFunctionDto: CreateFunctionDto<FunctionType>): Promise<Funcion> {
+    const function_ = this.functionRepository.create();
+    Object.assign(function_, createFunctionDto);
     return await this.functionRepository.save(function_);
   }
 
@@ -42,7 +43,7 @@ export class FunctionService {
     });
   }
 
-  async update(id: number, updateFunctionDto: UpdateFunctionDto<HttpRequestFunction>): Promise<Funcion> {
+  async update(id: number, updateFunctionDto: UpdateFunctionDto<FunctionType>): Promise<Funcion> {
     const function_ = await this.findOne(id);
     Object.assign(function_, updateFunctionDto);
     return await this.functionRepository.save(function_);
