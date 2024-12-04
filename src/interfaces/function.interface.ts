@@ -59,6 +59,10 @@ export class BaseFunctionDto {
   @IsString()
   name: string;
 
+  @IsString()
+  @IsOptional()
+  description?: string;
+
   @IsNumber()
   @IsNotEmpty()
   agentId: number;
@@ -92,6 +96,10 @@ export class FunctionResponse {
 
   @IsString()
   name: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @IsEnum(FunctionType)
   type: FunctionType;
