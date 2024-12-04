@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import * as fs from 'fs';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
+import { Departamento } from '@models/Departamento.entity';
 
 @Injectable()
 export class IntegrationService {
@@ -112,5 +113,10 @@ export class IntegrationService {
     });
 
     return integration;
+  }
+
+  async getDepartamentoById(id: number): Promise<Departamento | null> {
+    const departamento = await this.departmentService.getDepartamentoById(id);
+    return departamento;
   }
 }

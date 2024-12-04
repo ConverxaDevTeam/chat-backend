@@ -6,6 +6,10 @@ import { AuthService } from '@modules/auth/auth.service';
 import { agentIdentifier } from 'src/interfaces/agent';
 import { Server as ServerWs } from 'ws';
 import { IntegrationService } from '@modules/integration/integration.service';
+import { ChatUserService } from '@modules/chat-user/chat-user.service';
+import { ConversationService } from '@modules/conversation/conversation.service';
+import { ChatUser } from '@models/ChatUser.entity';
+import { Departamento } from '@models/Departamento.entity';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -72,15 +76,20 @@ export class SocketGateway {
 export class WebChatSocketGateway implements OnModuleInit {
   private server: ServerWs;
 
-  constructor(private readonly integrationService: IntegrationService) {}
+  constructor(
+    private readonly integrationService: IntegrationService,
+    private readonly chatUserService: ChatUserService,
+    private readonly conversationService: ConversationService,
+  ) {}
 
   onModuleInit() {
     this.server = new ServerWs({ noServer: true, path: '/api/socket/web-chat' });
 
     this.server.on('connection', (socket, request) => {
       const origin = request.headers['origin'] as string;
-      let init = false;
-      console.log('New Connection Initiated');
+      let init: boolean = false;
+      let chatUserActual: ChatUser;
+      let departamentoActual: Departamento;
 
       socket.on('message', async (data) => {
         const dataJson = JSON.parse(data.toString());
@@ -91,6 +100,13 @@ export class WebChatSocketGateway implements OnModuleInit {
             socket.close();
             return;
           }
+          const departamento = await this.integrationService.getDepartamentoById(integration.departamento.id);
+          if (!departamento) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Department not found' }));
+            socket.close();
+            return;
+          }
+          departamentoActual = departamento;
           const integrationConfig = JSON.parse(integration.config);
           if (!integrationConfig?.cors?.includes(origin)) {
             socket.send(JSON.stringify({ action: 'error', message: 'Origin not allowed' }));
@@ -98,11 +114,35 @@ export class WebChatSocketGateway implements OnModuleInit {
             return;
           }
           init = true;
+          if (!dataJson.user || !dataJson.user_secret) {
+            const chatUser = await this.chatUserService.createChatUser();
+            socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
+            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
+            chatUserActual = chatUser;
+            return;
+          }
+          const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
+          if (secretUser !== dataJson.user_secret || secretUser === null) {
+            const chatUser = await this.chatUserService.createChatUser();
+            socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
+            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
+            chatUserActual = chatUser;
+            return;
+          }
+          const chatUser = await this.chatUserService.findById(Number(dataJson.user));
+          if (chatUser) {
+            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
+            chatUserActual = chatUser;
+          }
         } else {
-          if (!init) {
+          if (!init || !chatUserActual) {
             socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
             socket.close();
             return;
+          }
+          if (dataJson.action === 'create-conversation') {
+            const conversation = await this.conversationService.createConversation(chatUserActual, departamentoActual);
+            socket.send(JSON.stringify({ action: 'conversation-created', conversation }));
           }
         }
       });
