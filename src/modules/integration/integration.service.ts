@@ -73,6 +73,7 @@ export class IntegrationService {
   const sofiaChat = await import('${this.configService.get<string>('url.files')}/files/chat.min.js');
   const config = {
     id: '${newIntegration.id}',
+    url: 'localhost:3001',
     title: '${config.title}',
     sub_title: '${config.sub_title}',
     description: '${config.description}',
