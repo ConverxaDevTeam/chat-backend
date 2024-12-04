@@ -6,6 +6,7 @@ import { CreateDepartmentDto } from '@modules/department/dto/create-department.d
 import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
+import { defaultDepartmentName } from 'src/interfaces/department';
 
 interface DepartmentWithAgents {
   id: number;
@@ -89,7 +90,7 @@ export class DepartmentService {
     // First check if department exists
     let department = await this.departmentRepository.findOne({
       where: {
-        name: 'default',
+        name: defaultDepartmentName,
         organizacion: { id: organizationId },
       },
       relations: ['organizacion', 'agentes', 'agentes.funciones'],
