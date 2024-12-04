@@ -100,32 +100,25 @@ export class SofiaLLMService extends BaseAgent {
 
       // Handle function calls
       if (runStatus.status === 'requires_action' && runStatus.required_action?.type === 'submit_tool_outputs') {
-        console.log('Function call required:', runStatus.required_action.submit_tool_outputs);
         const toolCalls = runStatus.required_action.submit_tool_outputs.tool_calls;
         const toolOutputs: Array<{ tool_call_id: string; output: string }> = [];
 
         for (const toolCall of toolCalls) {
-          console.log('Processing tool call:', toolCall);
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments);
 
           // Find the function configuration
           const functionConfig = (this.agenteConfig as StartAgentConfig).funciones?.find((f) => f.name.replace(' ', '_') === functionName && f.type === FunctionType.API_ENDPOINT);
 
-          console.log('Found function config:', functionConfig);
-
           if (functionConfig) {
             try {
               // Execute the API call based on the function configuration
-              console.log('Executing API call with args:', functionArgs);
               const response = await this.executeApiCall(functionConfig, functionArgs);
-              console.log('API response:', response);
               toolOutputs.push({
                 tool_call_id: toolCall.id,
                 output: JSON.stringify(response),
               });
             } catch (error) {
-              console.error('Error executing API call:', error);
               toolOutputs.push({
                 tool_call_id: toolCall.id,
                 output: JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
@@ -140,7 +133,6 @@ export class SofiaLLMService extends BaseAgent {
           }
         }
 
-        console.log('Submitting tool outputs:', toolOutputs);
         if (toolOutputs.length > 0) {
           await this.openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: toolOutputs });
         } else {
@@ -164,12 +156,6 @@ export class SofiaLLMService extends BaseAgent {
       throw new Error('URL is required for API endpoint function');
     }
 
-    console.log('Making API call:', {
-      url,
-      method: method || HttpMethod.GET,
-      args,
-    });
-
     const response = await fetch(url, {
       method: method || HttpMethod.GET,
       headers: {
@@ -177,9 +163,13 @@ export class SofiaLLMService extends BaseAgent {
       },
       body: method !== HttpMethod.GET ? JSON.stringify(args) : undefined,
     });
-
     if (!response.ok) {
-      throw new Error(`API call failed: ${response.statusText}`);
+      try {
+        const errorResponse = await response.json();
+        return JSON.stringify(errorResponse) || errorResponse;
+      } catch (error) {
+        throw new Error(`API call failed: ${response.statusText}`);
+      }
     }
 
     const data = await response.json();

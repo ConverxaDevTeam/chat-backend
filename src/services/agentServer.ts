@@ -23,7 +23,6 @@ function setStartAgentConfig(config: Record<string, any>, name: string, funcione
   if (!config.instruccion) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
-  console.log('config', config);
   return {
     instruccion: config.instruccion,
     name: name,
@@ -63,9 +62,7 @@ export class AgentService {
         .where('departamento.id = :departamentoId', { departamentoId: (identifier as ChatAgentIdentifier).departamentoId });
       const result = await queryBuilder.getOne();
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
-      console.log('result', result);
       agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones);
-      console.log('agenteConfig', agenteConfig);
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {
