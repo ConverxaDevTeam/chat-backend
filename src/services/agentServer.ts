@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AgentConfig, agentIdentifier, AgentIdentifierType, StartAgentConfig, RunAgentConfig, ChatAgentIdentifier, AgenteType } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, AgentIdentifierType, StartAgentConfig, RunAgentConfig, ChatAgentIdentifier } from 'src/interfaces/agent';
 import { SofiaLLMService } from './llm-agent/sofia-llm.service';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
+import { Funcion } from '@models/agent/Function.entity';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -18,13 +19,15 @@ interface AgentResponse {
  * @param name nombre del agente
  * @returns configuracion del agente
  */
-function setStartAgentConfig(config: Record<string, any>, name: string): StartAgentConfig {
+function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[]): StartAgentConfig {
   if (!config.instruccion) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
+  console.log('config', config);
   return {
     instruccion: config.instruccion,
     name: name,
+    funciones: funciones,
   };
 }
 
@@ -51,29 +54,18 @@ export class AgentService {
   async getAgentResponse(message: string, identifier: agentIdentifier): Promise<AgentResponse> {
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
-      console.log('Identifier:', identifier);
       const queryBuilder = this.agenteRepository
         .createQueryBuilder('agente')
         .select(['agente.config', 'agente.name'])
         .leftJoin('agente.departamento', 'departamento')
+        .leftJoin('agente.funciones', 'funciones')
+        .addSelect(['funciones.name', 'funciones.description', 'funciones.type', 'funciones.config'])
         .where('departamento.id = :departamentoId', { departamentoId: (identifier as ChatAgentIdentifier).departamentoId });
-      console.log('Query:', queryBuilder.getSql());
       const result = await queryBuilder.getOne();
-      console.log('Result:', result);
-      if (!result) {
-        // Create a new agent for this department
-        const newAgent = await this.agenteRepository.save({
-          name: 'Asistente por defecto',
-          type: AgenteType.SOFIA_ASISTENTE,
-          departamento: { id: (identifier as ChatAgentIdentifier).departamentoId },
-          config: {
-            instruccion: 'Eres un asistente virtual para atender consultas de usuarios',
-          },
-        });
-        agenteConfig = setStartAgentConfig(newAgent.config, newAgent.name);
-      } else {
-        agenteConfig = setStartAgentConfig(result.config, result.name);
-      }
+      if (!result) throw new Error('No se pudo obtener la configuracion del agente');
+      console.log('result', result);
+      agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones);
+      console.log('agenteConfig', agenteConfig);
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {

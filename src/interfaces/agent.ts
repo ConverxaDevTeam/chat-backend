@@ -1,3 +1,5 @@
+import { FunctionResponse } from './function.interface';
+
 export enum AgenteType {
   SOFIA_ASISTENTE = 'sofia_asistente',
   LLAMA = 'llama',
@@ -30,13 +32,15 @@ export interface TestAgentIdentifier {
 
 export interface StartAgentConfig {
   instruccion: string;
-  name?: string;
+  name: string;
+  funciones?: FunctionResponse[];
 }
 
 export interface RunAgentConfig {
   agentId: string;
   threadId: string;
 }
+
 export type AgentConfig = StartAgentConfig | RunAgentConfig;
 
 export type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier | TestAgentIdentifier;

@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsObject, IsNumber, IsOptional, ValidateNested, IsArray, IsDate, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsObject, IsNumber, IsOptional, ValidateNested, IsArray, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum FunctionType {
@@ -107,16 +107,7 @@ export class FunctionResponse {
   @IsObject()
   config: Record<string, unknown>;
 
-  @IsNumber()
-  agentId: number;
-
   @IsOptional()
   @IsNumber()
   autenticadorId?: number;
-
-  @IsDate()
-  createdAt: Date;
-
-  @IsDate()
-  updatedAt: Date;
 }
