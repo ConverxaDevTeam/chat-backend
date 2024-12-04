@@ -12,8 +12,12 @@ export class FunctionService {
   ) {}
 
   async create(createFunctionDto: CreateFunctionDto<FunctionType>): Promise<Funcion> {
+    const { agentId, ...rest } = createFunctionDto;
     const function_ = this.functionRepository.create();
-    Object.assign(function_, createFunctionDto);
+    Object.assign(function_, rest);
+    Object.assign(function_, {
+      agente: { id: agentId },
+    });
     return await this.functionRepository.save(function_);
   }
 
@@ -45,7 +49,11 @@ export class FunctionService {
 
   async update(id: number, updateFunctionDto: UpdateFunctionDto<FunctionType>): Promise<Funcion> {
     const function_ = await this.findOne(id);
-    Object.assign(function_, updateFunctionDto);
+    const { agentId, ...rest } = updateFunctionDto;
+    Object.assign(function_, {
+      ...rest,
+      agente: agentId ? { id: agentId } : function_.agente,
+    });
     return await this.functionRepository.save(function_);
   }
 
