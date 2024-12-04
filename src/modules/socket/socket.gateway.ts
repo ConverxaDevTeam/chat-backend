@@ -1,9 +1,11 @@
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import { SocketService } from './socket.service';
 import { AuthService } from '@modules/auth/auth.service';
 import { agentIdentifier } from 'src/interfaces/agent';
+import { Server as ServerWs } from 'ws';
+import { IntegrationService } from '@modules/integration/integration.service';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -63,5 +65,62 @@ export class SocketGateway {
       this.logger.error(`Error handling message: ${error}`);
       this.server.emit('error', { message: 'Error handling message' });
     }
+  }
+}
+
+@WebSocketGateway()
+export class WebChatSocketGateway implements OnModuleInit {
+  private server: ServerWs;
+
+  constructor(private readonly integrationService: IntegrationService) {}
+
+  onModuleInit() {
+    this.server = new ServerWs({ noServer: true, path: '/api/socket/web-chat' });
+
+    this.server.on('connection', (socket, request) => {
+      const origin = request.headers['origin'] as string;
+      let init = false;
+      console.log('New Connection Initiated');
+
+      socket.on('message', async (data) => {
+        const dataJson = JSON.parse(data.toString());
+        if (dataJson.action === 'init') {
+          const integration = await this.integrationService.getIntegrationWebChatById(dataJson.id);
+          if (!integration) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Integration not found' }));
+            socket.close();
+            return;
+          }
+          const integrationConfig = JSON.parse(integration.config);
+          if (!integrationConfig?.cors?.includes(origin)) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Origin not allowed' }));
+            socket.close();
+            return;
+          }
+          init = true;
+        } else {
+          if (!init) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
+            socket.close();
+            return;
+          }
+        }
+      });
+
+      socket.on('close', () => {
+        console.log('Connection Closed');
+      });
+    });
+  }
+
+  bindServer(server: any) {
+    server.on('upgrade', (request, socket, head) => {
+      console.log('Upgrade Request');
+      if (request.url === '/api/socket/web-chat') {
+        this.server.handleUpgrade(request, socket, head, (ws) => {
+          this.server.emit('connection', ws, request);
+        });
+      }
+    });
   }
 }

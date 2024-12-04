@@ -8,6 +8,7 @@ import * as pg from 'pg';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { winstonLogger } from '@infrastructure/loggers/winston.logger';
 import { HttpExceptionFilter } from '@infrastructure/filters/global-exception.filter';
+import { WebChatSocketGateway } from '@modules/socket/socket.gateway';
 
 export const logger = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production' ? winstonLogger : new Logger('backend-chat');
 
@@ -42,6 +43,9 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  await app.listen(3001);
+  const httpServer = await app.listen(3001);
+
+  const webChatSocketGateway = app.get(WebChatSocketGateway);
+  webChatSocketGateway.bindServer(httpServer);
 }
 bootstrap();
