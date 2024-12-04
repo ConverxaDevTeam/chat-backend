@@ -11,7 +11,10 @@ interface DepartmentWithAgents {
   id: number;
   name: string;
   organizacion: { id: number };
-  agentes: { id: number }[];
+  agentes: {
+    id: number;
+    funciones: { id: number; name: string }[];
+  }[];
 }
 
 interface DepartmentResponse {
@@ -89,7 +92,21 @@ export class DepartmentService {
         name: 'default',
         organizacion: { id: organizationId },
       },
-      relations: ['organizacion', 'agentes'],
+      relations: ['organizacion', 'agentes', 'agentes.funciones'],
+      select: {
+        id: true,
+        name: true,
+        organizacion: {
+          id: true,
+        },
+        agentes: {
+          id: true,
+          funciones: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     // If department doesn't exist, create it
@@ -102,7 +119,21 @@ export class DepartmentService {
       // Refresh department to get relations
       department = await this.departmentRepository.findOne({
         where: { id: department.id },
-        relations: ['organizacion', 'agentes'],
+        relations: ['organizacion', 'agentes', 'agentes.funciones'],
+        select: {
+          id: true,
+          name: true,
+          organizacion: {
+            id: true,
+          },
+          agentes: {
+            id: true,
+            funciones: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
     }
 
@@ -131,7 +162,10 @@ export class DepartmentService {
       id: department.id,
       name: department.name,
       organizacion: { id: department.organizacion.id },
-      agentes: agents.map((agent) => ({ id: agent.id })),
+      agentes: agents.map((agent) => ({
+        id: agent.id,
+        funciones: agent.funciones ? agent.funciones.map((funcion) => ({ id: funcion.id, name: funcion.name })) : [],
+      })),
     };
 
     return {
