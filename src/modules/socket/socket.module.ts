@@ -5,6 +5,8 @@ import { SocketService } from './socket.service';
 import { AuthModule } from '@modules/auth/auth.module';
 import { AgentService } from 'src/services/agentServer';
 import { Agente } from '@models/agent/Agente.entity';
+import { Funcion } from '@models/agent/Function.entity';
+import { Conversation } from '@models/Conversation.entity';
 import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
 import { IntegrationModule } from '@modules/integration/integration.module';
 import { ChatUserModule } from '@modules/chat-user/chat-user.module';
@@ -14,7 +16,7 @@ import { MessageModule } from '@modules/message/message.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Agente]),
+    TypeOrmModule.forFeature([Agente, Funcion, Conversation]),
     forwardRef(() => AuthModule),
     forwardRef(() => LlmAgentModule),
     forwardRef(() => IntegrationModule),

@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany, JoinColumn, ManyToOne } from 'typeorm';
+import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Organization } from './Organization.entity';
 import { Integration } from './Integration.entity';
@@ -20,6 +20,6 @@ export class Departamento extends BaseEntity {
   @OneToMany(() => Conversation, (ionversation) => ionversation.departamento)
   conversations: Conversation[];
 
-  @OneToMany(() => Agente, (agente) => agente.departamento)
-  agentes: Agente[];
+  @OneToOne(() => Agente, (agente) => agente.departamento)
+  agente: Agente;
 }

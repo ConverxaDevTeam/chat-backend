@@ -15,6 +15,8 @@ import { LlmAgentModule } from './modules/llm-agent/llm-agent.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { DepartmentModule } from './modules/department/department.module';
 import { IntegrationModule } from '@modules/integration/integration.module';
+import { FunctionModule } from '@modules/Function/function.module';
+import { FunctionParamModule } from '@modules/function-param/function-param.module';
 import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { MessageModule } from '@modules/message/message.module';
@@ -64,6 +66,8 @@ import { MessageModule } from '@modules/message/message.module';
     ChatUserModule,
     ConversationModule,
     MessageModule,
+    FunctionModule,
+    FunctionParamModule,
   ],
   controllers: [AppController],
   providers: [AppService],

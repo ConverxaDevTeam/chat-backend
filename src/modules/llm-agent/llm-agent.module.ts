@@ -9,12 +9,7 @@ import { SocketModule } from '@modules/socket/socket.module';
 import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
-  imports: [
-    
-    TypeOrmModule.forFeature([Agente, Departamento]),
-    forwardRef(() => SocketModule),
-    forwardRef(() => AuthModule)
-  ],
+  imports: [TypeOrmModule.forFeature([Agente, Departamento]), forwardRef(() => SocketModule), forwardRef(() => AuthModule)],
   controllers: [LlmAgentController],
   providers: [LlmAgentService, AgentManagerService],
   exports: [LlmAgentService, AgentManagerService],

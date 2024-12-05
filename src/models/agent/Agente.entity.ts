@@ -1,9 +1,8 @@
-import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, Column, OneToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../Base.entity';
 import { Funcion } from './Function.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Departamento } from '@models/Departamento.entity';
-
 
 @Entity({ name: 'agente' })
 export class Agente extends BaseEntity {
@@ -20,7 +19,7 @@ export class Agente extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   config: Record<string, unknown>;
 
-  @ManyToOne(() => Departamento, (departamento) => departamento.agentes)
+  @OneToOne(() => Departamento, (departamento) => departamento.agente)
   @JoinColumn({ name: 'departamento_id' })
   departamento: Departamento;
 
