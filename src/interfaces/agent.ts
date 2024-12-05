@@ -14,18 +14,25 @@ export enum AgentIdentifierType {
 }
 
 export interface ChatAgentIdentifier {
-  departamentoId?: number;
-  type: AgentIdentifierType.CHAT | AgentIdentifierType.CHAT_TEST;
+  agentId?: string;
+  type: AgentIdentifierType.CHAT;
+}
+
+export interface chatTestAgentIdentifier {
+  agentId: number;
+  type: AgentIdentifierType.CHAT_TEST;
 }
 
 export interface ThreatAgentIdentifier {
-  threatId?: string;
+  threatId: string;
+  agentId: string;
   type: AgentIdentifierType.THREAT;
 }
 
 export interface TestAgentIdentifier {
   threatId: string;
-  agentId: string;
+  LLMAgentId: string;
+  agentId: number;
   agent: AgenteType;
   type: AgentIdentifierType.TEST;
 }

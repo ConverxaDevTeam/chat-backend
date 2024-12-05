@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AgentConfig, agentIdentifier, AgentIdentifierType, StartAgentConfig, RunAgentConfig, ChatAgentIdentifier } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, AgentIdentifierType, StartAgentConfig, RunAgentConfig } from 'src/interfaces/agent';
 import { SofiaLLMService } from './llm-agent/sofia-llm.service';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
@@ -42,6 +42,8 @@ export class AgentService {
   constructor(
     @InjectRepository(Agente)
     private readonly agenteRepository: Repository<Agente>,
+    @InjectRepository(Funcion)
+    private readonly funcionRepository: Repository<Funcion>,
   ) {}
 
   /**
@@ -50,32 +52,36 @@ export class AgentService {
    * @param identifier identificador del agente
    * @returns respuesta del agente
    */
-  async getAgentResponse(message: string, identifier: agentIdentifier): Promise<AgentResponse> {
+  async getAgentResponse(message: string, identifier: agentIdentifier, agentId: number): Promise<AgentResponse> {
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       const queryBuilder = this.agenteRepository
         .createQueryBuilder('agente')
         .select(['agente.config', 'agente.name'])
-        .leftJoin('agente.departamento', 'departamento')
         .leftJoin('agente.funciones', 'funciones')
         .addSelect(['funciones.name', 'funciones.description', 'funciones.type', 'funciones.config'])
-        .where('departamento.id = :departamentoId', { departamentoId: (identifier as ChatAgentIdentifier).departamentoId });
+        .where('agente.id = :agentId', { agentId });
+
       const result = await queryBuilder.getOne();
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
       agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones);
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {
+      // Solo obtener las funciones para el caso TEST
+      const functions = await this.funcionRepository.createQueryBuilder('funcion').where('funcion.agent_id = :agentId', { agentId }).getMany();
+
       agenteConfig = {
-        agentId: identifier.agentId,
+        agentId: identifier.LLMAgentId, // Usar LLMAgentId que es string
         threadId: identifier.threatId,
+        funciones: functions,
       } as RunAgentConfig;
     }
 
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
-
+    console.log(agenteConfig);
     const llmService = new SofiaLLMService(identifier, agenteConfig);
     await llmService.init();
     const response = await llmService.response(message);
