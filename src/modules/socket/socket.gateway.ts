@@ -1,9 +1,17 @@
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import { SocketService } from './socket.service';
 import { AuthService } from '@modules/auth/auth.service';
 import { agentIdentifier } from 'src/interfaces/agent';
+import { Server as ServerWs } from 'ws';
+import { IntegrationService } from '@modules/integration/integration.service';
+import { ChatUserService } from '@modules/chat-user/chat-user.service';
+import { ConversationService } from '@modules/conversation/conversation.service';
+import { ChatUser } from '@models/ChatUser.entity';
+import { Departamento } from '@models/Departamento.entity';
+import { MessageType } from '@models/Message.entity';
+import { MessageService } from '@modules/message/message.service';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -63,5 +71,119 @@ export class SocketGateway {
       this.logger.error(`Error handling message: ${error}`);
       this.server.emit('error', { message: 'Error handling message' });
     }
+  }
+}
+
+@WebSocketGateway()
+export class WebChatSocketGateway implements OnModuleInit {
+  private server: ServerWs;
+
+  constructor(
+    private readonly integrationService: IntegrationService,
+    private readonly chatUserService: ChatUserService,
+    private readonly conversationService: ConversationService,
+    private readonly messageService: MessageService,
+  ) {}
+
+  onModuleInit() {
+    this.server = new ServerWs({ noServer: true, path: '/api/socket/web-chat' });
+
+    this.server.on('connection', (socket, request) => {
+      const origin = request.headers['origin'] as string;
+      let init: boolean = false;
+      let chatUserActual: ChatUser;
+      let departamentoActual: Departamento;
+
+      socket.on('message', async (data) => {
+        const dataJson = JSON.parse(data.toString());
+        console.log(dataJson.action);
+        if (dataJson.action === 'init') {
+          const integration = await this.integrationService.getIntegrationWebChatById(dataJson.id);
+          if (!integration) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Integration not found' }));
+            socket.close();
+            return;
+          }
+          const departamento = await this.integrationService.getDepartamentoById(integration.departamento.id);
+          if (!departamento) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Department not found' }));
+            socket.close();
+            return;
+          }
+          departamentoActual = departamento;
+          const integrationConfig = JSON.parse(integration.config);
+          if (!integrationConfig?.cors?.includes(origin)) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Origin not allowed' }));
+            socket.close();
+            return;
+          }
+          init = true;
+          if (!dataJson.user || !dataJson.user_secret) {
+            const chatUser = await this.chatUserService.createChatUser();
+            socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
+            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
+            chatUserActual = chatUser;
+            return;
+          }
+          const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
+          if (secretUser !== dataJson.user_secret || secretUser === null) {
+            const chatUser = await this.chatUserService.createChatUser();
+            socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
+            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
+            chatUserActual = chatUser;
+            return;
+          }
+          const chatUser = await this.chatUserService.findById(Number(dataJson.user));
+          if (chatUser) {
+            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
+            chatUserActual = chatUser;
+          } else {
+            socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
+            socket.close();
+          }
+        } else {
+          if (!init || !chatUserActual) {
+            socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
+            socket.close();
+            return;
+          }
+          if (dataJson.action === 'create-conversation') {
+            const conversation = await this.conversationService.createConversation(chatUserActual, departamentoActual);
+            console.log(conversation);
+            socket.send(JSON.stringify({ action: 'conversation-created', conversation }));
+          } else if (dataJson.action === 'delete-conversation') {
+            const conversation = await this.conversationService.deleteConversation(dataJson.id, chatUserActual);
+            if (conversation) {
+              socket.send(JSON.stringify({ action: 'conversation-deleted', id: conversation.id }));
+            }
+          } else if (dataJson.action === 'update-conversation') {
+            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.id, chatUserActual);
+            if (conversation) {
+              socket.send(JSON.stringify({ action: 'conversation-updated', conversation }));
+            }
+          } else if (dataJson.action === 'send-message') {
+            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
+            if (conversation) {
+              const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
+              socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+            }
+          }
+        }
+      });
+
+      socket.on('close', () => {
+        console.log('Connection Closed');
+      });
+    });
+  }
+
+  bindServer(server: any) {
+    server.on('upgrade', (request, socket, head) => {
+      if (request.url === '/api/socket/web-chat') {
+        this.server.handleUpgrade(request, socket, head, (ws) => {
+          this.server.emit('connection', ws, request);
+        });
+      }
+    });
   }
 }

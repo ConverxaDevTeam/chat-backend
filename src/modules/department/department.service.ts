@@ -78,4 +78,12 @@ export class DepartmentService {
 
     return department;
   }
+
+  async getDepartamentoById(id: number): Promise<Departamento | null> {
+    return this.departmentRepository.findOne({
+      where: {
+        id,
+      },
+    });
+  }
 }
