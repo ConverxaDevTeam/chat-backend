@@ -12,10 +12,10 @@ interface DepartmentWithAgents {
   id: number;
   name: string;
   organizacion: { id: number };
-  agentes: {
+  agente?: {
     id: number;
     funciones: { id: number; name: string }[];
-  }[];
+  };
 }
 
 interface DepartmentResponse {
@@ -93,14 +93,14 @@ export class DepartmentService {
         name: defaultDepartmentName,
         organizacion: { id: organizationId },
       },
-      relations: ['organizacion', 'agentes', 'agentes.funciones'],
+      relations: ['organizacion', 'agente', 'agente.funciones'],
       select: {
         id: true,
         name: true,
         organizacion: {
           id: true,
         },
-        agentes: {
+        agente: {
           id: true,
           funciones: {
             id: true,
@@ -120,14 +120,14 @@ export class DepartmentService {
       // Refresh department to get relations
       department = await this.departmentRepository.findOne({
         where: { id: department.id },
-        relations: ['organizacion', 'agentes', 'agentes.funciones'],
+        relations: ['organizacion', 'agente', 'agente.funciones'],
         select: {
           id: true,
           name: true,
           organizacion: {
             id: true,
           },
-          agentes: {
+          agente: {
             id: true,
             funciones: {
               id: true,
@@ -143,11 +143,9 @@ export class DepartmentService {
     }
 
     // Check if agent exists for the department
-    const agents = department.agentes === null ? [] : department.agentes;
-
-    if (agents.length === 0) {
+    if (!department.agente) {
       // Create agent if it doesn't exist
-      const agent = await this.agentRepository.save({
+      department.agente = await this.agentRepository.save({
         name: 'default agent',
         departamento: { id: department.id },
         type: AgenteType.SOFIA_ASISTENTE,
@@ -156,17 +154,18 @@ export class DepartmentService {
           instruccion: 'Eres un asistente para registrar las quejas de los usuarios',
         },
       });
-      agents.push(agent);
     }
 
     const departmentResponse: DepartmentWithAgents = {
       id: department.id,
       name: department.name,
       organizacion: { id: department.organizacion.id },
-      agentes: agents.map((agent) => ({
-        id: agent.id,
-        funciones: agent.funciones ? agent.funciones.map((funcion) => ({ id: funcion.id, name: funcion.name })) : [],
-      })),
+      agente: department.agente
+        ? {
+            id: department.agente.id,
+            funciones: department.agente.funciones ? department.agente.funciones.map((funcion) => ({ id: funcion.id, name: funcion.name })) : [],
+          }
+        : undefined,
     };
 
     return {
