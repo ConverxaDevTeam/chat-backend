@@ -15,6 +15,8 @@ export class ConversationService {
   ) {}
 
   async createConversation(chatUser: ChatUser, departamento: Departamento): Promise<Conversation> {
+    console.log(chatUser);
+    console.log(departamento);
     const conversation = new Conversation();
     conversation.messages = [];
     conversation.chat_user = chatUser;
@@ -28,5 +30,25 @@ export class ConversationService {
       where: { id },
       relations: ['messages'],
     });
+  }
+
+  async findByIdAndByChatUserId(id: number, chatUser: ChatUser): Promise<Conversation | null> {
+    return await this.conversationRepository.findOne({
+      where: { id, chat_user: { id: chatUser.id } },
+      relations: ['messages'],
+    });
+  }
+
+  async deleteConversation(id: number, chatUser: ChatUser): Promise<Conversation | null> {
+    const conversation = await this.conversationRepository.findOne({
+      where: { id, chat_user: { id: chatUser.id } },
+    });
+    if (!conversation) {
+      return null;
+    }
+    conversation.user_deleted = true;
+    await this.conversationRepository.save(conversation);
+
+    return conversation;
   }
 }

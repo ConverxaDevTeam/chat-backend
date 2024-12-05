@@ -17,6 +17,7 @@ import { DepartmentModule } from './modules/department/department.module';
 import { IntegrationModule } from '@modules/integration/integration.module';
 import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
+import { MessageModule } from '@modules/message/message.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { ConversationModule } from '@modules/conversation/conversation.module';
     IntegrationModule,
     ChatUserModule,
     ConversationModule,
+    MessageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

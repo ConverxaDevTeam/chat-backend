@@ -10,6 +10,8 @@ import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { ConversationService } from '@modules/conversation/conversation.service';
 import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
+import { MessageType } from '@models/Message.entity';
+import { MessageService } from '@modules/message/message.service';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -80,6 +82,7 @@ export class WebChatSocketGateway implements OnModuleInit {
     private readonly integrationService: IntegrationService,
     private readonly chatUserService: ChatUserService,
     private readonly conversationService: ConversationService,
+    private readonly messageService: MessageService,
   ) {}
 
   onModuleInit() {
@@ -93,6 +96,7 @@ export class WebChatSocketGateway implements OnModuleInit {
 
       socket.on('message', async (data) => {
         const dataJson = JSON.parse(data.toString());
+        console.log(dataJson.action);
         if (dataJson.action === 'init') {
           const integration = await this.integrationService.getIntegrationWebChatById(dataJson.id);
           if (!integration) {
@@ -133,6 +137,9 @@ export class WebChatSocketGateway implements OnModuleInit {
           if (chatUser) {
             socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
             chatUserActual = chatUser;
+          } else {
+            socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
+            socket.close();
           }
         } else {
           if (!init || !chatUserActual) {
@@ -142,7 +149,25 @@ export class WebChatSocketGateway implements OnModuleInit {
           }
           if (dataJson.action === 'create-conversation') {
             const conversation = await this.conversationService.createConversation(chatUserActual, departamentoActual);
+            console.log(conversation);
             socket.send(JSON.stringify({ action: 'conversation-created', conversation }));
+          } else if (dataJson.action === 'delete-conversation') {
+            const conversation = await this.conversationService.deleteConversation(dataJson.id, chatUserActual);
+            if (conversation) {
+              socket.send(JSON.stringify({ action: 'conversation-deleted', id: conversation.id }));
+            }
+          } else if (dataJson.action === 'update-conversation') {
+            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.id, chatUserActual);
+            if (conversation) {
+              conversation.messages = dataJson.messages;
+              socket.send(JSON.stringify({ action: 'conversation-updated', conversation }));
+            }
+          } else if (dataJson.action === 'send-message') {
+            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
+            if (conversation) {
+              const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
+              socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+            }
           }
         }
       });
@@ -155,7 +180,6 @@ export class WebChatSocketGateway implements OnModuleInit {
 
   bindServer(server: any) {
     server.on('upgrade', (request, socket, head) => {
-      console.log('Upgrade Request');
       if (request.url === '/api/socket/web-chat') {
         this.server.handleUpgrade(request, socket, head, (ws) => {
           this.server.emit('connection', ws, request);

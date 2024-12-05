@@ -27,9 +27,15 @@ export class ChatUserService {
   }
 
   async findById(id: number): Promise<ChatUser | null> {
-    return await this.chatUserRepository.findOne({
-      where: { id },
-      relations: ['conversations'],
-    });
+    const chatUser = await this.chatUserRepository
+      .createQueryBuilder('chatUser')
+      .leftJoinAndSelect('chatUser.conversations', 'conversations', 'conversations.user_deleted = :userDeleted', {
+        userDeleted: false,
+      })
+      .leftJoinAndSelect('conversations.messages', 'messages')
+      .where('chatUser.id = :id', { id })
+      .getOne();
+
+    return chatUser;
   }
 }
