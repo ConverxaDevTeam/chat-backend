@@ -10,6 +10,9 @@ export class Conversation extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   user_deleted: boolean;
 
+  @Column({ type: 'json', nullable: true })
+  config: Record<string, any>;
+
   @ManyToOne(() => ChatUser, { eager: true })
   @JoinColumn({ name: 'chatUserId' })
   chat_user: ChatUser;
