@@ -159,7 +159,6 @@ export class WebChatSocketGateway implements OnModuleInit {
           } else if (dataJson.action === 'update-conversation') {
             const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.id, chatUserActual);
             if (conversation) {
-              conversation.messages = dataJson.messages;
               socket.send(JSON.stringify({ action: 'conversation-updated', conversation }));
             }
           } else if (dataJson.action === 'send-message') {
