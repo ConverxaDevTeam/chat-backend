@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import * as fs from 'fs';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
+import { Departamento } from '@models/Departamento.entity';
 
 @Injectable()
 export class IntegrationService {
@@ -39,6 +40,7 @@ export class IntegrationService {
     const integration = await this.integrationRepository.findOne({
       where: {
         departamento: { id: departamentoId },
+        type: IntegrationType.CHAT_WEB,
       },
     });
 
@@ -48,12 +50,21 @@ export class IntegrationService {
 
       const config = {
         title: 'Sofia Chat',
+        cors: ['http://localhost:4000'],
         sub_title: 'Prueba Aqui Sofia Chat',
         description: '¡Hola! Bienvenido a Sofia. Estoy aquí para ayudarte a encontrar respuestas y soluciones rápidamente.',
         logo: 'logo.png',
         horizontal_logo: 'horizontal-logo.png',
         icon_chat: 'icon-chat.png',
         icon_close: 'icon-close.png',
+        edge_radius: 10,
+        bg_color: '#8D14E9',
+        bg_chat: '#F5F5F5',
+        bg_user: '#ffffff',
+        bg_assistant: '#dfb8fd',
+        text_color: '#ffffff',
+        text_date: '#61506d',
+        button_color: '#bb97d6',
       };
       newIntegration.config = JSON.stringify(config);
       newIntegration.departamento = departamento;
@@ -63,6 +74,7 @@ export class IntegrationService {
   const sofiaChat = await import('${this.configService.get<string>('url.files')}/files/chat.min.js');
   const config = {
     id: '${newIntegration.id}',
+    url: 'localhost:3001',
     title: '${config.title}',
     sub_title: '${config.sub_title}',
     description: '${config.description}',
@@ -70,6 +82,14 @@ export class IntegrationService {
     horizontal_logo: '${this.configService.get<string>('url.files')}/logos/${config.horizontal_logo}',
     icon_chat: '${this.configService.get<string>('url.files')}/assets/${config.icon_chat}',
     icon_close: '${this.configService.get<string>('url.files')}/assets/${config.icon_close}',
+    edge_radius: '10',
+    bg_color: '#8D14E9',
+    bg_chat: '#F5F5F5',
+    bg_user: '#ffffff',
+    bg_assistant: '#dfb8fd',
+    text_color: '#ffffff',
+    text_date: '#61506d',
+    button_color: '#bb97d6',
   };
   sofiaChat.default.init(config);
 })();
@@ -82,5 +102,21 @@ export class IntegrationService {
       return newIntegration;
     }
     return integration;
+  }
+
+  async getIntegrationWebChatById(integrationId: number): Promise<Integration | null> {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id: integrationId,
+        type: IntegrationType.CHAT_WEB,
+      },
+    });
+
+    return integration;
+  }
+
+  async getDepartamentoById(id: number): Promise<Departamento | null> {
+    const departamento = await this.departmentService.getDepartamentoById(id);
+    return departamento;
   }
 }

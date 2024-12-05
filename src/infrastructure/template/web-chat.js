@@ -1,22 +1,7 @@
-const themes = [
-  {
-    name: 'Light',
-    backgroundColor: '#15ecda',
-    headerColor: '#007bff',
-    textColor: 'black',
-  },
-  {
-    name: 'Dark',
-    backgroundColor: '#333',
-    headerColor: '#000',
-    textColor: 'white',
-  },
-];
-
 export default {
   init: function (config) {
-    const theme = themes.find((theme) => theme.name === config.theme);
     let menuOpen = false;
+    const backgroundColor = '#15ecda';
     function toggleMenu() {
       menuOpen = !menuOpen;
       const iconChat = document.getElementById('icon-chat');
@@ -43,14 +28,14 @@ export default {
       border-radius: 100%;
       display: flex;
       cursor: pointer;
-      background: ${theme.backgroundColor};
+      background: ${'#15ecda'};
     `;
 
     helpButton.addEventListener('click', toggleMenu);
 
     const iconChat = document.createElement('img');
     iconChat.id = 'icon-chat';
-    iconChat.src = 'http://localhost:3000/icon-chat.png';
+    iconChat.src = config.icon_chat;
     iconChat.alt = 'Help Icon';
     iconChat.style.cssText = `
       width: 40px;
@@ -62,7 +47,7 @@ export default {
 
     const iconClose = document.createElement('img');
     iconClose.id = 'icon-close';
-    iconClose.src = 'http://localhost:3000/icon-close.png';
+    iconClose.src = config.icon_close;
     iconClose.alt = 'Help Icon';
     iconClose.style.cssText = `
       display: none;
@@ -97,7 +82,7 @@ export default {
     const chatHeader = document.createElement('div');
     chatHeader.style.cssText = `
       padding: 10px;
-      background-color: ${theme.backgroundColor};
+      background-color: ${backgroundColor};
       color: white;
       font-weight: bold;
       text-align: center;
@@ -168,7 +153,7 @@ export default {
     sendButton.style.cssText = `
       margin-left: 8px;
       padding: 8px 16px;
-      background-color: ${theme.backgroundColor};
+      background-color: ${backgroundColor};
       color: white;
       border: none;
       border-radius: 4px;
@@ -177,11 +162,11 @@ export default {
     `;
 
     sendButton.addEventListener('mouseover', () => {
-      sendButton.style.backgroundColor = `${theme.backgroundColor}cc`;
+      sendButton.style.backgroundColor = `${backgroundColor}cc`;
     });
 
     sendButton.addEventListener('mouseout', () => {
-      sendButton.style.backgroundColor = `${theme.backgroundColor}80`;
+      sendButton.style.backgroundColor = `${backgroundColor}80`;
     });
 
     sendButton.addEventListener('click', () => {
