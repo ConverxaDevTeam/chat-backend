@@ -12,6 +12,7 @@ import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { MessageType } from '@models/Message.entity';
 import { MessageService } from '@modules/message/message.service';
+import { AgentService } from 'src/services/agentServer';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -83,6 +84,7 @@ export class WebChatSocketGateway implements OnModuleInit {
     private readonly chatUserService: ChatUserService,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
+    private readonly agentService: AgentService,
   ) {}
 
   onModuleInit() {
@@ -149,7 +151,6 @@ export class WebChatSocketGateway implements OnModuleInit {
           }
           if (dataJson.action === 'create-conversation') {
             const conversation = await this.conversationService.createConversation(chatUserActual, departamentoActual);
-            console.log(conversation);
             socket.send(JSON.stringify({ action: 'conversation-created', conversation }));
           } else if (dataJson.action === 'delete-conversation') {
             const conversation = await this.conversationService.deleteConversation(dataJson.id, chatUserActual);
@@ -166,6 +167,15 @@ export class WebChatSocketGateway implements OnModuleInit {
             if (conversation) {
               const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+              try {
+                const response = await this.agentService.processMessageWithConversation(dataJson.message, conversation.id);
+                if (response.message) {
+                  const message = await this.messageService.createMessage(conversation, response.message, MessageType.AGENT);
+                  socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+                }
+              } catch (error) {
+                console.log('error:', error);
+              }
             }
           }
         }

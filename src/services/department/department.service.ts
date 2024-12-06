@@ -87,7 +87,7 @@ export class DepartmentService {
   }
 
   async getDefaultDepartment(organizationId: number): Promise<DepartmentResponse> {
-    // First check if department exists
+    // Buscar departamento existente
     let department = await this.departmentRepository.findOne({
       where: {
         name: defaultDepartmentName,
@@ -110,14 +110,15 @@ export class DepartmentService {
       },
     });
 
-    // If department doesn't exist, create it
+    // Crear departamento si no existe
     if (!department) {
+      console.log('Department not found. Creating new default department...');
       department = await this.departmentRepository.save({
-        name: 'default',
+        name: defaultDepartmentName,
         organizacion: { id: organizationId },
       });
 
-      // Refresh department to get relations
+      // Obtener las relaciones
       department = await this.departmentRepository.findOne({
         where: { id: department.id },
         relations: ['organizacion', 'agente', 'agente.funciones'],
@@ -136,15 +137,15 @@ export class DepartmentService {
           },
         },
       });
+
+      if (!department) {
+        throw new NotFoundException('Could not create default department');
+      }
     }
 
-    if (department === null) {
-      throw new NotFoundException('Could not create default department');
-    }
-
-    // Check if agent exists for the department
+    // Verificar si existe un agente asociado al departamento
     if (!department.agente) {
-      // Create agent if it doesn't exist
+      console.log('Agent not found for department. Creating default agent...');
       department.agente = await this.agentRepository.save({
         name: 'default agent',
         departamento: { id: department.id },
