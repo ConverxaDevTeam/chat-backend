@@ -28,30 +28,21 @@ export class FunctionParamController {
     return this.functionParamService.findAll(functionId);
   }
 
-  @Get(':functionId/:paramName')
-  @ApiOperation({ summary: 'Get a specific parameter by name' })
-  @ApiResponse({ status: 200, description: 'Parameter details' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 404, description: 'Parameter not found' })
-  findOne(@Param('functionId', ParseIntPipe) functionId: number, @Param('paramName') paramName: string) {
-    return this.functionParamService.findOne(functionId, paramName);
-  }
-
-  @Patch(':functionId/:paramName')
-  @ApiOperation({ summary: 'Update a parameter' })
+  @Patch(':functionId/:paramIndex')
+  @ApiOperation({ summary: 'Update a parameter by index' })
   @ApiResponse({ status: 200, description: 'Parameter updated successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Parameter not found' })
-  update(@Param('functionId', ParseIntPipe) functionId: number, @Param('paramName') paramName: string, @Body() updateFunctionParamDto: UpdateFunctionParamDto) {
-    return this.functionParamService.update(functionId, paramName, updateFunctionParamDto);
+  update(@Param('functionId', ParseIntPipe) functionId: number, @Param('paramIndex', ParseIntPipe) paramIndex: number, @Body() updateFunctionParamDto: UpdateFunctionParamDto) {
+    return this.functionParamService.update(functionId, paramIndex, updateFunctionParamDto);
   }
 
-  @Delete(':functionId/:paramName')
-  @ApiOperation({ summary: 'Delete a parameter' })
+  @Delete(':functionId/:paramIndex')
+  @ApiOperation({ summary: 'Delete a parameter by index' })
   @ApiResponse({ status: 200, description: 'Parameter deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Parameter not found' })
-  remove(@Param('functionId', ParseIntPipe) functionId: number, @Param('paramName') paramName: string) {
-    return this.functionParamService.remove(functionId, paramName);
+  remove(@Param('functionId', ParseIntPipe) functionId: number, @Param('paramIndex', ParseIntPipe) paramIndex: number) {
+    return this.functionParamService.remove(functionId, paramIndex);
   }
 }
