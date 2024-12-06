@@ -30,6 +30,14 @@ export class CreateAutenticadorDto<T extends { type: AutenticadorType; config: R
   config: T['config'];
 
   @ApiProperty({
+    example: 'Autenticador name',
+    description: 'Name of the authenticator',
+  })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({
     example: 3600,
     description: 'Lifetime in seconds for the authentication token',
   })
