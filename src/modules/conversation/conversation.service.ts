@@ -15,8 +15,6 @@ export class ConversationService {
   ) {}
 
   async createConversation(chatUser: ChatUser, departamento: Departamento): Promise<Conversation> {
-    console.log(chatUser);
-    console.log(departamento);
     const conversation = new Conversation();
     conversation.messages = [];
     conversation.chat_user = chatUser;

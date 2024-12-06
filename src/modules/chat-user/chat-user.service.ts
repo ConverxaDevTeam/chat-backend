@@ -22,7 +22,6 @@ export class ChatUserService {
     const chatUser = new ChatUser();
     chatUser.secret = Math.random().toString(36).substring(2);
     await this.chatUserRepository.save(chatUser);
-    console.log(chatUser);
     return chatUser;
   }
 

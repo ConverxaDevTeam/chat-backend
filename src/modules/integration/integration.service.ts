@@ -49,49 +49,54 @@ export class IntegrationService {
       newIntegration.type = IntegrationType.CHAT_WEB;
 
       const config = {
+        url: this.configService.get<string>('url.wss'),
+        url_assets: this.configService.get<string>('url.files'),
+        name: 'Sofia',
         title: 'Sofia Chat',
-        cors: ['http://localhost:4000'],
+        cors: ['http://localhost:4000', 'http://localhost:3000'],
         sub_title: 'Prueba Aqui Sofia Chat',
         description: '¡Hola! Bienvenido a Sofia. Estoy aquí para ayudarte a encontrar respuestas y soluciones rápidamente.',
         logo: 'logo.png',
         horizontal_logo: 'horizontal-logo.png',
         icon_chat: 'icon-chat.png',
         icon_close: 'icon-close.png',
-        edge_radius: 10,
-        bg_color: '#8D14E9',
+        edge_radius: '10',
+        bg_color: '#15ECDA',
         bg_chat: '#F5F5F5',
         bg_user: '#ffffff',
-        bg_assistant: '#dfb8fd',
-        text_color: '#ffffff',
-        text_date: '#61506d',
-        button_color: '#bb97d6',
+        bg_assistant: '#b1f6f0',
+        text_color: '#000000',
+        text_date: '#969696',
+        button_color: '#15ECDA',
       };
       newIntegration.config = JSON.stringify(config);
       newIntegration.departamento = departamento;
       await this.integrationRepository.save(newIntegration);
 
       const script = `(async () => {
-  const sofiaChat = await import('${this.configService.get<string>('url.files')}/files/chat.min.js');
+  await import('${this.configService.get<string>('url.files')}/files/sofia-chat.min.js');
   const config = {
     id: '${newIntegration.id}',
-    url: 'localhost:3001',
+    url: '${this.configService.get<string>('url.wss')}',
+    url_assets: '${this.configService.get<string>('url.files')}',
+    name: '${config.name}',
     title: '${config.title}',
     sub_title: '${config.sub_title}',
     description: '${config.description}',
-    logo: '${this.configService.get<string>('url.files')}/logos/${config.logo}',
-    horizontal_logo: '${this.configService.get<string>('url.files')}/logos/${config.horizontal_logo}',
-    icon_chat: '${this.configService.get<string>('url.files')}/assets/${config.icon_chat}',
-    icon_close: '${this.configService.get<string>('url.files')}/assets/${config.icon_close}',
-    edge_radius: '10',
-    bg_color: '#8D14E9',
-    bg_chat: '#F5F5F5',
-    bg_user: '#ffffff',
-    bg_assistant: '#dfb8fd',
-    text_color: '#ffffff',
-    text_date: '#61506d',
-    button_color: '#bb97d6',
+    logo: '${config.logo}',
+    horizontal_logo: '${config.horizontal_logo}',
+    icon_chat: '${config.icon_chat}',
+    icon_close: '${config.icon_close}',
+    edge_radius: '${config.edge_radius}',
+    bg_color: '${config.bg_color}',
+    bg_chat: '${config.bg_chat}',
+    bg_user: '${config.bg_user}',
+    bg_assistant: '${config.bg_assistant}',
+    text_color: '${config.text_color}',
+    text_date: '${config.text_date}',
+    button_color: '${config.button_color}',
   };
-  sofiaChat.default.init(config);
+  SofiaChat.default.init(config);
 })();
 `;
 
