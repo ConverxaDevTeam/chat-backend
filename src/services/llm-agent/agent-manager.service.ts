@@ -11,14 +11,14 @@ export class AgentManagerService {
   constructor(
     @InjectRepository(Agente)
     private readonly agenteRepository: Repository<Agente>,
-    private readonly socketService: SocketService
+    private readonly socketService: SocketService,
   ) {}
 
   async getAgentById(id: number): Promise<Agente> {
     const agente = await this.agenteRepository.findOne({
-      where: { 
-        id
-      }
+      where: {
+        id,
+      },
     });
 
     if (!agente) {
@@ -39,7 +39,7 @@ export class AgentManagerService {
 
   async updateAgent(id: number, updateData: Partial<Agente>, userId: number): Promise<Agente> {
     const agente = await this.agenteRepository.findOne({
-      where: { id }
+      where: { id },
     });
 
     if (!agente) {
@@ -48,15 +48,15 @@ export class AgentManagerService {
 
     Object.assign(agente, updateData);
     const updatedAgent = await this.agenteRepository.save(agente);
-    
+
     // Emit update event to the specific chat room
     const room = `test-chat-${id}`;
     this.socketService.sendMessageToRoom(room, 'agent:updated', {
       agentId: id,
       updatedBy: userId,
-      updates: updateData
+      updates: updateData,
     });
-    
+
     return updatedAgent;
   }
 }

@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
 import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
+import { FunctionCallService } from './function-call.service';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -48,6 +49,7 @@ export class AgentService {
     private readonly funcionRepository: Repository<Funcion>,
     @InjectRepository(Conversation)
     private readonly conversationRepository: Repository<Conversation>,
+    private readonly functionCallService: FunctionCallService,
   ) {}
 
   /**
@@ -71,11 +73,10 @@ export class AgentService {
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {
-      // Solo obtener las funciones para el caso TEST
       const functions = await this.funcionRepository.createQueryBuilder('funcion').where('funcion.agent_id = :agentId', { agentId }).getMany();
 
       agenteConfig = {
-        agentId: identifier.LLMAgentId, // Usar LLMAgentId que es string
+        agentId: identifier.LLMAgentId,
         threadId: identifier.threatId,
         funciones: functions,
       } as RunAgentConfig;
@@ -84,7 +85,7 @@ export class AgentService {
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
-    const llmService = new SofiaLLMService(identifier, agenteConfig);
+    const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
     await llmService.init();
     const response = await llmService.response(message);
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
