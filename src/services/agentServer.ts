@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
 import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
+import { agent } from 'supertest';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -65,7 +66,6 @@ export class AgentService {
         .leftJoin('agente.funciones', 'funciones')
         .addSelect(['funciones.name', 'funciones.description', 'funciones.type', 'funciones.config'])
         .where('agente.id = :agentId', { agentId });
-
       const result = await queryBuilder.getOne();
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
       agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones);
@@ -85,15 +85,10 @@ export class AgentService {
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
-    console.log(agenteConfig);
     const llmService = new SofiaLLMService(identifier, agenteConfig);
     await llmService.init();
     const response = await llmService.response(message);
-    const responseObj: AgentResponse = { message: response, threadId: llmService.getThreadId() };
-    if ([AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
-      responseObj.agentId = llmService.getAgentId();
-    }
-    return responseObj;
+    return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }
 
   /**
@@ -112,49 +107,37 @@ export class AgentService {
     if (!conversation) {
       throw new Error('Conversation not found');
     }
-
+    let config = conversation.config as SofiaConversationConfig;
+    let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
+    const isConfigured = !!config;
     // Si no hay config, crear una configuración por defecto de tipo CHAT y obtener los IDs
-    if (!conversation.config) {
-      const defaultConfig = {
+    if (!isConfigured) {
+      config = {
         type: AgenteType.SOFIA_ASISTENTE,
         agentIdentifier: {
           type: AgentIdentifierType.CHAT,
         },
       } as SofiaConversationConfig;
-
-      // Obtener la respuesta inicial del agente
-      const response = await this.getAgentResponse(message, { type: AgentIdentifierType.CHAT }, conversation.departamento.agente?.id);
-
-      // Actualizar la configuración con los IDs obtenidos
-      defaultConfig.agentIdentifier.agentId = response.agentId;
-      conversation.config = defaultConfig;
-      await this.conversationRepository.save(conversation);
-
-      return response;
-    }
-
-    const config = conversation.config as SofiaConversationConfig;
-    let identifier: agentIdentifier;
-
-    if (config.agentIdentifier.type === AgentIdentifierType.THREAT) {
-      if (!config.agentIdentifier.threatId || !config.agentIdentifier.agentId) {
-        throw new Error('No se pudo obtener el identificador del agente');
-      }
-      identifier = {
-        threatId: config.agentIdentifier.threatId,
-        agentId: config.agentIdentifier.agentId,
-        type: AgentIdentifierType.THREAT,
-      };
     } else {
-      if (!config.agentIdentifier.agentId) {
+      if (!config.agentIdentifier.agentId || !config.agentIdentifier.threatId) {
         throw new Error('No se pudo obtener el identificador del agente');
       }
       identifier = {
         agentId: config.agentIdentifier.agentId,
         type: AgentIdentifierType.CHAT,
-      };
+        threatId: config.agentIdentifier.threatId,
+        LLMAgentId: config.agentIdentifier.agentId,
+        agent: AgenteType.SOFIA_ASISTENTE,
+      } as agentIdentifier;
     }
 
-    return this.getAgentResponse(message, identifier, conversation.departamento.agente?.id);
+    const response = await this.getAgentResponse(message, identifier, conversation.departamento.agente?.id);
+    if (!isConfigured) {
+      config.agentIdentifier.agentId = response.agentId;
+      config.agentIdentifier.threatId = response.threadId;
+      conversation.config = config;
+      await this.conversationRepository.save(conversation);
+    }
+    return response;
   }
 }

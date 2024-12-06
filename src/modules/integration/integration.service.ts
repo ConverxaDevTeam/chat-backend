@@ -53,7 +53,7 @@ export class IntegrationService {
         url_assets: this.configService.get<string>('url.files'),
         name: 'Sofia',
         title: 'Sofia Chat',
-        cors: ['http://localhost:4000'],
+        cors: ['http://localhost:4000', 'http://localhost:3000'],
         sub_title: 'Prueba Aqui Sofia Chat',
         description: '¡Hola! Bienvenido a Sofia. Estoy aquí para ayudarte a encontrar respuestas y soluciones rápidamente.',
         logo: 'logo.png',

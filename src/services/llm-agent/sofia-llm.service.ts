@@ -40,7 +40,7 @@ const buildToolsArray = (config: StartAgentConfig) => {
 };
 
 const makeApiCall = async (url: string, method: HttpMethod | undefined, args: any) => {
-  console.log(`Making API call to ${url} with method ${method} and args ${JSON.stringify(args)}`);
+  console.log(`Making API call `);
   const response = await fetch(url, {
     method: method || HttpMethod.GET,
     headers: {
@@ -72,11 +72,6 @@ const handleToolCall = async (
 
   // Use either the stored functions or the ones from config
   const availableFunctions = agenteConfig.funciones;
-  console.log(
-    'Available functions:',
-    availableFunctions?.map((f) => ({ name: f.name, normalized: f.name.replace(/\s+/g, '_') })),
-  );
-
   // Find the function configuration
   const functionConfig = availableFunctions?.find((f) => f.name.replace(/\s+/g, '_') === functionName && f.type === FunctionType.API_ENDPOINT);
 
