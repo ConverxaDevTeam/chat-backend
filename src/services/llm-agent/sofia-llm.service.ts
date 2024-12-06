@@ -7,7 +7,11 @@ import { BaseAgent } from './base-agent';
 const createFunctionTool = (func: FunctionResponse) => ({
   type: 'function' as const,
   function: {
-    name: func.name.replace(/\s+/g, '_'),
+    name: func.name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+      .replace(/[^a-zA-Z0-9_-]/g, '_') // Reemplazar caracteres no permitidos con _
+      .replace(/_{2,}/g, '_'), // Evitar múltiples guiones bajos seguidos
     description: func.description,
     parameters: {
       type: 'object',
@@ -138,7 +142,7 @@ export class SofiaLLMService extends BaseAgent {
       const tools = buildToolsArray(config);
 
       const assistant = await this.openai.beta.assistants.create({
-        name: config.name,
+        name: config.name.replace(/\s+/g, '_'),
         instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
         model: 'gpt-4-1106-preview',
         tools,
