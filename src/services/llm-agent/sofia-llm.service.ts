@@ -22,7 +22,7 @@ const createFunctionTool = (func: FunctionResponse) => ({
           }),
           {},
         ) || {},
-      required: (func.config as HttpRequestConfig).requestBody?.map((param) => param.name) || [],
+      required: (func.config as HttpRequestConfig).requestBody?.filter((param) => param.required).map((param) => param.name) || [],
     },
   },
 });
@@ -98,14 +98,6 @@ const handleToolCall = async (
 
     // Verificar y combinar los parámetros existentes con los nuevos
     const mergedArgs = { ...functionArgs };
-    if (httpConfig.requestBody) {
-      httpConfig.requestBody.forEach((param: FunctionParam) => {
-        // Si el parámetro tiene un id predefinido, usarlo en lugar del valor proporcionado
-        if (param.id && !mergedArgs[param.name]) {
-          mergedArgs[param.name] = param.id;
-        }
-      });
-    }
 
     const response = await makeApiCall(httpConfig.url, httpConfig.method, mergedArgs);
     return {

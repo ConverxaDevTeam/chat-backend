@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsObject, IsNumber, IsOptional, ValidateNested, IsArray, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsObject, IsNumber, IsOptional, ValidateNested, IsArray, IsNotEmpty, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum FunctionType {
@@ -17,18 +17,19 @@ export enum HttpMethod {
 }
 
 export class FunctionParam {
-  @IsOptional()
   @IsString()
-  id?: string;
-
-  @IsString()
+  @IsNotEmpty()
   name: string;
 
   @IsString()
+  @IsNotEmpty()
   type: string;
 
   @IsString()
   description: string;
+
+  @IsBoolean()
+  required: boolean;
 }
 
 export class HttpRequestConfig {

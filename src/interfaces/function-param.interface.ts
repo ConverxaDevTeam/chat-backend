@@ -10,22 +10,6 @@ export enum ParamType {
   ARRAY = 'array',
 }
 
-export class CreateFunctionParamDto {
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-  @IsEnum(ParamType)
-  @IsNotEmpty()
-  type: ParamType;
-
-  @IsString()
-  description: string;
-
-  @IsBoolean()
-  required: boolean;
-}
-
 export class UpdateFunctionParamDto {
   @IsString()
   @IsNotEmpty()

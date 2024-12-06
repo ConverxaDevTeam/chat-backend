@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateFunctionParamDto, UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
+import { UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
 import { FunctionService } from '../function/function.service';
-import { FunctionType, HttpRequestConfig } from '../../interfaces/function.interface';
+import { FunctionParam, FunctionType, HttpRequestConfig } from '../../interfaces/function.interface';
 import { Funcion } from '@models/agent/Function.entity';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class FunctionParamService {
     private functionService: FunctionService,
   ) {}
 
-  async create(functionId: number, createFunctionParamDto: CreateFunctionParamDto): Promise<any> {
+  async create(functionId: number, createFunctionParamDto: FunctionParam): Promise<FunctionParam> {
     const function_ = await this.functionService.findOne(functionId);
 
     if (function_.type !== FunctionType.API_ENDPOINT) {

@@ -1,8 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { FunctionParamService } from '../../services/function-param/function-param.service';
-import { CreateFunctionParamDto, UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
+import { UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { FunctionParam } from 'src/interfaces/function.interface';
 
 @ApiTags('Function Parameters')
 @ApiBearerAuth()
@@ -16,7 +17,7 @@ export class FunctionParamController {
   @ApiResponse({ status: 201, description: 'Parameter created successfully' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  create(@Param('functionId', ParseIntPipe) functionId: number, @Body() createFunctionParamDto: CreateFunctionParamDto) {
+  create(@Param('functionId', ParseIntPipe) functionId: number, @Body() createFunctionParamDto: FunctionParam) {
     return this.functionParamService.create(functionId, createFunctionParamDto);
   }
 
