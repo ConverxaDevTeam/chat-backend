@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsBoolean } from 'class-validator';
 
 export enum ParamType {
   STRING = 'string',
@@ -21,6 +21,9 @@ export class CreateFunctionParamDto {
 
   @IsString()
   description: string;
+
+  @IsBoolean()
+  required: boolean;
 }
 
 export class UpdateFunctionParamDto {
@@ -34,4 +37,7 @@ export class UpdateFunctionParamDto {
 
   @IsString()
   description?: string;
+
+  @IsBoolean()
+  required?: boolean;
 }
