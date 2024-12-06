@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsNumber, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsObject, IsOptional, IsString, IsNumber, IsNotEmpty } from 'class-validator';
 import { AutenticadorType } from 'src/interfaces/function.interface';
 
 export class CreateAutenticadorDto<T extends { type: AutenticadorType; config: Record<string, unknown> }> {
@@ -30,6 +30,14 @@ export class CreateAutenticadorDto<T extends { type: AutenticadorType; config: R
   config: T['config'];
 
   @ApiProperty({
+    example: 'Autenticador name',
+    description: 'Name of the authenticator',
+  })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({
     example: 3600,
     description: 'Lifetime in seconds for the authentication token',
   })
@@ -44,4 +52,8 @@ export class CreateAutenticadorDto<T extends { type: AutenticadorType; config: R
   @IsString()
   @IsOptional()
   value?: string;
+
+  @ApiProperty()
+  @IsString()
+  organizationId: string;
 }
