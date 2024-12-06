@@ -7,7 +7,6 @@ import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
 import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
-import { agent } from 'supertest';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {

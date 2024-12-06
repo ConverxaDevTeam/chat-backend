@@ -130,7 +130,7 @@ export interface BearerConfig {
   };
 }
 
-export interface HttpAutenticador<T extends { injectPlace: AutenticadorType; injectConfig: Record<string, unknown> }> {
+export interface HttpAutenticador<T extends { injectPlace: injectPlaces; injectConfig: Record<string, unknown> }> {
   type: AutenticadorType.ENDPOINT;
   config: {
     url: string;
