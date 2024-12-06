@@ -21,5 +21,6 @@ export default (): any => ({
   },
   url: {
     files: process.env.URL_FILES,
+    wss: process.env.URL_WSS,
   },
 });

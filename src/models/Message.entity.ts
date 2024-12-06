@@ -8,7 +8,7 @@ export enum MessageType {
 }
 @Entity({ name: 'Messages' })
 export class Message extends BaseEntity {
-  @Column({ type: 'varchar', length: 255, default: null, nullable: true })
+  @Column({ type: 'varchar', default: null, nullable: true })
   text: string;
 
   @Column({ type: 'enum', enum: MessageType, default: MessageType.USER })
