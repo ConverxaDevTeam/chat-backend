@@ -6,12 +6,16 @@ import { CreateDepartmentDto } from '@modules/department/dto/create-department.d
 import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
+import { defaultDepartmentName } from 'src/interfaces/department';
 
 interface DepartmentWithAgents {
   id: number;
   name: string;
   organizacion: { id: number };
-  agentes: { id: number }[];
+  agente?: {
+    id: number;
+    funciones: { id: number; name: string }[];
+  };
 }
 
 interface DepartmentResponse {
@@ -83,39 +87,66 @@ export class DepartmentService {
   }
 
   async getDefaultDepartment(organizationId: number): Promise<DepartmentResponse> {
-    // First check if department exists
+    // Buscar departamento existente
     let department = await this.departmentRepository.findOne({
       where: {
-        name: 'default',
+        name: defaultDepartmentName,
         organizacion: { id: organizationId },
       },
-      relations: ['organizacion', 'agentes'],
+      relations: ['organizacion', 'agente', 'agente.funciones'],
+      select: {
+        id: true,
+        name: true,
+        organizacion: {
+          id: true,
+        },
+        agente: {
+          id: true,
+          funciones: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
-    // If department doesn't exist, create it
+    // Crear departamento si no existe
     if (!department) {
+      console.log('Department not found. Creating new default department...');
       department = await this.departmentRepository.save({
-        name: 'default',
+        name: defaultDepartmentName,
         organizacion: { id: organizationId },
       });
 
-      // Refresh department to get relations
+      // Obtener las relaciones
       department = await this.departmentRepository.findOne({
         where: { id: department.id },
-        relations: ['organizacion', 'agentes'],
+        relations: ['organizacion', 'agente', 'agente.funciones'],
+        select: {
+          id: true,
+          name: true,
+          organizacion: {
+            id: true,
+          },
+          agente: {
+            id: true,
+            funciones: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
+
+      if (!department) {
+        throw new NotFoundException('Could not create default department');
+      }
     }
 
-    if (department === null) {
-      throw new NotFoundException('Could not create default department');
-    }
-
-    // Check if agent exists for the department
-    const agents = department.agentes === null ? [] : department.agentes;
-
-    if (agents.length === 0) {
-      // Create agent if it doesn't exist
-      const agent = await this.agentRepository.save({
+    // Verificar si existe un agente asociado al departamento
+    if (!department.agente) {
+      console.log('Agent not found for department. Creating default agent...');
+      department.agente = await this.agentRepository.save({
         name: 'default agent',
         departamento: { id: department.id },
         type: AgenteType.SOFIA_ASISTENTE,
@@ -124,14 +155,18 @@ export class DepartmentService {
           instruccion: 'Eres un asistente para registrar las quejas de los usuarios',
         },
       });
-      agents.push(agent);
     }
 
     const departmentResponse: DepartmentWithAgents = {
       id: department.id,
       name: department.name,
       organizacion: { id: department.organizacion.id },
-      agentes: agents.map((agent) => ({ id: agent.id })),
+      agente: department.agente
+        ? {
+            id: department.agente.id,
+            funciones: department.agente.funciones ? department.agente.funciones.map((funcion) => ({ id: funcion.id, name: funcion.name })) : [],
+          }
+        : undefined,
     };
 
     return {

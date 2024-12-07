@@ -5,6 +5,7 @@ import { Agente } from '@models/agent/Agente.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
 import { AgenteType } from 'src/interfaces/agent';
+import { defaultDepartmentName } from 'src/interfaces/department';
 
 @Injectable()
 export class LlmAgentService {
@@ -27,7 +28,7 @@ export class LlmAgentService {
         type: AgenteType.SOFIA_ASISTENTE,
         organization_id: organizacion_id,
         config: {
-          instruccion: 'Eres un asistente para registrar las quejas de los usuarios'
+          instruccion: 'Eres un asistente para registrar las quejas de los usuarios',
         },
       });
     }
@@ -37,19 +38,19 @@ export class LlmAgentService {
   // Crear un nuevo agente
   async createAgent(data: CreateAgentDto): Promise<Agente> {
     const { departamento_id, organization_id, ...rest } = data;
-  
+
     // Verificar o crear Departamento predeterminado
     const departamento = await this.getOrCreateDefaultDepartamento(organization_id, departamento_id);
-  
+
     // Crear el agente
     const newAgent = this.agentRepository.create({
       ...rest,
       departamento,
     } as DeepPartial<Agente>);
-  
+
     return this.agentRepository.save(newAgent);
   }
-  
+
   // Actualizar un agente existente
   async updateAgent(id: number, data: Partial<Agente>): Promise<Agente> {
     const agent = await this.getAgentById(id);
@@ -61,17 +62,17 @@ export class LlmAgentService {
   }
 
   // Método auxiliar: Obtener o crear Departamento predeterminado
-  private async getOrCreateDefaultDepartamento(organizacion_id:number, departamento_id?: number): Promise<Departamento> {
+  private async getOrCreateDefaultDepartamento(organizacion_id: number, departamento_id?: number): Promise<Departamento> {
     if (departamento_id) {
       const departamento = await this.departamentoRepository.findOne({
-        where: { id: departamento_id }
+        where: { id: departamento_id },
       });
       if (departamento) return departamento;
     }
 
     // Crear Departamento predeterminado
     const defaultDepartamento = this.departamentoRepository.create({
-      name: 'Departamento Default',
+      name: defaultDepartmentName,
       organizacion: { id: organizacion_id },
     } as DeepPartial<Departamento>);
 
