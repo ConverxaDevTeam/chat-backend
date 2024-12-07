@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Conversation } from '@models/Conversation.entity';
 import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
+import { UserOrganizationService } from '@modules/organization/UserOrganization.service';
+import { User } from '@models/User.entity';
 
 @Injectable()
 export class ConversationService {
@@ -12,6 +14,7 @@ export class ConversationService {
   constructor(
     @InjectRepository(Conversation)
     private readonly conversationRepository: Repository<Conversation>,
+    private readonly userOrganizationService: UserOrganizationService,
   ) {}
 
   async createConversation(chatUser: ChatUser, departamento: Departamento): Promise<Conversation> {
@@ -50,5 +53,23 @@ export class ConversationService {
     await this.conversationRepository.save(conversation);
 
     return conversation;
+  }
+
+  async findByOrganizationIdAndUserId(organizationId: number, user: User): Promise<Conversation[]> {
+    const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
+
+    if (!userOrganization) {
+      throw new Error('El usuario no pertenece a esta organización');
+    }
+
+    const conversations = await this.conversationRepository
+      .createQueryBuilder('conversation')
+      .leftJoinAndSelect('conversation.departamento', 'departamento')
+      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
+      .innerJoinAndSelect('conversation.messages', 'messages') // Solo conversaciones con mensajes
+      .where('organizacion.id = :organizationId', { organizationId })
+      .getMany();
+
+    return conversations;
   }
 }
