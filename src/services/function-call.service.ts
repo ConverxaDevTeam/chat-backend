@@ -7,8 +7,6 @@ import { Autenticador } from '@models/agent/Autenticador.entity';
 
 @Injectable()
 export class FunctionCallService {
-  private tokenCache: Map<number, { token: string; expiresAt: number }> = new Map();
-
   constructor(
     @InjectRepository(Funcion)
     private readonly functionRepository: Repository<Funcion>,
@@ -52,14 +50,14 @@ export class FunctionCallService {
       throw new Error('Authenticator is not of bearer token');
     }
 
-    // Check if we have a valid cached token
-    const cachedToken = this.tokenCache.get(authenticator.id);
-    if (cachedToken && cachedToken.expiresAt > Date.now()) {
-      return { Authorization: `Bearer ${cachedToken.token}` };
+    // Check if we have a valid stored token
+    if (authenticator.value) {
+      if (authenticator.life_time === 0 || (authenticator.updated_at && (new Date().getTime() - new Date(authenticator.updated_at).getTime()) / 1000 < authenticator.life_time)) {
+        return { Authorization: authenticator.value };
+      }
     }
 
     try {
-      // Make the token request
       const response = await fetch(config.url, {
         method: config.method,
         headers: {
@@ -76,18 +74,19 @@ export class FunctionCallService {
 
       // Extract token using the tokenPath
       const token = config.injectConfig.tokenPath.split('.').reduce((obj, key) => obj?.[key], data);
-
       if (!token) {
         throw new Error('Could not extract token from response');
       }
 
-      // Cache the token
-      this.tokenCache.set(authenticator.id, {
-        token,
-        expiresAt: Date.now() + (authenticator.life_time * 1000 || 3600000), // Default to 1 hour if no lifetime specified
+      const bearerToken = `Bearer ${token}`;
+
+      // Update token in database
+      await this.functionRepository.manager.getRepository(Autenticador).update(authenticator.id, {
+        value: bearerToken,
+        updated_at: new Date(),
       });
 
-      return { Authorization: `Bearer ${token}` };
+      return { Authorization: bearerToken };
     } catch (error) {
       console.error('Error getting auth token:', error);
       throw new Error('Failed to get authentication token');
