@@ -14,7 +14,7 @@ interface DepartmentWithAgents {
   organizacion: { id: number };
   agente?: {
     id: number;
-    funciones: { id: number; name: string }[];
+    funciones: { id: number; name: string; autenticador?: { id: number } }[];
   };
 }
 
@@ -93,7 +93,7 @@ export class DepartmentService {
         name: defaultDepartmentName,
         organizacion: { id: organizationId },
       },
-      relations: ['organizacion', 'agente', 'agente.funciones'],
+      relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador'],
       select: {
         id: true,
         name: true,
@@ -105,6 +105,9 @@ export class DepartmentService {
           funciones: {
             id: true,
             name: true,
+            autenticador: {
+              id: true,
+            },
           },
         },
       },
@@ -121,7 +124,7 @@ export class DepartmentService {
       // Obtener las relaciones
       department = await this.departmentRepository.findOne({
         where: { id: department.id },
-        relations: ['organizacion', 'agente', 'agente.funciones'],
+        relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador'],
         select: {
           id: true,
           name: true,
@@ -133,6 +136,9 @@ export class DepartmentService {
             funciones: {
               id: true,
               name: true,
+              autenticador: {
+                id: true,
+              },
             },
           },
         },
@@ -164,7 +170,13 @@ export class DepartmentService {
       agente: department.agente
         ? {
             id: department.agente.id,
-            funciones: department.agente.funciones ? department.agente.funciones.map((funcion) => ({ id: funcion.id, name: funcion.name })) : [],
+            funciones: department.agente.funciones
+              ? department.agente.funciones.map((funcion) => ({
+                  id: funcion.id,
+                  name: funcion.name,
+                  autenticador: funcion.autenticador ? { id: funcion.autenticador.id } : undefined,
+                }))
+              : [],
           }
         : undefined,
     };

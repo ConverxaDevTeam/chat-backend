@@ -1,8 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { FunctionParamService } from '../../services/function-param/function-param.service';
-import { CreateFunctionParamDto, UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
+import { UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { FunctionParam } from 'src/interfaces/function.interface';
 
 @ApiTags('Function Parameters')
 @Controller('functions/:functionId/parameters')
@@ -13,7 +14,7 @@ export class FunctionParamController {
   @Post()
   @ApiOperation({ summary: 'Create a new function parameter' })
   @ApiResponse({ status: 201, description: 'Parameter created successfully' })
-  create(@Param('functionId') functionId: number, @Body() createFunctionParamDto: CreateFunctionParamDto) {
+  create(@Param('functionId') functionId: number, @Body() createFunctionParamDto: FunctionParam) {
     return this.functionParamService.create(functionId, createFunctionParamDto);
   }
 
@@ -24,24 +25,17 @@ export class FunctionParamController {
     return this.functionParamService.findAll(functionId);
   }
 
-  @Get(':name')
-  @ApiOperation({ summary: 'Get a specific parameter by name' })
-  @ApiResponse({ status: 200, description: 'Parameter details' })
-  findOne(@Param('functionId') functionId: number, @Param('name') name: string) {
-    return this.functionParamService.findOne(functionId, name);
-  }
-
-  @Patch(':name')
-  @ApiOperation({ summary: 'Update a parameter' })
+  @Patch(':paramIndex')
+  @ApiOperation({ summary: 'Update a parameter by index' })
   @ApiResponse({ status: 200, description: 'Parameter updated successfully' })
-  update(@Param('functionId') functionId: number, @Param('name') name: string, @Body() updateFunctionParamDto: UpdateFunctionParamDto) {
-    return this.functionParamService.update(functionId, name, updateFunctionParamDto);
+  update(@Param('functionId') functionId: number, @Param('paramIndex') paramIndex: number, @Body() updateFunctionParamDto: UpdateFunctionParamDto) {
+    return this.functionParamService.update(functionId, paramIndex, updateFunctionParamDto);
   }
 
-  @Delete(':name')
-  @ApiOperation({ summary: 'Delete a parameter' })
+  @Delete(':paramIndex')
+  @ApiOperation({ summary: 'Delete a parameter by index' })
   @ApiResponse({ status: 200, description: 'Parameter deleted successfully' })
-  remove(@Param('functionId') functionId: number, @Param('name') name: string) {
-    return this.functionParamService.remove(functionId, name);
+  remove(@Param('functionId') functionId: number, @Param('paramIndex') paramIndex: number) {
+    return this.functionParamService.remove(functionId, paramIndex);
   }
 }
