@@ -52,7 +52,17 @@ export class FunctionCallService {
 
     // Check if we have a valid stored token
     if (authenticator.value) {
-      if (authenticator.life_time === 0 || (authenticator.updated_at && (new Date().getTime() - new Date(authenticator.updated_at).getTime()) / 1000 < authenticator.life_time)) {
+      const currentTime = new Date();
+      const tokenTime = authenticator.updated_at;
+      const diffSeconds = tokenTime ? Math.floor((currentTime.getTime() - tokenTime.getTime()) / 1000) : null;
+      console.log('Token validation:', {
+        life_time: authenticator.life_time,
+        diffSeconds,
+        isValid: diffSeconds !== null && (authenticator.life_time === 0 || diffSeconds < authenticator.life_time),
+      });
+
+      if (authenticator.life_time === 0 || (diffSeconds !== null && tokenTime && diffSeconds < authenticator.life_time)) {
+        console.log('Using stored token');
         return { Authorization: authenticator.value };
       }
     }
