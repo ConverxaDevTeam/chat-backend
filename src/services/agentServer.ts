@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AgentConfig, agentIdentifier, AgentIdentifierType, StartAgentConfig, RunAgentConfig, AgenteType } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
 import { SofiaLLMService } from './llm-agent/sofia-llm.service';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
@@ -22,7 +22,7 @@ interface AgentResponse {
  * @param name nombre del agente
  * @returns configuracion del agente
  */
-function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[]): StartAgentConfig {
+function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[]): AgentConfig {
   if (!config.agentId) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
@@ -78,7 +78,7 @@ export class AgentService {
         agentId: identifier.LLMAgentId,
         threadId: identifier.threatId,
         funciones: functions,
-      } as RunAgentConfig;
+      } as AgentConfig;
     }
 
     if (!agenteConfig) {

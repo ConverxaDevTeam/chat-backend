@@ -45,22 +45,16 @@ export interface TestAgentIdentifier {
   type: AgentIdentifierType.TEST;
 }
 
-export interface StartAgentConfig {
-  agentId: string;
-  funciones?: FunctionResponse[];
-}
-
 export interface CreateAgentConfig {
   name: string;
   instruccion: string;
   agentId: string;
 }
 
-export interface RunAgentConfig {
+export interface AgentConfig {
   agentId: string;
-  threadId: string;
+  threadId?: string;
+  funciones?: FunctionResponse[];
 }
-
-export type AgentConfig = StartAgentConfig | RunAgentConfig;
 
 export type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier | TestAgentIdentifier;

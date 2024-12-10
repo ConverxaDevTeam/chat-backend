@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { AgentConfig, agentIdentifier, CreateAgentConfig, RunAgentConfig, StartAgentConfig } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
 import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../function-call.service';
@@ -32,7 +32,7 @@ const createFunctionTool = (func: FunctionResponse) => ({
   },
 });
 
-const buildToolsArray = (config: StartAgentConfig) => {
+const buildToolsArray = (config: AgentConfig) => {
   const tools: OpenAI.Beta.Assistants.AssistantTool[] = [];
   if (config.funciones && config.funciones.length > 0) {
     config.funciones.forEach((func) => {
@@ -46,7 +46,7 @@ const buildToolsArray = (config: StartAgentConfig) => {
 
 const handleToolCall = async (
   toolCall: OpenAI.Beta.Threads.Runs.RequiredActionFunctionToolCall,
-  agenteConfig: StartAgentConfig,
+  agenteConfig: AgentConfig,
   functionCallService: FunctionCallService,
 ): Promise<{ tool_call_id: string; output: string }> => {
   const functionName = toolCall.function.name;
@@ -89,7 +89,7 @@ export class SofiaLLMService extends BaseAgent {
     super(identifier);
     if (this.agenteConfig?.agentId) this.assistantId = this.agenteConfig.agentId;
     if (this.agenteConfig && 'threadId' in this.agenteConfig) {
-      this.threadId = this.agenteConfig?.threadId;
+      this.threadId = this.agenteConfig?.threadId ?? null;
     }
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -149,7 +149,7 @@ export class SofiaLLMService extends BaseAgent {
         const toolOutputs = await Promise.all(
           toolCalls.map(async (toolCall) => {
             console.log(`Processing tool call: ${toolCall.function.name}`);
-            const result = await handleToolCall(toolCall, this.agenteConfig as StartAgentConfig, this.functionCallService);
+            const result = await handleToolCall(toolCall, this.agenteConfig as AgentConfig, this.functionCallService);
             console.log(`Tool call result for ${toolCall.function.name}:`, result);
             return result;
           }),
