@@ -11,7 +11,7 @@ export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
 
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Get a department by id' })
+  @ApiOperation({ summary: 'get conversations by organization id' })
   @ApiBearerAuth()
   @Get('organization/:organizationId')
   async getConversationsByOrganizationId(@GetUser() user: User, @Param('organizationId') organizationId: number) {

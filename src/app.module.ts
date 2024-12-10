@@ -20,6 +20,7 @@ import { FunctionParamModule } from '@modules/function-param/function-param.modu
 import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { MessageModule } from '@modules/message/message.module';
+import { FacebookModule } from '@modules/facebook/facebook.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { MessageModule } from '@modules/message/message.module';
     MessageModule,
     FunctionModule,
     FunctionParamModule,
+    FacebookModule,
   ],
   controllers: [AppController],
   providers: [AppService],
