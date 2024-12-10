@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
 import { AgenteType, AgentIdentifierType, SofiaLLMConfig, StartAgentConfig } from 'src/interfaces/agent';
@@ -92,11 +92,14 @@ export class AgentManagerService {
     // Convertir el DTO a un objeto plano
     const plainConfig = config ? { ...config } : undefined;
 
-    const updateData = {
+    const updateData: DeepPartial<Agente> = {
       ...rest,
       config: plainConfig,
-      departamento: departamento_id ? { id: departamento_id } : null,
     };
+
+    if (departamento_id) {
+      updateData.departamento = { id: departamento_id } as Partial<Departamento>;
+    }
 
     const agente = await this.agenteRepository.findOneBy({ id });
     if (!agente) {
@@ -120,9 +123,12 @@ export class AgentManagerService {
     // Actualizar el asistente si cambió la configuración
     if (JSON.stringify(previousConfig) !== JSON.stringify(updatedSofiaAgent.config)) {
       const config = this.buildAgentConfig(updatedSofiaAgent);
+      console.log('Updating agent', config);
       const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
-      await llmService.init();
-      await llmService.updateAgent(config);
+      if (!previousConfig.agentId) {
+        throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
+      }
+      await llmService.updateAgent(config, previousConfig.agentId);
     }
     // Emit update event
     this.emitUpdateEvent(id, userId);

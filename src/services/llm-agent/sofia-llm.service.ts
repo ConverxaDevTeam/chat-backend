@@ -86,7 +86,6 @@ export class SofiaLLMService extends BaseAgent {
     identifier: agentIdentifier,
     private readonly agenteConfig?: AgentConfig,
   ) {
-    console.log('Initializing SofiaLLMService', agenteConfig);
     super(identifier);
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -111,8 +110,6 @@ export class SofiaLLMService extends BaseAgent {
     });
 
     this.assistantId = assistant.id;
-    this.threadId = await this.createThread();
-    console.log('Assistant created successfully');
     return;
   }
 
@@ -171,9 +168,7 @@ export class SofiaLLMService extends BaseAgent {
 
   protected async getResponse(): Promise<string> {
     if (!this.threadId) throw new Error('Thread not initialized');
-    console.log('Getting assistant response');
     const messages = await this.openai.beta.threads.messages.list(this.threadId);
-    console.log('Got assistant response');
     const lastMessage = messages.data[0];
 
     if (lastMessage.role !== 'assistant') {
@@ -184,7 +179,8 @@ export class SofiaLLMService extends BaseAgent {
   }
 
   async response(message: string): Promise<string> {
-    await this.initializeAgent();
+    if (!this.assistantId) this.threadId = await this.createThread();
+    console.log('Sending message:', this.threadId);
     await this.addMessageToThread(message);
     await this.runAgent(this.threadId!);
     const response = await this.getResponse();
@@ -196,12 +192,12 @@ export class SofiaLLMService extends BaseAgent {
     return this.assistantId;
   }
 
-  async updateAgent(config: StartAgentConfig): Promise<void> {
-    if (!this.assistantId) throw new Error('No se ha inicializado el agente');
-
+  async updateAgent(config: StartAgentConfig, assistantId: string): Promise<void> {
+    if (!assistantId) throw new Error('No se ha inicializado el agente');
+    console.log('Updating agent', config);
     const tools = buildToolsArray(config);
 
-    await this.openai.beta.assistants.update(this.assistantId, {
+    await this.openai.beta.assistants.update(assistantId, {
       name: config.name.replace(/\s+/g, '_'),
       instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
       tools,
