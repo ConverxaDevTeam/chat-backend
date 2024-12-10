@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateFunctionParamDto, UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
+import { UpdateFunctionParamDto } from '../../interfaces/function-param.interface';
 import { FunctionService } from '../function/function.service';
-import { FunctionType, HttpRequestConfig } from '../../interfaces/function.interface';
+import { FunctionParam, FunctionType, HttpRequestConfig } from '../../interfaces/function.interface';
 import { Funcion } from '@models/agent/Function.entity';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class FunctionParamService {
     private functionService: FunctionService,
   ) {}
 
-  async create(functionId: number, createFunctionParamDto: CreateFunctionParamDto): Promise<any> {
+  async create(functionId: number, createFunctionParamDto: FunctionParam): Promise<FunctionParam> {
     const function_ = await this.functionService.findOne(functionId);
 
     if (function_.type !== FunctionType.API_ENDPOINT) {
@@ -46,23 +46,7 @@ export class FunctionParamService {
     return config?.requestBody || [];
   }
 
-  async findOne(functionId: number, paramName: string): Promise<any> {
-    const function_ = await this.functionService.findOne(functionId);
-
-    if (function_.type !== FunctionType.API_ENDPOINT) {
-      throw new NotFoundException('Function is not an API_ENDPOINT');
-    }
-
-    const config = function_.config as HttpRequestConfig;
-    const param = config?.requestBody?.find((p) => p.name === paramName);
-    if (!param) {
-      throw new NotFoundException(`Parameter ${paramName} not found`);
-    }
-
-    return param;
-  }
-
-  async update(functionId: number, paramName: string, updateFunctionParamDto: UpdateFunctionParamDto): Promise<any> {
+  async update(functionId: number, paramIndex: number, updateFunctionParamDto: UpdateFunctionParamDto): Promise<any> {
     const function_ = await this.functionService.findOne(functionId);
 
     if (function_.type !== FunctionType.API_ENDPOINT) {
@@ -71,12 +55,11 @@ export class FunctionParamService {
 
     const config = function_.config as HttpRequestConfig;
     if (!config?.requestBody) {
-      throw new NotFoundException(`Parameter ${paramName} not found`);
+      throw new NotFoundException(`Parameter at index ${paramIndex} not found`);
     }
 
-    const paramIndex = config.requestBody.findIndex((p) => p.name === paramName);
-    if (paramIndex === -1) {
-      throw new NotFoundException(`Parameter ${paramName} not found`);
+    if (paramIndex < 0 || paramIndex >= config.requestBody.length) {
+      throw new NotFoundException(`Parameter at index ${paramIndex} not found`);
     }
 
     // Update parameter
@@ -90,7 +73,7 @@ export class FunctionParamService {
     return config.requestBody[paramIndex];
   }
 
-  async remove(functionId: number, paramName: string): Promise<void> {
+  async remove(functionId: number, paramIndex: number): Promise<void> {
     const function_ = await this.functionService.findOne(functionId);
 
     if (function_.type !== FunctionType.API_ENDPOINT) {
@@ -99,12 +82,11 @@ export class FunctionParamService {
 
     const config = function_.config as HttpRequestConfig;
     if (!config?.requestBody) {
-      throw new NotFoundException(`Parameter ${paramName} not found`);
+      throw new NotFoundException(`Parameter at index ${paramIndex} not found`);
     }
 
-    const paramIndex = config.requestBody.findIndex((p) => p.name === paramName);
-    if (paramIndex === -1) {
-      throw new NotFoundException(`Parameter ${paramName} not found`);
+    if (paramIndex < 0 || paramIndex >= config.requestBody.length) {
+      throw new NotFoundException(`Parameter at index ${paramIndex} not found`);
     }
 
     // Remove parameter

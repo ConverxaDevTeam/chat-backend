@@ -13,6 +13,7 @@ import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { DepartmentModule } from '@modules/department/department.module';
 import { MessageModule } from '@modules/message/message.module';
+import { FunctionCallModule } from '@modules/function-call/function-call.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { MessageModule } from '@modules/message/message.module';
     forwardRef(() => ConversationModule),
     forwardRef(() => DepartmentModule),
     forwardRef(() => MessageModule),
+    FunctionCallModule,
   ],
   providers: [SocketGateway, SocketService, AgentService, WebChatSocketGateway],
   exports: [SocketService],

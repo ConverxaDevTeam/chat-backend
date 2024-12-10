@@ -1,13 +1,18 @@
 import OpenAI from 'openai';
 import { AgentConfig, agentIdentifier, RunAgentConfig, StartAgentConfig } from 'src/interfaces/agent';
-import { FunctionType, HttpRequestConfig, FunctionParam, HttpMethod, FunctionResponse } from 'src/interfaces/function.interface';
+import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
+import { FunctionCallService } from '../function-call.service';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
   type: 'function' as const,
   function: {
-    name: func.name.replace(/\s+/g, '_'),
+    name: func.name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+      .replace(/[^a-zA-Z0-9_-]/g, '_') // Reemplazar caracteres no permitidos con _
+      .replace(/_{2,}/g, '_'), // Evitar múltiples guiones bajos seguidos
     description: func.description,
     parameters: {
       type: 'object',
@@ -22,7 +27,7 @@ const createFunctionTool = (func: FunctionResponse) => ({
           }),
           {},
         ) || {},
-      required: (func.config as HttpRequestConfig).requestBody?.map((param) => param.name) || [],
+      required: (func.config as HttpRequestConfig).requestBody?.filter((param) => param.required).map((param) => param.name) || [],
     },
   },
 });
@@ -39,69 +44,32 @@ const buildToolsArray = (config: StartAgentConfig) => {
   return tools;
 };
 
-const makeApiCall = async (url: string, method: HttpMethod | undefined, args: any) => {
-  console.log(`Making API call to ${url} with method ${method} and args ${JSON.stringify(args)}`);
-  const response = await fetch(url, {
-    method: method || HttpMethod.GET,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: method !== HttpMethod.GET ? JSON.stringify(args) : undefined,
-  });
-
-  if (!response.ok) {
-    try {
-      const errorResponse = await response.json();
-      console.log(`API call failed with error: ${JSON.stringify(errorResponse)}`);
-      return JSON.stringify(errorResponse) || errorResponse;
-    } catch (error) {
-      throw new Error(`API call failed: ${response.statusText}`);
-    }
-  }
-
-  return await response.json();
-};
-
 const handleToolCall = async (
   toolCall: OpenAI.Beta.Threads.Runs.RequiredActionFunctionToolCall,
   agenteConfig: StartAgentConfig,
+  functionCallService: FunctionCallService,
 ): Promise<{ tool_call_id: string; output: string }> => {
   const functionName = toolCall.function.name;
   const functionArgs = JSON.parse(toolCall.function.arguments);
-  console.log(`Handling tool call for function: ${functionName}`);
-
-  // Use either the stored functions or the ones from config
-  const availableFunctions = agenteConfig.funciones;
-  console.log(
-    'Available functions:',
-    availableFunctions?.map((f) => ({ name: f.name, normalized: f.name.replace(/\s+/g, '_') })),
-  );
 
   // Find the function configuration
-  const functionConfig = availableFunctions?.find((f) => f.name.replace(/\s+/g, '_') === functionName && f.type === FunctionType.API_ENDPOINT);
+  const functionConfig = agenteConfig.funciones?.find((f) => f.name.replace(/\s+/g, '_') === functionName && f.type === FunctionType.API_ENDPOINT);
 
   if (!functionConfig) {
-    console.log(`Function configuration not found for: ${functionName}`);
     return {
       tool_call_id: toolCall.id,
       output: JSON.stringify({ error: `Function ${functionName} not found` }),
     };
   }
 
-  console.log(`Found function configuration for ${functionName}:`, functionConfig);
-
   try {
-    const httpConfig = functionConfig.config as HttpRequestConfig;
-    if (!httpConfig.url) {
-      throw new Error('URL is required for API endpoint function');
-    }
-
-    const response = await makeApiCall(httpConfig.url, httpConfig.method, functionArgs);
+    const response = await functionCallService.executeFunctionCall(functionConfig.id, functionArgs);
     return {
       tool_call_id: toolCall.id,
       output: JSON.stringify(response),
     };
   } catch (error) {
+    console.error(`Error executing function ${functionName}:`, error);
     return {
       tool_call_id: toolCall.id,
       output: JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
@@ -112,9 +80,9 @@ const handleToolCall = async (
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
   private assistantId: string | null = null;
-  private storedFunctions: FunctionResponse[] | undefined;
 
   constructor(
+    private readonly functionCallService: FunctionCallService,
     identifier: agentIdentifier,
     private readonly agenteConfig?: AgentConfig,
   ) {
@@ -131,11 +99,10 @@ export class SofiaLLMService extends BaseAgent {
       console.log('Creating assistant');
       const config = this.agenteConfig as StartAgentConfig;
       // Store the functions configuration for future use
-      this.storedFunctions = config.funciones;
       const tools = buildToolsArray(config);
 
       const assistant = await this.openai.beta.assistants.create({
-        name: config.name,
+        name: config.name.replace(/\s+/g, '_'),
         instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
         model: 'gpt-4-1106-preview',
         tools,
@@ -181,7 +148,7 @@ export class SofiaLLMService extends BaseAgent {
         const toolOutputs = await Promise.all(
           toolCalls.map(async (toolCall) => {
             console.log(`Processing tool call: ${toolCall.function.name}`);
-            const result = await handleToolCall(toolCall, this.agenteConfig as StartAgentConfig);
+            const result = await handleToolCall(toolCall, this.agenteConfig as StartAgentConfig, this.functionCallService);
             console.log(`Tool call result for ${toolCall.function.name}:`, result);
             return result;
           }),

@@ -21,6 +21,7 @@ import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { MessageModule } from '@modules/message/message.module';
 import { FacebookModule } from '@modules/facebook/facebook.module';
+import { AutenticadorModule } from '@modules/Autenticador/autenticador.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { FacebookModule } from '@modules/facebook/facebook.module';
     FunctionModule,
     FunctionParamModule,
     FacebookModule,
+    AutenticadorModule,
   ],
   controllers: [AppController],
   providers: [AppService],

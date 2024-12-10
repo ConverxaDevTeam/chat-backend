@@ -98,7 +98,6 @@ export class WebChatSocketGateway implements OnModuleInit {
 
       socket.on('message', async (data) => {
         const dataJson = JSON.parse(data.toString());
-        console.log(dataJson.action);
         if (dataJson.action === 'init') {
           const integration = await this.integrationService.getIntegrationWebChatById(dataJson.id);
           if (!integration) {

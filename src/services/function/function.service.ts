@@ -57,6 +57,12 @@ export class FunctionService {
     return await this.functionRepository.save(function_);
   }
 
+  async assignAuthorizer(id: number, authorizerId?: number | null): Promise<Funcion> {
+    const function_ = await this.findOne(id);
+    function_.autenticador = authorizerId ? ({ id: authorizerId } as any) : null;
+    return await this.functionRepository.save(function_);
+  }
+
   async remove(id: number): Promise<void> {
     const result = await this.functionRepository.delete(id);
     if (result.affected === 0) {

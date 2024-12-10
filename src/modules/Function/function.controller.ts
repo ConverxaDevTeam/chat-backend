@@ -42,6 +42,12 @@ export class FunctionController {
     return this.functionService.update(id, updateFunctionDto);
   }
 
+  @Patch(':id/assign-authorizer')
+  @ApiOperation({ summary: 'Assign or remove an authorizer from a function' })
+  assignAuthorizer(@Param('id', ParseIntPipe) id: number, @Body() body: { authorizerId?: number | null }): Promise<Funcion> {
+    return this.functionService.assignAuthorizer(id, body.authorizerId);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a function' })
   remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
