@@ -46,9 +46,14 @@ export interface TestAgentIdentifier {
 }
 
 export interface StartAgentConfig {
-  instruccion: string;
-  name: string;
+  agentId: string;
   funciones?: FunctionResponse[];
+}
+
+export interface CreateAgentConfig {
+  name: string;
+  instruccion: string;
+  agentId: string;
 }
 
 export interface RunAgentConfig {

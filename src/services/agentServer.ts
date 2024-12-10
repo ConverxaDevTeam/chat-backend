@@ -23,12 +23,11 @@ interface AgentResponse {
  * @returns configuracion del agente
  */
 function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[]): StartAgentConfig {
-  if (!config.instruccion) {
+  if (!config.agentId) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
   return {
-    instruccion: config.instruccion,
-    name: name,
+    agentId: config.agentId,
     funciones: funciones,
   };
 }
@@ -63,7 +62,7 @@ export class AgentService {
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       const queryBuilder = this.agenteRepository
         .createQueryBuilder('agente')
-        .select(['agente.config', 'agente.name'])
+        .select(['agente.config'])
         .leftJoin('agente.funciones', 'funciones')
         .addSelect(['funciones.name', 'funciones.description', 'funciones.type', 'funciones.config'])
         .where('agente.id = :agentId', { agentId });
@@ -86,7 +85,6 @@ export class AgentService {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
     const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
-    await llmService.init();
     const response = await llmService.response(message);
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }

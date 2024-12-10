@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
-import { AgenteType, AgentIdentifierType, SofiaLLMConfig, StartAgentConfig } from 'src/interfaces/agent';
+import { AgenteType, AgentIdentifierType, CreateAgentConfig, SofiaLLMConfig } from 'src/interfaces/agent';
 import { SocketService } from '@modules/socket/socket.service';
 import { SofiaLLMService } from './sofia-llm.service';
 import { FunctionCallService } from '../function-call.service';
@@ -21,14 +21,14 @@ export class AgentManagerService {
     private readonly functionCallService: FunctionCallService,
   ) {}
 
-  private buildAgentConfig(agente: SofiaAgente): StartAgentConfig {
+  private buildAgentConfig(agente: SofiaAgente): CreateAgentConfig {
     if (!agente.config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     return {
       name: agente.name,
       instruccion: agente.config.instruccion,
-      funciones: [],
+      agentId: 'not created',
     };
   }
 

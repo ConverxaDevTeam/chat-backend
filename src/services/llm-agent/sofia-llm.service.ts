@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { AgentConfig, agentIdentifier, RunAgentConfig, StartAgentConfig } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, CreateAgentConfig, RunAgentConfig, StartAgentConfig } from 'src/interfaces/agent';
 import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../function-call.service';
@@ -87,6 +87,10 @@ export class SofiaLLMService extends BaseAgent {
     private readonly agenteConfig?: AgentConfig,
   ) {
     super(identifier);
+    if (this.agenteConfig?.agentId) this.assistantId = this.agenteConfig.agentId;
+    if (this.agenteConfig && 'threadId' in this.agenteConfig) {
+      this.threadId = this.agenteConfig?.threadId;
+    }
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -96,7 +100,7 @@ export class SofiaLLMService extends BaseAgent {
     if (this.assistantId) return;
     console.log('Initializing agent', this.agenteConfig);
 
-    const config = this.agenteConfig as StartAgentConfig;
+    const config = this.agenteConfig as CreateAgentConfig;
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
@@ -120,6 +124,7 @@ export class SofiaLLMService extends BaseAgent {
   }
 
   protected async addMessageToThread(message: string): Promise<void> {
+    console.log(this.threadId);
     if (!this.threadId) throw new Error('Thread not initialized');
     await this.openai.beta.threads.messages.create(this.threadId, {
       role: 'user',
@@ -179,7 +184,7 @@ export class SofiaLLMService extends BaseAgent {
   }
 
   async response(message: string): Promise<string> {
-    if (!this.assistantId) this.threadId = await this.createThread();
+    if (!this.threadId) this.threadId = await this.createThread();
     console.log('Sending message:', this.threadId);
     await this.addMessageToThread(message);
     await this.runAgent(this.threadId!);
@@ -192,7 +197,7 @@ export class SofiaLLMService extends BaseAgent {
     return this.assistantId;
   }
 
-  async updateAgent(config: StartAgentConfig, assistantId: string): Promise<void> {
+  async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     console.log('Updating agent', config);
     const tools = buildToolsArray(config);
