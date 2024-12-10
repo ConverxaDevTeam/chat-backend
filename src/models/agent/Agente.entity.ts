@@ -19,6 +19,9 @@ export class Agente extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   config: Record<string, unknown>;
 
+  @Column('simple-array', { nullable: true })
+  databaseIdentifiers: string[];
+
   @OneToOne(() => Departamento, (departamento) => departamento.agente)
   @JoinColumn({ name: 'departamento_id' })
   departamento: Departamento;
