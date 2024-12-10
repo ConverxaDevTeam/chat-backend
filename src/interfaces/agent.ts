@@ -6,6 +6,14 @@ export enum AgenteType {
   GROK = 'grok',
 }
 
+export interface SofiaLLMConfig {
+  type: AgenteType.SOFIA_ASISTENTE;
+  config: {
+    instruccion: string;
+    agentId?: string;
+  };
+}
+
 export enum AgentIdentifierType {
   CHAT = 'chat',
   CHAT_TEST = 'chatTest',

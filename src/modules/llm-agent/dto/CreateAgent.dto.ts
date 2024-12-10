@@ -1,11 +1,22 @@
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsEnum, ValidateNested, IsObject } from 'class-validator';
+import { Type } from 'class-transformer';
 import { AgenteType } from 'src/interfaces/agent';
+
+// DTOs para configuraciones específicas
+export class SofiaConfigDto {
+  @IsString()
+  instruccion: string;
+
+  @IsOptional()
+  @IsString()
+  agentId?: string;
+}
 
 export class CreateAgentDto {
   @IsString()
   name: string;
 
-  @IsString()
+  @IsEnum(AgenteType)
   type: AgenteType;
 
   @IsNumber()
@@ -16,5 +27,8 @@ export class CreateAgentDto {
   departamento_id?: number;
 
   @IsOptional()
-  config?: Record<string, unknown>;
+  @IsObject()
+  @ValidateNested()
+  @Type(() => SofiaConfigDto)
+  config?: SofiaConfigDto;
 }

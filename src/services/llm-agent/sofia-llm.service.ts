@@ -86,6 +86,7 @@ export class SofiaLLMService extends BaseAgent {
     identifier: agentIdentifier,
     private readonly agenteConfig?: AgentConfig,
   ) {
+    console.log('Initializing SofiaLLMService', agenteConfig);
     super(identifier);
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -94,27 +95,25 @@ export class SofiaLLMService extends BaseAgent {
 
   protected async initializeAgent(): Promise<void> {
     if (this.assistantId) return;
-    if (!this.agenteConfig) throw new Error('No se pudo obtener la configuracion del agente');
-    if ((this.agenteConfig as StartAgentConfig)?.instruccion) {
-      console.log('Creating assistant');
-      const config = this.agenteConfig as StartAgentConfig;
-      // Store the functions configuration for future use
-      const tools = buildToolsArray(config);
+    console.log('Initializing agent', this.agenteConfig);
 
-      const assistant = await this.openai.beta.assistants.create({
-        name: config.name.replace(/\s+/g, '_'),
-        instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
-        model: 'gpt-4-1106-preview',
-        tools,
-      });
-      this.assistantId = assistant.id;
-      this.threadId = await this.createThread();
-      console.log('Assistant created successfully');
-      return;
+    const config = this.agenteConfig as StartAgentConfig;
+    if (!config?.instruccion) {
+      throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
-    if (!(this.agenteConfig as RunAgentConfig)?.threadId) throw new Error('No se pudo obtener la configuracion del agente');
-    this.threadId = (this.agenteConfig as RunAgentConfig).threadId;
-    this.assistantId = (this.agenteConfig as RunAgentConfig).agentId;
+    const tools = buildToolsArray(config);
+    console.log('Creating assistant');
+    const assistant = await this.openai.beta.assistants.create({
+      name: config.name || 'Sofia Assistant',
+      instructions: config.instruccion,
+      tools,
+      model: 'gpt-4-1106-preview',
+    });
+
+    this.assistantId = assistant.id;
+    this.threadId = await this.createThread();
+    console.log('Assistant created successfully');
+    return;
   }
 
   protected async createThread(): Promise<string> {
@@ -195,5 +194,17 @@ export class SofiaLLMService extends BaseAgent {
   public getAgentId(): string {
     if (!this.assistantId) throw new Error('Assistant not initialized');
     return this.assistantId;
+  }
+
+  async updateAgent(config: StartAgentConfig): Promise<void> {
+    if (!this.assistantId) throw new Error('No se ha inicializado el agente');
+
+    const tools = buildToolsArray(config);
+
+    await this.openai.beta.assistants.update(this.assistantId, {
+      name: config.name.replace(/\s+/g, '_'),
+      instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
+      tools,
+    });
   }
 }
