@@ -45,25 +45,14 @@ const buildToolsArray = (config: { funciones: FunctionResponse[] }) => {
 };
 
 const handleToolCall = async (
+  agentId: number,
   toolCall: OpenAI.Beta.Threads.Runs.RequiredActionFunctionToolCall,
-  agenteConfig: AgentConfig,
   functionCallService: FunctionCallService,
 ): Promise<{ tool_call_id: string; output: string }> => {
   const functionName = toolCall.function.name;
   const functionArgs = JSON.parse(toolCall.function.arguments);
-
-  // Find the function configuration
-  const functionConfig = agenteConfig.funciones?.find((f) => f.name.replace(/\s+/g, '_') === functionName && f.type === FunctionType.API_ENDPOINT);
-
-  if (!functionConfig) {
-    return {
-      tool_call_id: toolCall.id,
-      output: JSON.stringify({ error: `Function ${functionName} not found` }),
-    };
-  }
-
   try {
-    const response = await functionCallService.executeFunctionCall(functionConfig.id, functionArgs);
+    const response = await functionCallService.executeFunctionCall(functionName, agentId, functionArgs);
     return {
       tool_call_id: toolCall.id,
       output: JSON.stringify(response),
@@ -80,6 +69,7 @@ const handleToolCall = async (
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
   private assistantId: string | null = null;
+  private agentId: number | null = null;
 
   constructor(
     private readonly functionCallService: FunctionCallService,
@@ -91,6 +81,7 @@ export class SofiaLLMService extends BaseAgent {
     if (this.agenteConfig && 'threadId' in this.agenteConfig) {
       this.threadId = this.agenteConfig?.threadId ?? null;
     }
+    if (this.agenteConfig?.DBagentId) this.agentId = this.agenteConfig.DBagentId;
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -124,7 +115,6 @@ export class SofiaLLMService extends BaseAgent {
   }
 
   protected async addMessageToThread(message: string): Promise<void> {
-    console.log(this.threadId);
     if (!this.threadId) throw new Error('Thread not initialized');
     await this.openai.beta.threads.messages.create(this.threadId, {
       role: 'user',
@@ -149,7 +139,7 @@ export class SofiaLLMService extends BaseAgent {
         const toolOutputs = await Promise.all(
           toolCalls.map(async (toolCall) => {
             console.log(`Processing tool call: ${toolCall.function.name}`);
-            const result = await handleToolCall(toolCall, this.agenteConfig as AgentConfig, this.functionCallService);
+            const result = await handleToolCall(this.agentId!, toolCall, this.functionCallService);
             console.log(`Tool call result for ${toolCall.function.name}:`, result);
             return result;
           }),

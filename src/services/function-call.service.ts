@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpMethod, HttpRequestConfig, AutenticadorType, injectPlaces, HttpAutenticador, BearerConfig } from 'src/interfaces/function.interface';
@@ -12,15 +12,15 @@ export class FunctionCallService {
     private readonly functionRepository: Repository<Funcion>,
   ) {}
 
-  async executeFunctionCall(functionId: number, params: Record<string, any>, extraConfig?: Partial<HttpRequestConfig>) {
+  async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>) {
     // Buscar la función en la base de datos
     const functionConfig = await this.functionRepository.findOne({
-      where: { id: functionId },
+      where: { name: functionName, agente: { id: agentId } },
       relations: ['autenticador'],
     });
 
     if (!functionConfig) {
-      throw new Error(`Function with ID ${functionId} not found`);
+      throw new NotFoundException(`Function with name ${functionName} not found`);
     }
 
     // Obtener la configuración HTTP
@@ -29,7 +29,6 @@ export class FunctionCallService {
     // Combinar la configuración extra si existe
     const finalConfig = {
       ...httpConfig,
-      ...extraConfig,
     };
 
     if (!finalConfig.url) {
@@ -127,6 +126,7 @@ export class FunctionCallService {
 
     if (!response.ok) {
       const errorText = await response.text();
+      console.error('Error making API call:', response, errorText);
       let errorResponse;
       try {
         errorResponse = JSON.parse(errorText);

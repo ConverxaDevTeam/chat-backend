@@ -76,6 +76,7 @@ export class AgentService {
 
       agenteConfig = {
         agentId: identifier.LLMAgentId,
+        DBagentId: agentId,
         threadId: identifier.threatId,
         funciones: functions,
       } as AgentConfig;

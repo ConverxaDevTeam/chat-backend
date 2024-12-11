@@ -1,10 +1,11 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Unique } from 'typeorm';
 import { BaseEntity } from '../Base.entity';
 import { Agente } from './Agente.entity';
 import { Autenticador } from './Autenticador.entity';
 import { FunctionType } from 'src/interfaces/function.interface';
 
 @Entity({ name: 'funcion' })
+@Unique(['name', 'agente'])
 export class Funcion extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: false })
   name: string;
