@@ -15,7 +15,7 @@ export class FunctionCallService {
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>) {
     // Buscar la función en la base de datos
     const functionConfig = await this.functionRepository.findOne({
-      where: { name: functionName, agente: { id: agentId } },
+      where: { normalizedName: functionName, agente: { id: agentId } },
       relations: ['autenticador'],
     });
 

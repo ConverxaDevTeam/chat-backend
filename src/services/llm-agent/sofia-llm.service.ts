@@ -3,16 +3,13 @@ import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/
 import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../function-call.service';
+import { Funcion } from '@models/agent/Function.entity';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
   type: 'function' as const,
   function: {
-    name: func.name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
-      .replace(/[^a-zA-Z0-9_-]/g, '_') // Reemplazar caracteres no permitidos con _
-      .replace(/_{2,}/g, '_'), // Evitar múltiples guiones bajos seguidos
+    name: func.name, // Evitar múltiples guiones bajos seguidos
     description: func.description,
     parameters: {
       type: 'object',
@@ -199,10 +196,10 @@ export class SofiaLLMService extends BaseAgent {
     });
   }
 
-  async updateFunctions(funciones: FunctionResponse[], assistantId: string): Promise<void> {
+  async updateFunctions(funciones: Funcion[], assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     console.log('Updating functions', funciones);
-    const tools = buildToolsArray({ funciones });
+    const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     await this.openai.beta.assistants.update(assistantId, {
       tools,
     });

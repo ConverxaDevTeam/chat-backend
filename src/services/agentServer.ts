@@ -78,7 +78,10 @@ export class AgentService {
         agentId: identifier.LLMAgentId,
         DBagentId: agentId,
         threadId: identifier.threatId,
-        funciones: functions,
+        funciones: functions.map((f) => {
+          f.name = f.normalizedName;
+          return f;
+        }),
       } as AgentConfig;
     }
 
