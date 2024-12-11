@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
@@ -39,7 +39,7 @@ export class AgentManagerService {
     });
 
     if (!agente) {
-      throw new Error(`Agente con ID ${id} no encontrado`);
+      throw new NotFoundException(`Agente con ID ${id} no encontrado`);
     }
 
     return agente;

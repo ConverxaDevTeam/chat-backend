@@ -49,6 +49,7 @@ export interface CreateAgentConfig {
   name: string;
   instruccion: string;
   agentId: string;
+  funciones?: FunctionResponse[];
 }
 
 export interface AgentConfig {

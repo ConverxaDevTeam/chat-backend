@@ -32,7 +32,7 @@ const createFunctionTool = (func: FunctionResponse) => ({
   },
 });
 
-const buildToolsArray = (config: AgentConfig) => {
+const buildToolsArray = (config: { funciones: FunctionResponse[] }) => {
   const tools: OpenAI.Beta.Assistants.AssistantTool[] = [];
   if (config.funciones && config.funciones.length > 0) {
     config.funciones.forEach((func) => {
@@ -96,7 +96,7 @@ export class SofiaLLMService extends BaseAgent {
     });
   }
 
-  protected async initializeAgent(): Promise<void> {
+  async initializeAgent(): Promise<void> {
     if (this.assistantId) return;
     console.log('Initializing agent', this.agenteConfig);
 
@@ -104,7 +104,7 @@ export class SofiaLLMService extends BaseAgent {
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
-    const tools = buildToolsArray(config);
+    const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
     console.log('Creating assistant');
     const assistant = await this.openai.beta.assistants.create({
       name: config.name || 'Sofia Assistant',
@@ -200,11 +200,20 @@ export class SofiaLLMService extends BaseAgent {
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     console.log('Updating agent', config);
-    const tools = buildToolsArray(config);
+    const tools = buildToolsArray({ funciones: config.funciones ?? [] });
 
     await this.openai.beta.assistants.update(assistantId, {
       name: config.name.replace(/\s+/g, '_'),
       instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
+      tools,
+    });
+  }
+
+  async updateFunctions(funciones: FunctionResponse[], assistantId: string): Promise<void> {
+    if (!assistantId) throw new Error('No se ha inicializado el agente');
+    console.log('Updating functions', funciones);
+    const tools = buildToolsArray({ funciones });
+    await this.openai.beta.assistants.update(assistantId, {
       tools,
     });
   }

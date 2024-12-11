@@ -3,12 +3,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Funcion } from '../../models/agent/Function.entity';
 import { CreateFunctionDto, UpdateFunctionDto, FunctionType } from '../../interfaces/function.interface';
+import { SofiaLLMService } from '../llm-agent/sofia-llm.service';
+import { AgentIdentifierType } from 'src/interfaces/agent';
+import { FunctionCallService } from '../function-call.service';
 
 @Injectable()
 export class FunctionService {
   constructor(
     @InjectRepository(Funcion)
     private functionRepository: Repository<Funcion>,
+    private readonly functionCallService: FunctionCallService,
   ) {}
 
   async create(createFunctionDto: CreateFunctionDto<FunctionType>): Promise<Funcion> {
@@ -18,7 +22,11 @@ export class FunctionService {
     Object.assign(function_, {
       agente: { id: agentId },
     });
-    return await this.functionRepository.save(function_);
+    const savedFunction = await this.functionRepository.save(function_);
+
+    await this.updateLLMFunctions(agentId);
+
+    return savedFunction;
   }
 
   async findAll(): Promise<Funcion[]> {
@@ -34,7 +42,7 @@ export class FunctionService {
     });
 
     if (!function_) {
-      throw new NotFoundException(`Function with ID ${id} not found`);
+      throw new NotFoundException(`Función con ID ${id} no encontrada`);
     }
 
     return function_;
@@ -54,7 +62,13 @@ export class FunctionService {
       ...rest,
       agente: agentId ? { id: agentId } : function_.agente,
     });
-    return await this.functionRepository.save(function_);
+    const updatedFunction = await this.functionRepository.save(function_);
+
+    if (agentId) {
+      await this.updateLLMFunctions(agentId);
+    }
+
+    return updatedFunction;
   }
 
   async assignAuthorizer(id: number, authorizerId?: number | null): Promise<Funcion> {
@@ -68,5 +82,19 @@ export class FunctionService {
     if (result.affected === 0) {
       throw new NotFoundException(`Function with ID ${id} not found`);
     }
+    await this.updateLLMFunctions(result.raw.agenteId);
+  }
+
+  private async updateLLMFunctions(agentId: number): Promise<void> {
+    const functions = await this.functionRepository.find({
+      where: { agente: { id: agentId } },
+      relations: ['agente'],
+    });
+
+    if (!functions[0].agente.config.agentId) throw new Error('No se pudo obtener la configuración del agente');
+    const sofiaLLMId = functions[0].agente.config.agentId as string;
+
+    const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, functions[0].agente.config as any);
+    await llmService.updateFunctions(functions, sofiaLLMId);
   }
 }
