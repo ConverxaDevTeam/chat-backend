@@ -123,7 +123,6 @@ export class AgentManagerService {
     // Actualizar el asistente si cambió la configuración
     if (JSON.stringify(previousConfig) !== JSON.stringify(updatedSofiaAgent.config)) {
       const config = this.buildAgentConfig(updatedSofiaAgent);
-      console.log('Updating agent', config);
       const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
       if (!previousConfig.agentId) {
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');

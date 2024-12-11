@@ -86,14 +86,12 @@ export class SofiaLLMService extends BaseAgent {
 
   async initializeAgent(): Promise<void> {
     if (this.assistantId) return;
-    console.log('Initializing agent', this.agenteConfig);
 
     const config = this.agenteConfig as CreateAgentConfig;
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
-    console.log('Creating assistant');
     const assistant = await this.openai.beta.assistants.create({
       name: config.name || 'Sofia Assistant',
       instructions: config.instruccion,

@@ -115,7 +115,6 @@ export class DepartmentService {
 
     // Crear departamento si no existe
     if (!department) {
-      console.log('Department not found. Creating new default department...');
       department = await this.departmentRepository.save({
         name: defaultDepartmentName,
         organizacion: { id: organizationId },
@@ -151,7 +150,6 @@ export class DepartmentService {
 
     // Verificar si existe un agente asociado al departamento
     if (!department.agente) {
-      console.log('Agent not found for department. Creating default agent...');
       department.agente = await this.agentManagerService.createAgent({
         name: 'default agent',
         departamento_id: department.id,

@@ -33,7 +33,7 @@ export class FunctionService {
     });
   }
 
-  async findOne(id: number, relations: string[] = ['autenticador']): Promise<Funcion> {
+  async findOne(id: number, relations: string[] = []): Promise<Funcion> {
     const function_ = await this.functionRepository.findOne({
       where: { id },
       relations,
