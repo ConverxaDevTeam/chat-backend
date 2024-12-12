@@ -4,6 +4,9 @@ import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../function-call.service';
 import { Funcion } from '@models/agent/Function.entity';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
@@ -184,6 +187,7 @@ export class SofiaLLMService extends BaseAgent {
 
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
+    if (!config?.name) throw new Error('No se pudo obtener el nombre del agente');
     console.log('Updating agent', config);
     const tools = buildToolsArray({ funciones: config.funciones ?? [] });
 
@@ -201,5 +205,45 @@ export class SofiaLLMService extends BaseAgent {
     await this.openai.beta.assistants.update(assistantId, {
       tools,
     });
+  }
+
+  async updateAssistantToolResources(assistantId: string, vectorStoreIds: string[]) {
+    try {
+      await this.openai.beta.assistants.update(assistantId, {
+        tool_resources: { file_search: { vector_store_ids: vectorStoreIds } },
+      });
+    } catch (error) {
+      console.error('Error updating assistant tool resources:', error);
+      throw error;
+    }
+  }
+
+  async uploadFileToAssistant(file: Express.Multer.File, agentId: number): Promise<string> {
+    try {
+      const fileName = `${file.originalname}_${agentId}`;
+      // Crear vector store
+      const vectorStore = await this.openai.beta.vectorStores.create({
+        name: fileName,
+      });
+
+      // Subir archivo al vector store
+      await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {
+        files: [new File([file.buffer], fileName, { type: file.mimetype })],
+      });
+
+      return vectorStore.id;
+    } catch (error) {
+      console.error('Error uploading file to OpenAI:', error);
+      throw error;
+    }
+  }
+
+  async deleteFileFromAssistant(fileId: string): Promise<void> {
+    try {
+      await this.openai.files.del(fileId);
+    } catch (error) {
+      console.error('Error deleting file from OpenAI:', error);
+      throw error;
+    }
   }
 }

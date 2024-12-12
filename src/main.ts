@@ -16,9 +16,14 @@ async function bootstrap() {
   pg.defaults.parseInputDatesAsUTC = false;
   pg.types.setTypeParser(1114, (stringValue: string) => new Date(`${stringValue}Z`));
 
-  const app = await NestFactory.create(AppModule);
-  app.use(json({ limit: '3mb' }));
-  app.use(urlencoded({ extended: true, limit: '3mb' }));
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'debug', 'log', 'verbose'],
+  });
+
+  // Aumentar límites para todos los tipos de peticiones
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -28,13 +33,18 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Configuración detallada de CORS
   app.enableCors({
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Content-Disposition'],
+    credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
-    credentials: true,
-    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com'],
   });
+
   app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder().setTitle('SofiaChat API').setDescription('SofiaChat API docuemntation').addBearerAuth().setVersion('1.0').build();
