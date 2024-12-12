@@ -5,15 +5,17 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 
-const createFileFilter = () => (req: any, file: Express.Multer.File, cb: (error: Error | null, acceptFile: boolean) => void) => {
-  const allowedMimeTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+const ALLOWED_EXTENSIONS = ['c', 'cpp', 'cs', 'css', 'doc', 'docx', 'go', 'html', 'java', 'js', 'json', 'md', 'pdf', 'php', 'pptx', 'py', 'rb', 'sh', 'tex', 'ts', 'txt'];
 
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    console.log('File rejected:', file.originalname);
-    cb(new BadRequestException(`File ${file.originalname} has invalid type. Only PDF, TXT and DOC files are allowed.`), false);
-  }
+const createFileFilter = () => {
+  return (req: any, file: Express.Multer.File, callback: (error: Error | null, acceptFile: boolean) => void) => {
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
+
+    if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+      return callback(new BadRequestException(`File type not allowed. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`), false);
+    }
+    callback(null, true);
+  };
 };
 
 @ApiTags('agent-knowledgebase')
@@ -45,7 +47,7 @@ export class AgentKnowledgebaseController {
             type: 'string',
             format: 'binary',
           },
-          description: 'Files to upload (PDF, TXT, DOC). Maximum 10 files, 10MB each.',
+          description: `Files to upload. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}. Maximum 10 files, 10MB each.`,
         },
       },
     },

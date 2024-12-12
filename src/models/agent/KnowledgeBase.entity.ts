@@ -5,7 +5,7 @@ import { Agente } from './Agente.entity';
 @Entity({ name: 'knowledge_base' })
 export class KnowledgeBase extends BaseEntity {
   @Column({ type: 'varchar', length: 50, nullable: false })
-  vectorStoreId: string;
+  fileId: string;
 
   @Column({ type: 'integer', nullable: true })
   expirationTime: number;

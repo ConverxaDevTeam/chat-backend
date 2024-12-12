@@ -11,6 +11,7 @@ export interface SofiaLLMConfig {
   config: {
     instruccion: string;
     agentId?: string;
+    vectorStoreId?: string;
   };
 }
 

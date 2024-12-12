@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { KnowledgeBase } from '@models/agent/KnowledgeBase.entity';
 import { Agente } from '@models/agent/Agente.entity';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { Funcion } from '@models/agent/Function.entity';
 
 @Injectable()
 export class AgentKnowledgebaseService {
@@ -17,56 +18,69 @@ export class AgentKnowledgebaseService {
     private readonly sofiaLLMService: SofiaLLMService,
   ) {}
 
-  private async updateAssistantTools(agent: Agente) {
-    if (!agent || !agent.config?.agentId) return;
-
-    const vectorStoreIds = agent.knowledgeBases.map((kb) => kb.vectorStoreId);
-    this.logger.debug(`Updating assistant tools with vector store IDs: ${vectorStoreIds}`);
-    await this.sofiaLLMService.updateAssistantToolResources(agent.config.agentId as string, vectorStoreIds);
+  private async ensureVectorStore(agent: Agente) {
+    if (!agent.config?.vectorStoreId) {
+      if (!agent.config?.agentId) throw new Error('No se pudo obtener la configuración del agente');
+      if (!agent.funciones) this.logger.warn('No se encontraron funciones para el agente');
+      const vectorStoreId = await this.sofiaLLMService.createVectorStore(agent.id);
+      agent.config = {
+        ...agent.config,
+        vectorStoreId,
+      };
+      await this.agenteRepository.save(agent);
+      const funciones = agent.funciones.map((f) => Object.assign(new Funcion(), f, { name: f.normalizedName }));
+      const updateToolResourcesData = {
+        funciones,
+        add: true,
+      };
+      this.logger.debug('updateToolResourcesData', updateToolResourcesData);
+      await this.sofiaLLMService.updateAssistantToolResources(agent.config.agentId as string, vectorStoreId, updateToolResourcesData);
+    }
+    return agent.config.vectorStoreId as string;
   }
 
   async create(agentId: number, files: Express.Multer.File[]) {
-    const agent = await this.agenteRepository.findOne({ where: { id: agentId }, relations: ['knowledgeBases'] });
-    if (!agent) {
-      throw new NotFoundException(`Agent with ID ${agentId} not found`);
-    }
+    const queryRunner = this.knowledgeBaseRepository.manager.connection.createQueryRunner();
+    await queryRunner.startTransaction();
 
     try {
-      const queryRunner = this.knowledgeBaseRepository.manager.connection.createQueryRunner();
+      const agent = await this.agenteRepository.findOne({
+        where: { id: agentId },
+        relations: ['knowledgeBases', 'funciones'],
+      });
 
-      await queryRunner.startTransaction();
-      const knowledgeBase = new KnowledgeBase();
-      try {
-        for (const file of files) {
-          this.logger.debug(`Processing file: ${file.originalname}`);
-
-          const fileId = await this.sofiaLLMService.uploadFileToAssistant(file, agent.id);
-
-          knowledgeBase.vectorStoreId = fileId;
-          knowledgeBase.filename = file.originalname;
-          knowledgeBase.expirationTime = 7;
-          knowledgeBase.agente = agent;
-
-          await queryRunner.manager.save(knowledgeBase);
-          agent.knowledgeBases.push(knowledgeBase);
-          this.logger.debug(`File processed successfully: ${file.originalname}, ID: ${fileId}`);
-        }
-
-        await this.updateAssistantTools(agent);
-
-        await queryRunner.commitTransaction();
-
-        return { id: knowledgeBase.id, filename: knowledgeBase.filename, expirationTime: knowledgeBase.expirationTime };
-      } catch (error) {
-        this.logger.error('Error processing files:', error);
-        await queryRunner.rollbackTransaction();
-        throw error;
-      } finally {
-        await queryRunner.release();
+      if (!agent) {
+        throw new NotFoundException(`Agent with ID ${agentId} not found`);
       }
+
+      const vectorStoreId = await this.ensureVectorStore(agent);
+      const knowledgeBases: KnowledgeBase[] = [];
+
+      for (const file of files) {
+        this.logger.debug(`Processing file: ${file.originalname}`);
+
+        const fileId = await this.sofiaLLMService.uploadFileToVectorStore(file, vectorStoreId);
+
+        const knowledgeBase = new KnowledgeBase();
+        knowledgeBase.filename = file.originalname;
+        knowledgeBase.fileId = fileId;
+        knowledgeBase.expirationTime = 7;
+        knowledgeBase.agente = agent;
+
+        await queryRunner.manager.save(knowledgeBase);
+        knowledgeBases.push(knowledgeBase);
+
+        this.logger.debug(`File processed successfully: ${file.originalname}`);
+      }
+
+      await queryRunner.commitTransaction();
+      return knowledgeBases;
     } catch (error) {
       this.logger.error('Error processing files:', error);
+      await queryRunner.rollbackTransaction();
       throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -98,17 +112,37 @@ export class AgentKnowledgebaseService {
 
   async remove(id: number) {
     const knowledgeBase = await this.findOne(id, ['agente']);
+    const agent = knowledgeBase.agente;
 
+    if (!agent.config?.vectorStoreId) throw new Error('Vector store ID not found in agent config');
+    if (!agent.config?.agentId) throw new Error('Agent ID not found in agent config');
     try {
-      await this.sofiaLLMService.deleteFileFromAssistant(knowledgeBase.vectorStoreId);
-      this.logger.debug(`File deleted from OpenAI: ${knowledgeBase.vectorStoreId}`);
+      await this.sofiaLLMService.deleteFileFromVectorStore(knowledgeBase.fileId, agent.config.vectorStoreId as string);
+
+      await this.knowledgeBaseRepository.remove(knowledgeBase);
+
+      // Verificar si quedan archivos en el vector store
+      const remainingFiles = await this.sofiaLLMService.listVectorStoreFiles(agent.config.vectorStoreId as string);
+      if (remainingFiles.length > 0) return { message: 'Knowledge base deleted successfully' };
+      // Si no quedan archivos, eliminar el vector store y actualizar el agente
+      await this.sofiaLLMService.deleteVectorStore(agent.config.vectorStoreId as string);
+
+      agent.config = {
+        ...agent.config,
+        vectorStoreId: null,
+      };
+      await this.agenteRepository.save(agent);
+      const funciones = agent.funciones.map((f) => Object.assign(new Funcion(), f, { name: f.normalizedName }));
+      const updateToolResourcesData = {
+        funciones,
+        add: false,
+      };
+      await this.sofiaLLMService.updateAssistantToolResources(agent.config.agentId as string, null, updateToolResourcesData);
+
+      return { message: 'Knowledge base deleted successfully' };
     } catch (error) {
-      this.logger.error(`Error deleting file from OpenAI: ${error.message}`);
+      this.logger.error('Error deleting knowledge base:', error);
       throw error;
     }
-
-    await this.knowledgeBaseRepository.remove(knowledgeBase);
-    await this.updateAssistantTools(knowledgeBase.agente);
-    return { message: 'Knowledge base deleted successfully' };
   }
 }

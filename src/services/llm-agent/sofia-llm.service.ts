@@ -198,51 +198,102 @@ export class SofiaLLMService extends BaseAgent {
     });
   }
 
-  async updateFunctions(funciones: Funcion[], assistantId: string): Promise<void> {
+  async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     console.log('Updating functions', funciones);
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
+    if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     await this.openai.beta.assistants.update(assistantId, {
       tools,
     });
   }
 
-  async updateAssistantToolResources(assistantId: string, vectorStoreIds: string[]) {
+  async createVectorStore(agentId: number): Promise<string> {
     try {
-      await this.openai.beta.assistants.update(assistantId, {
-        tool_resources: { file_search: { vector_store_ids: vectorStoreIds } },
+      const vectorStore = await this.openai.beta.vectorStores.create({
+        name: `agent_${agentId}_knowledge`,
       });
+      return vectorStore.id;
     } catch (error) {
-      console.error('Error updating assistant tool resources:', error);
+      console.error('Error creating vector store:', error);
       throw error;
     }
   }
 
-  async uploadFileToAssistant(file: Express.Multer.File, agentId: number): Promise<string> {
+  async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
     try {
-      const fileName = `${file.originalname}_${agentId}`;
-      // Crear vector store
-      const vectorStore = await this.openai.beta.vectorStores.create({
-        name: fileName,
-      });
+      const path_parse = path.parse(file.originalname);
+      const fileName = `${path_parse.name}_${Date.now()}${path_parse.ext}`;
 
-      // Subir archivo al vector store
-      await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStore.id, {
+      await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
         files: [new File([file.buffer], fileName, { type: file.mimetype })],
       });
 
-      return vectorStore.id;
+      // Obtener la lista de archivos para encontrar el ID del archivo recién subido
+      const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
+
+      // Ordenar por created_at descendente y tomar el primero (el más reciente)
+      const uploadedFile = files.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
+
+      if (!uploadedFile) {
+        throw new Error('File was uploaded but not found in completed status');
+      }
+
+      return uploadedFile.id;
     } catch (error) {
-      console.error('Error uploading file to OpenAI:', error);
+      console.error('Error uploading file to vector store:', error);
       throw error;
     }
   }
 
-  async deleteFileFromAssistant(fileId: string): Promise<void> {
+  async deleteFileFromVectorStore(fileId: string, vectorStoreId: string): Promise<void> {
     try {
-      await this.openai.files.del(fileId);
+      await this.openai.beta.vectorStores.files.del(vectorStoreId, fileId);
     } catch (error) {
-      console.error('Error deleting file from OpenAI:', error);
+      console.error('Error deleting file from vector store:', error);
+      throw error;
+    }
+  }
+
+  async deleteVectorStore(vectorStoreId: string): Promise<void> {
+    try {
+      await this.openai.beta.vectorStores.del(vectorStoreId);
+    } catch (error) {
+      console.error('Error deleting vector store:', error);
+      throw error;
+    }
+  }
+
+  async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+    try {
+      const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
+      return files.data.map((file) => file.id);
+    } catch (error) {
+      console.error('Error listing vector store files:', error);
+      throw error;
+    }
+  }
+
+  async updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, updateToolFunction: { add: boolean; funciones: Funcion[] }) {
+    try {
+      const updateData: { tools?: OpenAI.Beta.Assistants.AssistantTool[]; tool_resources?: { file_search: { vector_store_ids: string[] } } } = {};
+
+      updateData.tools = buildToolsArray({ funciones: updateToolFunction.funciones });
+      if (updateToolFunction.add) {
+        updateData.tools.push({ type: 'file_search' });
+      }
+
+      if (vectorStoreId) {
+        updateData.tool_resources = {
+          file_search: {
+            vector_store_ids: [vectorStoreId],
+          },
+        };
+      }
+      console.log('updateData', updateData);
+      await this.openai.beta.assistants.update(assistantId, updateData);
+    } catch (error) {
+      console.error('Error updating assistant tool resources:', error);
       throw error;
     }
   }
