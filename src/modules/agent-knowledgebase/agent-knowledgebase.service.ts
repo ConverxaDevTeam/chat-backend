@@ -111,19 +111,19 @@ export class AgentKnowledgebaseService {
   }
 
   async remove(id: number) {
-    const knowledgeBase = await this.findOne(id, ['agente']);
+    const knowledgeBase = await this.findOne(id, ['agente', 'agente.funciones']);
     const agent = knowledgeBase.agente;
 
     if (!agent.config?.vectorStoreId) throw new Error('Vector store ID not found in agent config');
     if (!agent.config?.agentId) throw new Error('Agent ID not found in agent config');
     try {
-      await this.sofiaLLMService.deleteFileFromVectorStore(knowledgeBase.fileId, agent.config.vectorStoreId as string);
+      await this.sofiaLLMService.deleteFileFromVectorStore(knowledgeBase.fileId);
 
       await this.knowledgeBaseRepository.remove(knowledgeBase);
 
+      const hasKnowledgeBases = await this.knowledgeBaseRepository.exists({ where: { agente: { id: agent.id } } });
       // Verificar si quedan archivos en el vector store
-      const remainingFiles = await this.sofiaLLMService.listVectorStoreFiles(agent.config.vectorStoreId as string);
-      if (remainingFiles.length > 0) return { message: 'Knowledge base deleted successfully' };
+      if (hasKnowledgeBases) return { message: 'Knowledge base deleted successfully' };
       // Si no quedan archivos, eliminar el vector store y actualizar el agente
       await this.sofiaLLMService.deleteVectorStore(agent.config.vectorStoreId as string);
 
@@ -132,7 +132,7 @@ export class AgentKnowledgebaseService {
         vectorStoreId: null,
       };
       await this.agenteRepository.save(agent);
-      const funciones = agent.funciones.map((f) => Object.assign(new Funcion(), f, { name: f.normalizedName }));
+      const funciones = agent.funciones?.map((f) => Object.assign(new Funcion(), f, { name: f.normalizedName }));
       const updateToolResourcesData = {
         funciones,
         add: false,

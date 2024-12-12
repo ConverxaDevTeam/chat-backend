@@ -246,9 +246,10 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async deleteFileFromVectorStore(fileId: string, vectorStoreId: string): Promise<void> {
+  async deleteFileFromVectorStore(fileId: string): Promise<void> {
     try {
-      await this.openai.beta.vectorStores.files.del(vectorStoreId, fileId);
+      await this.openai.files.del(fileId);
+      console.log('File deleted from vector store:', fileId);
     } catch (error) {
       console.error('Error deleting file from vector store:', error);
       throw error;
