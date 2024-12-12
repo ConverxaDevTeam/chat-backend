@@ -3,6 +3,7 @@ import { BaseEntity } from '../Base.entity';
 import { Funcion } from './Function.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Departamento } from '@models/Departamento.entity';
+import { KnowledgeBase } from './KnowledgeBase.entity';
 
 @Entity({ name: 'agente' })
 export class Agente<T extends { type: AgenteType; config: Record<string, unknown> } = { type: AgenteType; config: Record<string, unknown> }> extends BaseEntity {
@@ -15,13 +16,13 @@ export class Agente<T extends { type: AgenteType; config: Record<string, unknown
   @Column({ type: 'json', nullable: true })
   config: T['config'];
 
-  @Column('simple-array', { nullable: true })
-  databaseIdentifiers: string[];
-
   @OneToOne(() => Departamento, (departamento) => departamento.agente)
   @JoinColumn({ name: 'departamento_id' })
   departamento: Departamento;
 
   @OneToMany(() => Funcion, (funcion) => funcion.agente)
   funciones: Funcion[];
+
+  @OneToMany(() => KnowledgeBase, (knowledgeBase) => knowledgeBase.agente)
+  knowledgeBases: KnowledgeBase[];
 }

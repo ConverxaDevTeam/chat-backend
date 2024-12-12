@@ -21,6 +21,7 @@ import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { MessageModule } from '@modules/message/message.module';
 import { AutenticadorModule } from '@modules/Autenticador/autenticador.module';
+import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-knowledgebase.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { AutenticadorModule } from '@modules/Autenticador/autenticador.module';
     FunctionModule,
     FunctionParamModule,
     AutenticadorModule,
+    AgentKnowledgebaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],

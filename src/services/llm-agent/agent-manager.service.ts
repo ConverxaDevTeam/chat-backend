@@ -28,7 +28,7 @@ export class AgentManagerService {
     return {
       name: agente.name,
       instruccion: agente.config.instruccion,
-      agentId: 'not created',
+      agentId: agente.config.agentId ?? '',
     };
   }
 
