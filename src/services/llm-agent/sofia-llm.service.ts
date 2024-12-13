@@ -3,6 +3,8 @@ import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/
 import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../../modules/agent/function-call.service';
+import { createReadStream } from 'fs';
+import { join } from 'path';
 import { Funcion } from '@models/agent/Function.entity';
 import * as path from 'path';
 
@@ -181,6 +183,16 @@ export class SofiaLLMService extends BaseAgent {
   public getAgentId(): string {
     if (!this.assistantId) throw new Error('Assistant not initialized');
     return this.assistantId;
+  }
+
+  async getAudioText(audioName: string) {
+    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
+    const transcription = await this.openai.audio.transcriptions.create({
+      file: createReadStream(pathFileAudio),
+      model: 'whisper-1',
+    });
+
+    return transcription;
   }
 
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {

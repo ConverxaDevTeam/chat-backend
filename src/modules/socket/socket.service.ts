@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { ClientMap } from './socket.type';
 import { AgentService } from '@modules/agent/agentServer';
 import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/interfaces/agent';
+import { Message } from '@models/Message.entity';
 import { NotificationMessage } from 'src/interfaces/notifications.interface';
 
 @Injectable()
@@ -67,5 +68,16 @@ export class SocketService {
 
   async sendMessageToRoom(room: string, type: string, data: unknown) {
     this.socketServer.to(room).emit(type, data);
+  }
+
+  sendMessageToChat(userId: number, conversationId: number, message: Message): void {
+    const userConections = this.connectedClients.getClientsByUserId(userId);
+    for (const userConection of userConections) {
+      userConection.socket?.emit('message', {
+        action: 'new-message',
+        conversation_id: conversationId,
+        data: message,
+      });
+    }
   }
 }

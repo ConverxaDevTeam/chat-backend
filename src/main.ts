@@ -36,13 +36,13 @@ async function bootstrap() {
 
   // Configuración detallada de CORS
   app.enableCors({
-    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
     allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
     exposedHeaders: ['Content-Disposition'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
+    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io'],
   });
 
   app.setGlobalPrefix('api');

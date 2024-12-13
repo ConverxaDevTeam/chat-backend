@@ -12,11 +12,18 @@ import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 export class ConversationController {
   constructor(private readonly conversationService: ConversationService) {}
 
-  @ApiOperation({ summary: 'Get a department by id' })
+  @ApiOperation({ summary: 'get conversations by organization id' })
   @Get('organization/:organizationId')
   async getConversationsByOrganizationId(@GetUser() user: User, @Param('organizationId') organizationId: number) {
     const conversations = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user);
     return { ok: true, conversations };
+  }
+
+  @ApiOperation({ summary: 'get conversation by organization id and conversation id' })
+  @Get(':organizationId/:conversationId')
+  async getConversationByOrganizationIdAndById(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('conversationId') conversationId: number) {
+    const conversation = await this.conversationService.getConversationByOrganizationIdAndById(organizationId, conversationId, user);
+    return { ok: true, conversation };
   }
 
   @ApiOperation({ summary: 'Assign a conversation to a user (HITL)' })
