@@ -11,6 +11,7 @@ import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 import { Departamento } from '@models/Departamento.entity';
 import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-chat.dto';
+import { CreateIntegrationWhatsAppDto } from '@modules/facebook/dto/create-integration-whats-app.dto';
 
 @Injectable()
 export class IntegrationService {
@@ -221,7 +222,13 @@ export class IntegrationService {
     return integrations;
   }
 
-  async createIntegrationWhatsApp(user: User, organizationId: number, departamentoId: number, token: string): Promise<Integration> {
+  async createIntegrationWhatsApp(
+    user: User,
+    organizationId: number,
+    departamentoId: number,
+    createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto,
+    token: string,
+  ): Promise<Integration> {
     const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
 
     const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
@@ -235,22 +242,11 @@ export class IntegrationService {
       throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
     }
 
-    const integration = await this.integrationRepository.findOne({
-      where: {
-        departamento: { id: departamentoId },
-        type: IntegrationType.WHATSAPP,
-      },
-    });
-
-    if (integration) {
-      throw new Error('Ya existe una integración de WhatsApp para este departamento');
-    }
-
     const newIntegration = new Integration();
     newIntegration.type = IntegrationType.WHATSAPP;
     newIntegration.token = token;
-    console.log('token', token);
-    newIntegration.config = JSON.stringify({ name_app: null, phone: null, token_expire: null });
+    newIntegration.phone_number_id = createIntegrationWhatsAppDto.phone_number_id;
+    newIntegration.waba_id = createIntegrationWhatsAppDto.waba_id;
     newIntegration.departamento = departamento;
     await this.integrationRepository.save(newIntegration);
 

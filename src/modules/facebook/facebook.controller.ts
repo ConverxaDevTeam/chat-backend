@@ -33,7 +33,7 @@ export class FacebookController {
     @Param('departamentoId') departamentoId: number,
     @Body() createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto,
   ) {
-    const integration = await this.facebookService.getFacebookConfig(user, createIntegrationWhatsAppDto, organizationId, departamentoId);
+    const integration = await this.facebookService.createIntegrationWhatsApp(user, createIntegrationWhatsAppDto, organizationId, departamentoId);
 
     return {
       ok: true,
@@ -97,7 +97,7 @@ export class FacebookController {
         message: 'Error creating message',
       };
     }
-    //switch to agent
+
     const response = await this.agentService.processMessageWithConversation(messageUser.text, actualConversation.id);
 
     console.log('response', response);
