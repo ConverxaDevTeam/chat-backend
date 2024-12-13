@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import { ClientMap } from './socket.type'; // Asumo que tienes un ClientMap que maneja las conexiones
-import { AgentService } from 'src/services/agentServer';
+import { ClientMap } from './socket.type';
+import { AgentService } from '@modules/agent/agentServer';
 import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/interfaces/agent';
+import { NotificationMessage } from 'src/interfaces/notifications.interface';
 
 @Injectable()
 export class SocketService {
@@ -41,6 +42,19 @@ export class SocketService {
     this.connectedClients.removeClient(socketId);
   }
 
+  // Enviar notificación a un usuario específico
+  sendNotificationToUser<T extends { type: string; data?: unknown }>(userId: number, notification: NotificationMessage<T>): void {
+    const userSockets = this.connectedClients.getClientsByUserId(userId);
+    if (userSockets && userSockets.length > 0) {
+      userSockets.forEach((socket) => {
+        socket.socket.emit('notification', {
+          ...notification,
+          timestamp: new Date().toISOString(),
+        });
+      });
+    }
+  }
+
   async sendToChatBot(message: string, room: string, identifier: agentIdentifier) {
     this.socketServer.to(room).emit('typing', message);
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
@@ -50,6 +64,7 @@ export class SocketService {
     const { message: response, ...conf } = await this.agentService.getAgentResponse(message, identifier, agentId);
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
+
   async sendMessageToRoom(room: string, type: string, data: unknown) {
     this.socketServer.to(room).emit(type, data);
   }

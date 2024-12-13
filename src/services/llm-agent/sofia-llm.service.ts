@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
 import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
-import { FunctionCallService } from '../function-call.service';
+import { FunctionCallService } from '../../modules/agent/function-call.service';
 import { Funcion } from '@models/agent/Function.entity';
 import * as path from 'path';
 

@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
 import { SofiaLLMService } from '../llm-agent/sofia-llm.service';
 import { AgentIdentifierType } from 'src/interfaces/agent';
-import { FunctionCallService } from '../function-call.service';
+import { FunctionCallService } from '../../modules/agent/function-call.service';
 
 @Injectable()
 export class FunctionUtilsService {

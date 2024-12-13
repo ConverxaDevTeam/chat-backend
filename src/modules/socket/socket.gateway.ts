@@ -12,7 +12,7 @@ import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { MessageType } from '@models/Message.entity';
 import { MessageService } from '@modules/message/message.service';
-import { AgentService } from 'src/services/agentServer';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -84,7 +84,7 @@ export class WebChatSocketGateway implements OnModuleInit {
     private readonly chatUserService: ChatUserService,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
-    private readonly agentService: AgentService,
+    private readonly integrationRouterService: IntegrationRouterService,
   ) {}
 
   onModuleInit() {
@@ -167,11 +167,10 @@ export class WebChatSocketGateway implements OnModuleInit {
               const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
               try {
-                const response = await this.agentService.processMessageWithConversation(dataJson.message, conversation.id);
-                if (response.message) {
-                  const message = await this.messageService.createMessage(conversation, response.message, MessageType.AGENT);
-                  socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
-                }
+                const response = await this.integrationRouterService.processMessage(dataJson.message, conversation.id);
+                if (!response) return;
+                const message = await this.messageService.createMessage(conversation, response.message, MessageType.AGENT);
+                socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
               } catch (error) {
                 console.log('error:', error);
               }

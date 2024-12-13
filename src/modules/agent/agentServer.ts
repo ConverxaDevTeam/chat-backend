@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AgentConfig, agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
-import { SofiaLLMService } from './llm-agent/sofia-llm.service';
+import { SofiaLLMService } from '../../services/llm-agent/sofia-llm.service';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
@@ -99,16 +99,7 @@ export class AgentService {
    * @param conversationId id de la conversación
    * @returns respuesta del agente
    */
-  async processMessageWithConversation(message: string, conversationId: number): Promise<AgentResponse> {
-    // Buscar la conversación
-    const conversation = await this.conversationRepository.findOne({
-      where: { id: conversationId },
-      relations: ['departamento', 'departamento.agente'],
-    });
-
-    if (!conversation) {
-      throw new Error('Conversation not found');
-    }
+  async processMessageWithConversation(message: string, conversation: Conversation): Promise<AgentResponse> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
     const isConfigured = !!config;

@@ -6,7 +6,7 @@ import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
 import { AgenteType, AgentIdentifierType, CreateAgentConfig, SofiaLLMConfig } from 'src/interfaces/agent';
 import { SocketService } from '@modules/socket/socket.service';
 import { SofiaLLMService } from './sofia-llm.service';
-import { FunctionCallService } from '../function-call.service';
+import { FunctionCallService } from '../../modules/agent/function-call.service';
 import { Departamento } from '@models/Departamento.entity';
 
 // Tipos para las configuraciones de agentes

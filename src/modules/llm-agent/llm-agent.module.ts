@@ -6,7 +6,7 @@ import { AgentManagerService } from 'src/services/llm-agent/agent-manager.servic
 import { LlmAgentService } from 'src/services/llm-agent/llm-agent.service';
 import { SocketModule } from '@modules/socket/socket.module';
 import { AuthModule } from '@modules/auth/auth.module';
-import { FunctionCallService } from 'src/services/function-call.service';
+import { FunctionCallService } from '@modules/agent/function-call.service';
 import { LlmAgentController } from './llm-agent.controller';
 import { Funcion } from '@models/agent/Function.entity';
 
