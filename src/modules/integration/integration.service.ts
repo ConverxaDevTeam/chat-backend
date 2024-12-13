@@ -197,4 +197,74 @@ export class IntegrationService {
 
     return integration;
   }
+
+  async getAllIntegrations(user: User, organizationId: number, departamentoId: number): Promise<Integration[]> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener las integraciones');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integrations = await this.integrationRepository.find({
+      where: {
+        departamento: { id: departamentoId },
+      },
+    });
+
+    return integrations;
+  }
+
+  async createIntegrationWhatsApp(user: User, organizationId: number, departamentoId: number, token: string): Promise<Integration> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para crear la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        departamento: { id: departamentoId },
+        type: IntegrationType.WHATSAPP,
+      },
+    });
+
+    if (integration) {
+      throw new Error('Ya existe una integración de WhatsApp para este departamento');
+    }
+
+    const newIntegration = new Integration();
+    newIntegration.type = IntegrationType.WHATSAPP;
+    newIntegration.token = token;
+    console.log('token', token);
+    newIntegration.config = JSON.stringify({ name_app: null, phone: null, token_expire: null });
+    newIntegration.departamento = departamento;
+    await this.integrationRepository.save(newIntegration);
+
+    return newIntegration;
+  }
+
+  async getIntegrationWhatsAppById(integrationId: number): Promise<Integration | null> {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id: integrationId,
+        type: IntegrationType.WHATSAPP,
+      },
+    });
+
+    return integration;
+  }
 }

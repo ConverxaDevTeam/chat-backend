@@ -6,13 +6,26 @@ export enum MessageType {
   USER = 'user',
   AGENT = 'agent',
 }
+
+export enum MessageFormatType {
+  TEXT = 'text',
+  IMAGE = 'image',
+  AUDIO = 'audio',
+}
+
 @Entity({ name: 'Messages' })
 export class Message extends BaseEntity {
   @Column({ type: 'varchar', default: null, nullable: true })
   text: string;
 
+  @Column({ type: 'varchar', default: null, nullable: true })
+  audio: string;
+
   @Column({ type: 'enum', enum: MessageType, default: MessageType.USER })
   type: MessageType;
+
+  @Column({ type: 'enum', enum: MessageFormatType, default: MessageFormatType.TEXT })
+  format: MessageFormatType;
 
   @ManyToOne(() => Conversation, { eager: true })
   @JoinColumn({ name: 'conversationId' })
