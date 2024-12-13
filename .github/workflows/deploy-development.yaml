@@ -50,7 +50,10 @@ jobs:
             NODEMAILER_FROM=${{ secrets.NODEMAILER_FROM }}
             URL_FILES=${{ secrets.URL_FILES }}
             URL_WSS=${{ secrets.URL_WSS }}
+            URL_WEBHOOK_WA=${{ secrets.URL_WEBHOOK_WA }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID }}
+            FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_APP_SECRET }}
             EOF
             docker-compose build
             docker-compose down -v
