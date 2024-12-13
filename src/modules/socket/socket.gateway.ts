@@ -85,6 +85,7 @@ export class WebChatSocketGateway implements OnModuleInit {
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
     private readonly agentService: AgentService,
+    private readonly socketService: SocketService,
   ) {}
 
   onModuleInit() {
@@ -166,12 +167,13 @@ export class WebChatSocketGateway implements OnModuleInit {
             if (conversation) {
               const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+              this.socketService.sendMessageToChat(1, conversation.id, message);
               try {
-                //switch to agent
                 const response = await this.agentService.processMessageWithConversation(dataJson.message, conversation.id);
                 if (response.message) {
                   const message = await this.messageService.createMessage(conversation, response.message, MessageType.AGENT);
                   socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+                  this.socketService.sendMessageToChat(1, conversation.id, message);
                 }
               } catch (error) {
                 console.log('error:', error);
