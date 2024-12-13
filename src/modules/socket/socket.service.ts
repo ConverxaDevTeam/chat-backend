@@ -4,21 +4,31 @@ import { Logger } from '@nestjs/common';
 import { ClientMap } from './socket.type';
 import { AgentService } from '@modules/agent/agentServer';
 import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/interfaces/agent';
-import { Message } from '@models/Message.entity';
+import { Message, MessageType } from '@models/Message.entity';
 import { NotificationMessage } from 'src/interfaces/notifications.interface';
+import { MessageService } from '@modules/message/message.service';
+import { Conversation } from '@models/Conversation.entity';
 
 @Injectable()
 export class SocketService {
   private socketServer: Server;
+  private webChatServer: Server;
   private readonly connectedClients: ClientMap = new ClientMap();
+  private readonly webChatClients: Map<number, WebSocket> = new Map();
   private readonly logger = new Logger(SocketService.name);
 
-  constructor(private readonly agentService: AgentService) {}
+  constructor(
+    private readonly agentService: AgentService,
+    private readonly messageService: MessageService,
+  ) {}
 
   // Establecer el servidor de sockets
-  setServer(server: Server) {
-    this.logger.debug('Setting socket server');
-    this.socketServer = server;
+  setServer(server: Server, isWebChat: boolean = false) {
+    if (isWebChat) {
+      this.webChatServer = server;
+    } else {
+      this.socketServer = server;
+    }
   }
 
   // Manejar la conexión de un socket
@@ -79,5 +89,35 @@ export class SocketService {
         data: message,
       });
     }
+  }
+
+  // Método para registrar un cliente de WebChat
+  registerWebChatClient(chatUserId: number, socket: WebSocket) {
+    this.webChatClients.set(chatUserId, socket);
+  }
+
+  // Método para eliminar un cliente de WebChat
+  removeWebChatClient(chatUserId: number) {
+    this.webChatClients.delete(chatUserId);
+  }
+
+  async sendMessageToUser(conversation: Conversation, agentMessage: string, type: MessageType = MessageType.AGENT) {
+    const message = await this.messageService.createMessage(conversation, agentMessage, type);
+    // Enviamos al servidor de WebChat si existe el cliente
+    console.log('conversation on sendmessagetouser', conversation);
+    if (conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
+      const clientSocket = this.webChatClients.get(conversation.chat_user.id);
+      if (!clientSocket) return;
+      clientSocket.send(
+        JSON.stringify({
+          action: 'message-sent',
+          conversation_id: conversation.id,
+          message,
+        }),
+      );
+    }
+
+    if (!conversation.user?.id) return;
+    this.sendMessageToChat(conversation.user?.id, conversation.id, message);
   }
 }

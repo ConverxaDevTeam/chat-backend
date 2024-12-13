@@ -97,10 +97,7 @@ export class FacebookController {
         message: 'Error creating message',
       };
     }
-
-    const response = await this.agentService.processMessageWithConversation(messageUser.text, actualConversation);
-
-    console.log('response', response);
+    await this.agentService.processMessageWithConversation(messageUser.text, actualConversation);
 
     return {
       ok: true,

@@ -41,7 +41,7 @@ export class ConversationService {
   async findByIdAndByChatUserId(id: number, chatUser: ChatUser): Promise<Conversation | null> {
     return await this.conversationRepository.findOne({
       where: { id, chat_user: { id: chatUser.id } },
-      relations: ['messages'],
+      relations: ['messages', 'user', 'chat_user'],
     });
   }
 
