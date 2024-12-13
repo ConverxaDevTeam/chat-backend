@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Funcion } from '../../models/agent/Function.entity';
 import { CreateFunctionDto, UpdateFunctionDto, FunctionType } from '../../interfaces/function.interface';
+import { FunctionUtilsService } from './functionUtils.service';
 
 @Injectable()
 export class FunctionService {
   constructor(
     @InjectRepository(Funcion)
     private functionRepository: Repository<Funcion>,
+    private readonly functionUtilsService: FunctionUtilsService,
   ) {}
 
   async create(createFunctionDto: CreateFunctionDto<FunctionType>): Promise<Funcion> {
@@ -18,7 +20,11 @@ export class FunctionService {
     Object.assign(function_, {
       agente: { id: agentId },
     });
-    return await this.functionRepository.save(function_);
+    const savedFunction = await this.functionRepository.save(function_);
+
+    await this.functionUtilsService.updateLLMFunctions(agentId);
+
+    return savedFunction;
   }
 
   async findAll(): Promise<Funcion[]> {
@@ -27,14 +33,14 @@ export class FunctionService {
     });
   }
 
-  async findOne(id: number): Promise<Funcion> {
+  async findOne(id: number, relations: string[] = []): Promise<Funcion> {
     const function_ = await this.functionRepository.findOne({
       where: { id },
-      relations: ['autenticador'],
+      relations,
     });
 
     if (!function_) {
-      throw new NotFoundException(`Function with ID ${id} not found`);
+      throw new NotFoundException(`Función con ID ${id} no encontrada`);
     }
 
     return function_;
@@ -54,6 +60,18 @@ export class FunctionService {
       ...rest,
       agente: agentId ? { id: agentId } : function_.agente,
     });
+    const updatedFunction = await this.functionRepository.save(function_);
+
+    if (agentId) {
+      await this.functionUtilsService.updateLLMFunctions(agentId);
+    }
+
+    return updatedFunction;
+  }
+
+  async assignAuthorizer(id: number, authorizerId?: number | null): Promise<Funcion> {
+    const function_ = await this.findOne(id);
+    function_.autenticador = authorizerId ? ({ id: authorizerId } as any) : null;
     return await this.functionRepository.save(function_);
   }
 
@@ -62,5 +80,6 @@ export class FunctionService {
     if (result.affected === 0) {
       throw new NotFoundException(`Function with ID ${id} not found`);
     }
+    await this.functionUtilsService.updateLLMFunctions(result.raw.agenteId);
   }
 }

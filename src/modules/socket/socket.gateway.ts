@@ -12,7 +12,7 @@ import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { MessageType } from '@models/Message.entity';
 import { MessageService } from '@modules/message/message.service';
-import { AgentService } from 'src/services/agentServer';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -84,11 +84,14 @@ export class WebChatSocketGateway implements OnModuleInit {
     private readonly chatUserService: ChatUserService,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
-    private readonly agentService: AgentService,
+    private readonly integrationRouterService: IntegrationRouterService,
+    private readonly socketService: SocketService,
   ) {}
 
   onModuleInit() {
     this.server = new ServerWs({ noServer: true, path: '/api/socket/web-chat' });
+    // Inicializar el servidor WebChat
+    this.socketService.setServer(this.server, true);
 
     this.server.on('connection', (socket, request) => {
       const origin = request.headers['origin'] as string;
@@ -121,6 +124,7 @@ export class WebChatSocketGateway implements OnModuleInit {
           init = true;
           if (!dataJson.user || !dataJson.user_secret) {
             const chatUser = await this.chatUserService.createChatUser();
+            this.socketService.registerWebChatClient(chatUser.id, socket);
             socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
             socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
             chatUserActual = chatUser;
@@ -129,6 +133,7 @@ export class WebChatSocketGateway implements OnModuleInit {
           const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
           if (secretUser !== dataJson.user_secret || secretUser === null) {
             const chatUser = await this.chatUserService.createChatUser();
+            this.socketService.registerWebChatClient(chatUser.id, socket);
             socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
             socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
             chatUserActual = chatUser;
@@ -136,6 +141,7 @@ export class WebChatSocketGateway implements OnModuleInit {
           }
           const chatUser = await this.chatUserService.findById(Number(dataJson.user));
           if (chatUser) {
+            this.socketService.registerWebChatClient(chatUser.id, socket);
             socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
             chatUserActual = chatUser;
           } else {
@@ -166,12 +172,11 @@ export class WebChatSocketGateway implements OnModuleInit {
             if (conversation) {
               const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+              this.socketService.sendMessageToChat(1, conversation.id, message);
               try {
-                const response = await this.agentService.processMessageWithConversation(dataJson.message, conversation.id);
-                if (response.message) {
-                  const message = await this.messageService.createMessage(conversation, response.message, MessageType.AGENT);
-                  socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
-                }
+                const response = await this.integrationRouterService.processMessage(dataJson.message, conversation.id);
+                if (!response) return;
+                this.socketService.sendMessageToUser(conversation, response.message);
               } catch (error) {
                 console.log('error:', error);
               }
@@ -182,6 +187,9 @@ export class WebChatSocketGateway implements OnModuleInit {
 
       socket.on('close', () => {
         console.log('Connection Closed');
+        if (chatUserActual?.id) {
+          this.socketService.removeWebChatClient(chatUserActual.id);
+        }
       });
     });
   }

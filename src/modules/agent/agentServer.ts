@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AgentConfig, agentIdentifier, AgentIdentifierType, StartAgentConfig, RunAgentConfig, AgenteType } from 'src/interfaces/agent';
-import { SofiaLLMService } from './llm-agent/sofia-llm.service';
+import { AgentConfig, agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
+import { SofiaLLMService } from '../../services/llm-agent/sofia-llm.service';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
 import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
-import { agent } from 'supertest';
+import { FunctionCallService } from './function-call.service';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -22,13 +22,12 @@ interface AgentResponse {
  * @param name nombre del agente
  * @returns configuracion del agente
  */
-function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[]): StartAgentConfig {
-  if (!config.instruccion) {
+function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[]): AgentConfig {
+  if (!config.agentId) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
   return {
-    instruccion: config.instruccion,
-    name: name,
+    agentId: config.agentId,
     funciones: funciones,
   };
 }
@@ -49,6 +48,7 @@ export class AgentService {
     private readonly funcionRepository: Repository<Funcion>,
     @InjectRepository(Conversation)
     private readonly conversationRepository: Repository<Conversation>,
+    private readonly functionCallService: FunctionCallService,
   ) {}
 
   /**
@@ -62,7 +62,7 @@ export class AgentService {
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       const queryBuilder = this.agenteRepository
         .createQueryBuilder('agente')
-        .select(['agente.config', 'agente.name'])
+        .select(['agente.config'])
         .leftJoin('agente.funciones', 'funciones')
         .addSelect(['funciones.name', 'funciones.description', 'funciones.type', 'funciones.config'])
         .where('agente.id = :agentId', { agentId });
@@ -72,21 +72,23 @@ export class AgentService {
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {
-      // Solo obtener las funciones para el caso TEST
       const functions = await this.funcionRepository.createQueryBuilder('funcion').where('funcion.agent_id = :agentId', { agentId }).getMany();
 
       agenteConfig = {
-        agentId: identifier.LLMAgentId, // Usar LLMAgentId que es string
+        agentId: identifier.LLMAgentId,
+        DBagentId: agentId,
         threadId: identifier.threatId,
-        funciones: functions,
-      } as RunAgentConfig;
+        funciones: functions.map((f) => {
+          f.name = f.normalizedName;
+          return f;
+        }),
+      } as AgentConfig;
     }
 
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
-    const llmService = new SofiaLLMService(identifier, agenteConfig);
-    await llmService.init();
+    const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
     const response = await llmService.response(message);
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }
@@ -97,16 +99,7 @@ export class AgentService {
    * @param conversationId id de la conversación
    * @returns respuesta del agente
    */
-  async processMessageWithConversation(message: string, conversationId: number): Promise<AgentResponse> {
-    // Buscar la conversación
-    const conversation = await this.conversationRepository.findOne({
-      where: { id: conversationId },
-      relations: ['departamento', 'departamento.agente'],
-    });
-
-    if (!conversation) {
-      throw new Error('Conversation not found');
-    }
+  async processMessageWithConversation(message: string, conversation: Conversation): Promise<AgentResponse> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
     const isConfigured = !!config;

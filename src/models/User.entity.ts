@@ -2,6 +2,7 @@ import { Index, OneToMany, Column, Entity } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Session } from './Session.entity';
 import { UserOrganization } from './UserOrganization.entity';
+import { Conversation } from './Conversation.entity';
 
 @Entity({ name: 'Users' })
 export class User extends BaseEntity {
@@ -32,4 +33,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => UserOrganization, (userOrganization) => userOrganization.user)
   userOrganizations: UserOrganization[];
+
+  @OneToMany(() => Conversation, (conversation) => conversation.user)
+  conversations: Conversation[];
 }

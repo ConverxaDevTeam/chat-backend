@@ -11,6 +11,7 @@ import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 import { Departamento } from '@models/Departamento.entity';
 import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-chat.dto';
+import { CreateIntegrationWhatsAppDto } from '@modules/facebook/dto/create-integration-whats-app.dto';
 
 @Injectable()
 export class IntegrationService {
@@ -194,6 +195,71 @@ export class IntegrationService {
     const scriptPath = join(process.cwd(), 'uploads', 'chats', `CI${integration.id}.js`);
 
     fs.writeFileSync(scriptPath, script);
+
+    return integration;
+  }
+
+  async getAllIntegrations(user: User, organizationId: number, departamentoId: number): Promise<Integration[]> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener las integraciones');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integrations = await this.integrationRepository.find({
+      where: {
+        departamento: { id: departamentoId },
+      },
+    });
+
+    return integrations;
+  }
+
+  async createIntegrationWhatsApp(
+    user: User,
+    organizationId: number,
+    departamentoId: number,
+    createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto,
+    token: string,
+  ): Promise<Integration> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para crear la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const newIntegration = new Integration();
+    newIntegration.type = IntegrationType.WHATSAPP;
+    newIntegration.token = token;
+    newIntegration.phone_number_id = createIntegrationWhatsAppDto.phone_number_id;
+    newIntegration.waba_id = createIntegrationWhatsAppDto.waba_id;
+    newIntegration.departamento = departamento;
+    await this.integrationRepository.save(newIntegration);
+
+    return newIntegration;
+  }
+
+  async getIntegrationWhatsAppById(integrationId: number): Promise<Integration | null> {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id: integrationId,
+        type: IntegrationType.WHATSAPP,
+      },
+    });
 
     return integration;
   }
