@@ -4,9 +4,7 @@ import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../function-call.service';
 import { Funcion } from '@models/agent/Function.entity';
-import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({

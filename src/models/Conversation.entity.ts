@@ -5,6 +5,7 @@ import { ChatUser } from './ChatUser.entity';
 import { Message } from './Message.entity';
 import { Departamento } from './Departamento.entity';
 import { IntegrationType } from './Integration.entity';
+import { User } from './User.entity';
 
 @Entity({ name: 'Conversations' })
 export class Conversation extends BaseEntity {
@@ -16,6 +17,10 @@ export class Conversation extends BaseEntity {
 
   @Column({ type: 'json', nullable: true })
   config: Record<string, any>;
+
+  @ManyToOne(() => User, { eager: true, nullable: true })
+  @JoinColumn({ name: 'userId' })
+  user: User | null;
 
   @ManyToOne(() => ChatUser, { eager: true })
   @JoinColumn({ name: 'chatUserId' })

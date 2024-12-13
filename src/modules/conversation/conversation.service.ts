@@ -1,5 +1,5 @@
 import { Repository } from 'typeorm';
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Conversation } from '@models/Conversation.entity';
 import { ChatUser } from '@models/ChatUser.entity';
@@ -49,19 +49,56 @@ export class ConversationService {
     }
     conversation.user_deleted = true;
     await this.conversationRepository.save(conversation);
-
     return conversation;
+  }
+
+  async assignHitl(conversationId: number, user: User): Promise<Conversation> {
+    const conversation = await this.conversationRepository.findOne({
+      where: { id: conversationId },
+      relations: ['messages'],
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+    if (conversation.user?.id === user.id) {
+      conversation.user = null;
+      return await this.conversationRepository.save(conversation);
+    }
+
+    if (conversation.user) {
+      throw new BadRequestException('Conversation is already assigned to a user');
+    }
+
+    conversation.user = user;
+    return await this.conversationRepository.save(conversation);
+  }
+
+  async reassignHitl(conversationId: number, user: User): Promise<Conversation> {
+    const conversation = await this.conversationRepository.findOne({
+      where: { id: conversationId },
+      relations: ['messages'],
+    });
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    conversation.user = user;
+    return await this.conversationRepository.save(conversation);
   }
 
   async findByOrganizationIdAndUserId(organizationId: number, user: User): Promise<Conversation[]> {
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
 
     if (!userOrganization) {
-      throw new Error('El usuario no pertenece a esta organización');
+      throw new BadRequestException('El usuario no pertenece a esta organización');
     }
 
     const conversations = await this.conversationRepository
       .createQueryBuilder('conversation')
+      .leftJoinAndSelect('conversation.user', 'user')
+      .leftJoinAndSelect('conversation.chat_user', 'chat_user')
       .leftJoinAndSelect('conversation.departamento', 'departamento')
       .leftJoinAndSelect('departamento.organizacion', 'organizacion')
       .innerJoinAndSelect('conversation.messages', 'messages') // Solo conversaciones con mensajes
