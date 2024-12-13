@@ -107,4 +107,21 @@ export class ConversationService {
     conversation.integration = integration;
     return conversation;
   }
+
+  async getConversationByOrganizationIdAndById(organizationId: number, conversationId: number, user: User): Promise<Conversation | null> {
+    const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
+
+    if (!userOrganization) {
+      throw new Error('El usuario no pertenece a esta organización');
+    }
+
+    return await this.conversationRepository
+      .createQueryBuilder('conversation')
+      .leftJoinAndSelect('conversation.departamento', 'departamento')
+      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
+      .innerJoinAndSelect('conversation.messages', 'messages') // Solo conversaciones con mensajes
+      .where('organizacion.id = :organizationId', { organizationId })
+      .andWhere('conversation.id = :conversationId', { conversationId })
+      .getOne();
+  }
 }

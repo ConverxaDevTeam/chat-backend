@@ -19,4 +19,13 @@ export class ConversationController {
 
     return { ok: true, conversations };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'get conversation by organization id and conversation id' })
+  @ApiBearerAuth()
+  @Get(':organizationId/:conversationId')
+  async getConversationByOrganizationIdAndById(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('conversationId') conversationId: number) {
+    const conversation = await this.conversationService.getConversationByOrganizationIdAndById(organizationId, conversationId, user);
+    return { ok: true, conversation };
+  }
 }
