@@ -1,11 +1,14 @@
 import { Repository } from 'typeorm';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Conversation } from '@models/Conversation.entity';
+import { Conversation, ConversationType } from '@models/Conversation.entity';
 import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { UserOrganizationService } from '@modules/organization/UserOrganization.service';
 import { User } from '@models/User.entity';
+import { Integration } from '@models/Integration.entity';
+import { ChatUserService } from '@modules/chat-user/chat-user.service';
+import { DepartmentService } from '@modules/department/department.service';
 
 @Injectable()
 export class ConversationService {
@@ -15,6 +18,8 @@ export class ConversationService {
     @InjectRepository(Conversation)
     private readonly conversationRepository: Repository<Conversation>,
     private readonly userOrganizationService: UserOrganizationService,
+    private readonly chatUserService: ChatUserService,
+    private readonly departmentService: DepartmentService,
   ) {}
 
   async createConversation(chatUser: ChatUser, departamento: Departamento): Promise<Conversation> {
@@ -69,5 +74,37 @@ export class ConversationService {
       .getMany();
 
     return conversations;
+  }
+
+  async getConversationByIntegrationIdAndByPhoneNumber(integrationId: number, phoneNumber: string): Promise<Conversation | null> {
+    return await this.conversationRepository
+      .createQueryBuilder('conversation')
+      .leftJoinAndSelect('conversation.chat_user', 'chat_user')
+      .leftJoinAndSelect('chat_user.integration', 'integration')
+      .where('integration.id = :integrationId', { integrationId })
+      .andWhere('chat_user.phone = :phoneNumber', { phoneNumber })
+      .getOne();
+  }
+
+  async createConversationAndChatUser(integration: Integration, phoneNumber: string): Promise<Conversation> {
+    const departamento = await this.departmentService.getDepartmentById(integration.departamento.id);
+
+    if (!departamento) {
+      throw new Error('Departamento no encontrado');
+    }
+
+    const chatUser = await this.chatUserService.createChatUserWhatsApp(phoneNumber);
+
+    if (!chatUser) {
+      throw new Error('ChatUser no creado');
+    }
+
+    const conversation = new Conversation();
+    conversation.type = ConversationType.WHATSAPP;
+    conversation.chat_user = chatUser;
+    conversation.messages = [];
+    conversation.departamento;
+    conversation.integration = integration;
+    return conversation;
   }
 }

@@ -3,6 +3,8 @@ import { AgentConfig, agentIdentifier, RunAgentConfig, StartAgentConfig } from '
 import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../function-call.service';
+import { createReadStream } from 'fs';
+import { join } from 'path';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
@@ -195,5 +197,15 @@ export class SofiaLLMService extends BaseAgent {
   public getAgentId(): string {
     if (!this.assistantId) throw new Error('Assistant not initialized');
     return this.assistantId;
+  }
+
+  async getAudioText(audioName: string) {
+    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
+    const transcription = await this.openai.audio.transcriptions.create({
+      file: createReadStream(pathFileAudio),
+      model: 'whisper-1',
+    });
+
+    return transcription;
   }
 }

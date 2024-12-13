@@ -37,4 +37,11 @@ export class ChatUserService {
 
     return chatUser;
   }
+
+  async createChatUserWhatsApp(phone: string): Promise<ChatUser> {
+    const chatUser = new ChatUser();
+    chatUser.phone = phone;
+    await this.chatUserRepository.save(chatUser);
+    return chatUser;
+  }
 }

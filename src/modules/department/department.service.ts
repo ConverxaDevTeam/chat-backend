@@ -86,4 +86,12 @@ export class DepartmentService {
       },
     });
   }
+
+  async getDepartmentById(id: number): Promise<Departamento | null> {
+    return this.departmentRepository.findOne({
+      where: {
+        id,
+      },
+    });
+  }
 }

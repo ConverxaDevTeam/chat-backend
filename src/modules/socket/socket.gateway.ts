@@ -167,6 +167,7 @@ export class WebChatSocketGateway implements OnModuleInit {
               const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
               try {
+                //switch to agent
                 const response = await this.agentService.processMessageWithConversation(dataJson.message, conversation.id);
                 if (response.message) {
                   const message = await this.messageService.createMessage(conversation, response.message, MessageType.AGENT);

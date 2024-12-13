@@ -4,15 +4,21 @@ import { BaseEntity } from './Base.entity';
 import { ChatUser } from './ChatUser.entity';
 import { Message } from './Message.entity';
 import { Departamento } from './Departamento.entity';
-import { IntegrationType } from './Integration.entity';
+import { Integration } from './Integration.entity';
+
+export enum ConversationType {
+  CHAT_WEB = 'chat_web',
+  WHATSAPP = 'whatsapp',
+  MESSENGER = 'messenger',
+}
 
 @Entity({ name: 'Conversations' })
 export class Conversation extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   user_deleted: boolean;
 
-  @Column({ type: 'enum', enum: IntegrationType, default: IntegrationType.CHAT_WEB })
-  type: IntegrationType;
+  @Column({ type: 'enum', enum: ConversationType, default: ConversationType.CHAT_WEB })
+  type: ConversationType;
 
   @Column({ type: 'json', nullable: true })
   config: Record<string, any>;
@@ -27,4 +33,8 @@ export class Conversation extends BaseEntity {
   @ManyToOne(() => Departamento, { eager: true })
   @JoinColumn({ name: 'departamentoId' })
   departamento: Departamento;
+
+  @ManyToOne(() => Integration, { eager: true })
+  @JoinColumn({ name: 'integrationId' })
+  integration: Integration;
 }
