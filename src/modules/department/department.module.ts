@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { DepartmentService } from '../../services/department/department.service';
 import { DepartmentController } from './department.controller';
+import { DepartmentService } from 'src/services/department/department.service';
 import { Departamento } from '@models/Departamento.entity';
 import { Organization } from '@models/Organization.entity';
-import { AuthModule } from '@modules/auth/auth.module';
-import { LlmAgentModule } from '../llm-agent/llm-agent.module';
-import { User } from '@models/User.entity';
 import { Agente } from '@models/agent/Agente.entity';
+import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
+import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Departamento, Organization, User, Agente]), AuthModule, LlmAgentModule],
+  imports: [TypeOrmModule.forFeature([Departamento, Organization, Agente]), LlmAgentModule, AuthModule],
   controllers: [DepartmentController],
   providers: [DepartmentService],
   exports: [DepartmentService],

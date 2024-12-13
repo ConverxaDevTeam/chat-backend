@@ -3,9 +3,6 @@ import { SocketGateway, WebChatSocketGateway } from './socket.gateway';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SocketService } from './socket.service';
 import { AuthModule } from '@modules/auth/auth.module';
-import { AgentService } from 'src/services/agentServer';
-import { Agente } from '@models/agent/Agente.entity';
-import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
 import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
 import { IntegrationModule } from '@modules/integration/integration.module';
@@ -14,10 +11,12 @@ import { ConversationModule } from '@modules/conversation/conversation.module';
 import { DepartmentModule } from '@modules/department/department.module';
 import { MessageModule } from '@modules/message/message.module';
 import { FunctionCallModule } from '@modules/function-call/function-call.module';
+import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
+import { AgentModule } from '@modules/agent/agent.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Agente, Funcion, Conversation]),
+    TypeOrmModule.forFeature([Conversation]),
     forwardRef(() => AuthModule),
     forwardRef(() => LlmAgentModule),
     forwardRef(() => IntegrationModule),
@@ -26,8 +25,10 @@ import { FunctionCallModule } from '@modules/function-call/function-call.module'
     forwardRef(() => DepartmentModule),
     forwardRef(() => MessageModule),
     FunctionCallModule,
+    IntegrationRouterModule,
+    AgentModule,
   ],
-  providers: [SocketGateway, SocketService, AgentService, WebChatSocketGateway],
+  providers: [SocketGateway, SocketService, WebChatSocketGateway],
   exports: [SocketService],
 })
 export class SocketModule {}

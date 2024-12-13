@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from './dto/CreateAgent.dto';
 import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
@@ -9,6 +9,8 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 
 @ApiTags('Agent')
 @Controller('agent')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class LlmAgentController {
   constructor(private readonly agentManagerService: AgentManagerService) {}
 

@@ -6,7 +6,7 @@ import { FacebookService } from './facebook.service';
 import { IntegrationModule } from '@modules/integration/integration.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { MessageModule } from '@modules/message/message.module';
-import { AgentService } from 'src/services/agentServer';
+import { AgentService } from '@modules/agent/agentServer';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { Funcion } from '@models/agent/Function.entity';

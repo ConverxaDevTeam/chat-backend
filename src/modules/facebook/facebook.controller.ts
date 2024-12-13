@@ -9,8 +9,8 @@ import { IntegrationService } from '@modules/integration/integration.service';
 import { ConversationService } from '@modules/conversation/conversation.service';
 import { Conversation } from '@models/Conversation.entity';
 import { MessageService } from '@modules/message/message.service';
-import { AgentService } from 'src/services/agentServer';
 import { CreateIntegrationWhatsAppDto } from './dto/create-integration-whats-app.dto';
+import { AgentService } from '@modules/agent/agentServer';
 
 @Controller('facebook')
 @ApiTags('facebook')
@@ -97,10 +97,7 @@ export class FacebookController {
         message: 'Error creating message',
       };
     }
-
-    const response = await this.agentService.processMessageWithConversation(messageUser.text, actualConversation.id);
-
-    console.log('response', response);
+    await this.agentService.processMessageWithConversation(messageUser.text, actualConversation);
 
     return {
       ok: true,

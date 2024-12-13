@@ -6,6 +6,15 @@ export enum AgenteType {
   GROK = 'grok',
 }
 
+export interface SofiaLLMConfig {
+  type: AgenteType.SOFIA_ASISTENTE;
+  config: {
+    instruccion: string;
+    agentId?: string;
+    vectorStoreId?: string;
+  };
+}
+
 export enum AgentIdentifierType {
   CHAT = 'chat',
   CHAT_TEST = 'chatTest',
@@ -37,17 +46,18 @@ export interface TestAgentIdentifier {
   type: AgentIdentifierType.TEST;
 }
 
-export interface StartAgentConfig {
-  instruccion: string;
+export interface CreateAgentConfig {
   name: string;
+  instruccion: string;
+  agentId: string;
   funciones?: FunctionResponse[];
 }
 
-export interface RunAgentConfig {
+export interface AgentConfig {
   agentId: string;
-  threadId: string;
+  threadId?: string;
+  DBagentId?: number;
+  funciones?: FunctionResponse[];
 }
-
-export type AgentConfig = StartAgentConfig | RunAgentConfig;
 
 export type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier | TestAgentIdentifier;

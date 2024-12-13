@@ -11,6 +11,7 @@ export enum ConversationType {
   WHATSAPP = 'whatsapp',
   MESSENGER = 'messenger',
 }
+import { User } from './User.entity';
 
 @Entity({ name: 'Conversations' })
 export class Conversation extends BaseEntity {
@@ -23,18 +24,22 @@ export class Conversation extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   config: Record<string, any>;
 
-  @ManyToOne(() => ChatUser, { eager: true })
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'userId' })
+  user: User | null;
+
+  @ManyToOne(() => ChatUser)
   @JoinColumn({ name: 'chatUserId' })
   chat_user: ChatUser;
 
   @OneToMany(() => Message, (message) => message.conversation)
   messages: Message[];
 
-  @ManyToOne(() => Departamento, { eager: true })
+  @ManyToOne(() => Departamento)
   @JoinColumn({ name: 'departamentoId' })
   departamento: Departamento;
 
-  @ManyToOne(() => Integration, { eager: true })
+  @ManyToOne(() => Integration)
   @JoinColumn({ name: 'integrationId' })
   integration: Integration;
 }

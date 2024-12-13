@@ -9,11 +9,19 @@ const syslogTransport = new Syslog({
   format: format.json(),
 });
 
+const customFormat = format.combine(
+  format.timestamp(),
+  format.colorize(),
+  format.printf(({ timestamp, level, message, context, ...meta }) => {
+    return `${timestamp} [${level}] [${context || 'App'}]: ${message} ${Object.keys(meta).length ? JSON.stringify(meta) : ''}`;
+  }),
+);
+
 export const winstonLogger = WinstonModule.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || 'debug',
   transports: [
     new transports.Console({
-      format: format.logstash(),
+      format: customFormat,
     }),
     syslogTransport,
   ],

@@ -1,12 +1,13 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from '@modules/department/dto/create-department.dto';
 import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
 import { defaultDepartmentName } from 'src/interfaces/department';
+import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
 
 interface DepartmentWithAgents {
   id: number;
@@ -32,8 +33,7 @@ export class DepartmentService {
     private readonly organizationRepository: Repository<Organization>,
     @InjectRepository(Agente)
     private readonly agentRepository: Repository<Agente>,
-    @Inject(DataSource)
-    private readonly dataSource: DataSource,
+    private readonly agentManagerService: AgentManagerService,
   ) {}
 
   async create(createDepartmentDto: CreateDepartmentDto): Promise<Departamento> {
@@ -115,7 +115,6 @@ export class DepartmentService {
 
     // Crear departamento si no existe
     if (!department) {
-      console.log('Department not found. Creating new default department...');
       department = await this.departmentRepository.save({
         name: defaultDepartmentName,
         organizacion: { id: organizationId },
@@ -151,10 +150,9 @@ export class DepartmentService {
 
     // Verificar si existe un agente asociado al departamento
     if (!department.agente) {
-      console.log('Agent not found for department. Creating default agent...');
-      department.agente = await this.agentRepository.save({
+      department.agente = await this.agentManagerService.createAgent({
         name: 'default agent',
-        departamento: { id: department.id },
+        departamento_id: department.id,
         type: AgenteType.SOFIA_ASISTENTE,
         organization_id: organizationId,
         config: {

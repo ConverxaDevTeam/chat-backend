@@ -5,6 +5,7 @@ import { Conversation } from './Conversation.entity';
 export enum MessageType {
   USER = 'user',
   AGENT = 'agent',
+  HITL = 'hitl',
 }
 
 export enum MessageFormatType {
