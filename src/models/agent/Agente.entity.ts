@@ -16,6 +16,9 @@ export class Agente<T extends { type: AgenteType; config: Record<string, unknown
   @Column({ type: 'json', nullable: true })
   config: T['config'];
 
+  @Column({ type: 'boolean', default: true })
+  canEscalateToHuman: boolean;
+
   @OneToOne(() => Departamento, (departamento) => departamento.agente)
   @JoinColumn({ name: 'departamento_id' })
   departamento: Departamento;

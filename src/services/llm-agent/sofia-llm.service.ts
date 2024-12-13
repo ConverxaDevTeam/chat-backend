@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, CreateAgentConfig, HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
 import { FunctionType, HttpRequestConfig, FunctionParam, FunctionResponse } from 'src/interfaces/function.interface';
 import { BaseAgent } from './base-agent';
 import { FunctionCallService } from '../../modules/agent/function-call.service';
@@ -12,7 +12,7 @@ import * as path from 'path';
 const createFunctionTool = (func: FunctionResponse) => ({
   type: 'function' as const,
   function: {
-    name: func.name, // Evitar múltiples guiones bajos seguidos
+    name: `${UserFunctionPrefix}${func.name}`, // Evitar múltiples guiones bajos seguidos
     description: func.description,
     parameters: {
       type: 'object',
@@ -48,11 +48,12 @@ const handleToolCall = async (
   agentId: number,
   toolCall: OpenAI.Beta.Threads.Runs.RequiredActionFunctionToolCall,
   functionCallService: FunctionCallService,
+  conversationId: number,
 ): Promise<{ tool_call_id: string; output: string }> => {
   const functionName = toolCall.function.name;
   const functionArgs = JSON.parse(toolCall.function.arguments);
   try {
-    const response = await functionCallService.executeFunctionCall(functionName, agentId, functionArgs);
+    const response = await functionCallService.executeFunctionCall(functionName, agentId, functionArgs, conversationId);
     return {
       tool_call_id: toolCall.id,
       output: JSON.stringify(response),
@@ -120,7 +121,7 @@ export class SofiaLLMService extends BaseAgent {
     });
   }
 
-  protected async runAgent(threadId: string): Promise<any> {
+  protected async runAgent(threadId: string, conversationId: number): Promise<any> {
     const run = await this.openai.beta.threads.runs.create(threadId, { assistant_id: this.assistantId! });
 
     // Wait for the run to complete
@@ -137,7 +138,7 @@ export class SofiaLLMService extends BaseAgent {
         const toolOutputs = await Promise.all(
           toolCalls.map(async (toolCall) => {
             console.log(`Processing tool call: ${toolCall.function.name}`);
-            const result = await handleToolCall(this.agentId!, toolCall, this.functionCallService);
+            const result = await handleToolCall(this.agentId!, toolCall, this.functionCallService, conversationId);
             console.log(`Tool call result for ${toolCall.function.name}:`, result);
             return result;
           }),
@@ -171,11 +172,11 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string): Promise<string> {
+  async response(message: string, conversationId: number): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
     console.log('Sending message:', this.threadId);
     await this.addMessageToThread(message);
-    await this.runAgent(this.threadId!);
+    await this.runAgent(this.threadId!, conversationId);
     const response = await this.getResponse();
     return this.validateResponse(response);
   }
@@ -198,24 +199,28 @@ export class SofiaLLMService extends BaseAgent {
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     if (!config?.name) throw new Error('No se pudo obtener el nombre del agente');
-    console.log('Updating agent', config);
-    const tools = buildToolsArray({ funciones: config.funciones ?? [] });
 
     await this.openai.beta.assistants.update(assistantId, {
       name: config.name.replace(/\s+/g, '_'),
       instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
+    });
+  }
+
+  async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
+    const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
+    if (hasKnowledgeBase) tools.push({ type: 'file_search' });
+    this.renderHITL(hasHitl, tools);
+    await this.openai.beta.assistants.update(assistantId, {
       tools,
     });
   }
 
-  async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean): Promise<void> {
-    if (!assistantId) throw new Error('No se ha inicializado el agente');
-    console.log('Updating functions', funciones);
-    const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
-    if (hasKnowledgeBase) tools.push({ type: 'file_search' });
-    await this.openai.beta.assistants.update(assistantId, {
-      tools,
-    });
+  private renderHITL(hasHitl: boolean, tools: OpenAI.Beta.Assistants.AssistantTool[]) {
+    if (hasHitl)
+      tools.push({
+        type: 'function',
+        function: { name: HitlName, description: 'envia la conversacion a una persona' },
+      });
   }
 
   async createVectorStore(agentId: number): Promise<string> {
@@ -285,11 +290,12 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, updateToolFunction: { add: boolean; funciones: Funcion[] }) {
+  async updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean }) {
     try {
       const updateData: { tools?: OpenAI.Beta.Assistants.AssistantTool[]; tool_resources?: { file_search: { vector_store_ids: string[] } } } = {};
 
       updateData.tools = buildToolsArray({ funciones: updateToolFunction.funciones });
+      this.renderHITL(updateToolFunction.hitl, updateData.tools);
       if (updateToolFunction.add) {
         updateData.tools.push({ type: 'file_search' });
       }
@@ -301,7 +307,6 @@ export class SofiaLLMService extends BaseAgent {
           },
         };
       }
-      console.log('updateData', updateData);
       await this.openai.beta.assistants.update(assistantId, updateData);
     } catch (error) {
       console.error('Error updating assistant tool resources:', error);

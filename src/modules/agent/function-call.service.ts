@@ -1,21 +1,43 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpMethod, HttpRequestConfig, AutenticadorType, injectPlaces, HttpAutenticador, BearerConfig } from 'src/interfaces/function.interface';
 import { Funcion } from '@models/agent/Function.entity';
 import { Autenticador } from '@models/agent/Autenticador.entity';
+import { HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
+import { Conversation } from '@models/Conversation.entity';
+import { NotificationType } from 'src/interfaces/notifications.interface';
+import { SocketService } from '@modules/socket/socket.service';
 
 @Injectable()
 export class FunctionCallService {
   constructor(
     @InjectRepository(Funcion)
     private readonly functionRepository: Repository<Funcion>,
+    @InjectRepository(Conversation)
+    private readonly conversationRepository: Repository<Conversation>,
+    @Inject(forwardRef(() => SocketService))
+    private readonly socketService: SocketService,
   ) {}
 
-  async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>) {
+  async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
+    if (functionName === HitlName) {
+      console.log('conversacion enviada a agente humano', conversationId);
+      await this.conversationRepository.update(conversationId, {
+        need_human: true,
+      });
+      this.socketService.sendNotificationToOrganization(conversationId, {
+        type: NotificationType.MESSAGE_RECEIVED,
+        message: 'Nuevo mensaje en la conversación',
+        data: {
+          conversationId: conversationId,
+        },
+      });
+      return { message: 'conversacion enviada a agente humano' };
+    }
     // Buscar la función en la base de datos
     const functionConfig = await this.functionRepository.findOne({
-      where: { normalizedName: functionName, agente: { id: agentId } },
+      where: { normalizedName: functionName.replace(UserFunctionPrefix, ''), agente: { id: agentId } },
       relations: ['autenticador'],
     });
 

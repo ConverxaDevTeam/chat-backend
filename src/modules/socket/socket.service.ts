@@ -8,6 +8,9 @@ import { Message, MessageType } from '@models/Message.entity';
 import { NotificationMessage } from 'src/interfaces/notifications.interface';
 import { MessageService } from '@modules/message/message.service';
 import { Conversation } from '@models/Conversation.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserOrganization } from '@models/UserOrganization.entity';
 
 @Injectable()
 export class SocketService {
@@ -20,6 +23,8 @@ export class SocketService {
   constructor(
     private readonly agentService: AgentService,
     private readonly messageService: MessageService,
+    @InjectRepository(UserOrganization)
+    private readonly userOrganizationRepository: Repository<UserOrganization>,
   ) {}
 
   // Establecer el servidor de sockets
@@ -32,9 +37,19 @@ export class SocketService {
   }
 
   // Manejar la conexión de un socket
-  handleConnection(socketId: string, socket: Socket, userId: number): void {
+  async handleConnection(socketId: string, socket: Socket, userId: number): Promise<void> {
     this.logger.debug(`New connection - socket ${socketId}`);
     this.connectedClients.addClient(socketId, socket, userId);
+
+    const userOrg = await this.userOrganizationRepository.findOne({
+      loadRelationIds: true,
+      where: { user: { id: userId } },
+    });
+    console.log('userOrg', userOrg);
+
+    if (userOrg) {
+      socket.join(`organization-${userOrg.organization}`);
+    }
 
     // Cuando un cliente se une a un room
     socket.on('join', (room: string) => {
@@ -53,6 +68,11 @@ export class SocketService {
     this.connectedClients.removeClient(socketId);
   }
 
+  sendNotificationToOrganization<T extends { type: string; data?: unknown }>(organizationId: number, notification: NotificationMessage<T>): void {
+    const room = `organization-${organizationId}`;
+    this.socketServer.to(room).emit('notification', notification);
+  }
+
   // Enviar notificación a un usuario específico
   sendNotificationToUser<T extends { type: string; data?: unknown }>(userId: number, notification: NotificationMessage<T>): void {
     const userSockets = this.connectedClients.getClientsByUserId(userId);
@@ -66,13 +86,13 @@ export class SocketService {
     }
   }
 
-  async sendToChatBot(message: string, room: string, identifier: agentIdentifier) {
+  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number) {
     this.socketServer.to(room).emit('typing', message);
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
-    const { message: response, ...conf } = await this.agentService.getAgentResponse(message, identifier, agentId);
+    const { message: response, ...conf } = await this.agentService.getAgentResponse(message, identifier, agentId, conversationId);
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
 

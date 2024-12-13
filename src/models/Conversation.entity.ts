@@ -28,6 +28,9 @@ export class Conversation extends BaseEntity {
   @JoinColumn({ name: 'userId' })
   user: User | null;
 
+  @Column({ type: 'boolean', default: false })
+  need_human: boolean;
+
   @ManyToOne(() => ChatUser)
   @JoinColumn({ name: 'chatUserId' })
   chat_user: ChatUser;

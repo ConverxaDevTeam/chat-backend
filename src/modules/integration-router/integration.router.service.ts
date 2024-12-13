@@ -29,6 +29,11 @@ export class IntegrationRouterService {
       throw new Error('Conversation not found');
     }
     if (conversation.user?.id) {
+      if (conversation.need_human) {
+        this.conversationRepository.update(conversation.id, {
+          need_human: false,
+        });
+      }
       // Enviar notificación al usuario cuando HITL está activo
       this.socketService.sendNotificationToUser<MessageReceivedNotification>(conversation.user.id, {
         type: NotificationType.MESSAGE_RECEIVED,

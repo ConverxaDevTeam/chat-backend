@@ -24,7 +24,7 @@ export abstract class BaseAgent {
     // Base message adding logic
   }
 
-  protected async runAgent(threadId: string): Promise<any> {
+  protected async runAgent(threadId: string, conversationId: number): Promise<any> {
     // Base agent running logic
     return null;
   }
