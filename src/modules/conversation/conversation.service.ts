@@ -60,7 +60,7 @@ export class ConversationService {
   async assignHitl(conversationId: number, user: User): Promise<Conversation> {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
-      relations: ['messages'],
+      relations: ['messages', 'user'],
     });
 
     if (!conversation) {
@@ -100,15 +100,16 @@ export class ConversationService {
       throw new BadRequestException('El usuario no pertenece a esta organización');
     }
 
-    const conversations = await this.conversationRepository
-      .createQueryBuilder('conversation')
-      .leftJoinAndSelect('conversation.user', 'user')
-      .leftJoinAndSelect('conversation.chat_user', 'chat_user')
-      .leftJoinAndSelect('conversation.departamento', 'departamento')
-      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
-      .innerJoinAndSelect('conversation.messages', 'messages') // Solo conversaciones con mensajes
-      .where('organizacion.id = :organizationId', { organizationId })
-      .getMany();
+    const conversations = await this.conversationRepository.find({
+      relations: ['user', 'messages'],
+      where: {
+        departamento: {
+          organizacion: {
+            id: organizationId,
+          },
+        },
+      },
+    });
 
     return conversations;
   }
@@ -152,13 +153,16 @@ export class ConversationService {
       throw new Error('El usuario no pertenece a esta organización');
     }
 
-    return await this.conversationRepository
-      .createQueryBuilder('conversation')
-      .leftJoinAndSelect('conversation.departamento', 'departamento')
-      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
-      .innerJoinAndSelect('conversation.messages', 'messages') // Solo conversaciones con mensajes
-      .where('organizacion.id = :organizationId', { organizationId })
-      .andWhere('conversation.id = :conversationId', { conversationId })
-      .getOne();
+    return await this.conversationRepository.findOne({
+      relations: ['user', 'messages'],
+      where: {
+        id: conversationId,
+        departamento: {
+          organizacion: {
+            id: organizationId,
+          },
+        },
+      },
+    });
   }
 }
