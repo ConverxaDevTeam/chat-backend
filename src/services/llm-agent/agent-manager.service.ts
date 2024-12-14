@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
@@ -16,7 +16,8 @@ type SofiaAgente = Agente<SofiaLLMConfig>;
 export class AgentManagerService {
   constructor(
     @InjectRepository(Agente)
-    private readonly agenteRepository: Repository<Agente>,
+    private readonly agenteRepository: Repository<Agente<SofiaLLMConfig>>,
+    @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly functionCallService: FunctionCallService,
   ) {}
@@ -52,7 +53,7 @@ export class AgentManagerService {
     const plainConfig = config ? { ...config } : undefined;
     const agente = this.agenteRepository.create({
       ...rest,
-      type: createAgentDto.type as AgenteType,
+      type: createAgentDto.type as AgenteType.SOFIA_ASISTENTE,
       config: plainConfig,
       departamento: departamento_id ? ({ id: departamento_id } as Partial<Departamento>) : undefined,
     });
@@ -132,6 +133,23 @@ export class AgentManagerService {
     // Emit update event
     this.emitUpdateEvent(id, userId);
     return updatedSofiaAgent;
+  }
+
+  async updateEscalateToHuman(id: number, canEscalateToHuman: boolean): Promise<Agente> {
+    const agente = await this.agenteRepository.findOne({
+      where: { id },
+      relations: ['funciones', 'departamento'],
+    });
+
+    if (!agente) {
+      throw new NotFoundException(`Agente con ID ${id} no encontrado`);
+    }
+
+    const config = this.buildAgentConfig(agente);
+    const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
+    await llmService.updateFunctions(agente.funciones, config.agentId, !!agente.config.vectorStoreId, canEscalateToHuman);
+    agente.canEscalateToHuman = canEscalateToHuman;
+    return this.agenteRepository.save(agente);
   }
 
   private emitUpdateEvent(agentId: number, userId: number): void {

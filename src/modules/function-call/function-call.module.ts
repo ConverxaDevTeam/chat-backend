@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Funcion } from '@models/agent/Function.entity';
 import { FunctionCallService } from '@modules/agent/function-call.service';
+import { Conversation } from '@models/Conversation.entity';
+import { SocketModule } from '@modules/socket/socket.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Funcion])],
+  imports: [TypeOrmModule.forFeature([Funcion, Conversation]), forwardRef(() => SocketModule)],
   providers: [FunctionCallService],
   exports: [FunctionCallService],
 })

@@ -32,6 +32,7 @@ export class AgentKnowledgebaseService {
       const updateToolResourcesData = {
         funciones,
         add: true,
+        hitl: agent.canEscalateToHuman,
       };
       this.logger.debug('updateToolResourcesData', updateToolResourcesData);
       await this.sofiaLLMService.updateAssistantToolResources(agent.config.agentId as string, vectorStoreId, updateToolResourcesData);
@@ -132,10 +133,10 @@ export class AgentKnowledgebaseService {
         vectorStoreId: null,
       };
       await this.agenteRepository.save(agent);
-      const funciones = agent.funciones?.map((f) => Object.assign(new Funcion(), f, { name: f.normalizedName }));
       const updateToolResourcesData = {
-        funciones,
+        funciones: agent.funciones,
         add: false,
+        hitl: agent.canEscalateToHuman,
       };
       await this.sofiaLLMService.updateAssistantToolResources(agent.config.agentId as string, null, updateToolResourcesData);
 
