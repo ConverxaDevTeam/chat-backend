@@ -84,6 +84,7 @@ export class DepartmentService {
       where: {
         id,
       },
+      loadRelationIds: true,
     });
   }
 

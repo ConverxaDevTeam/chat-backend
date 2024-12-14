@@ -41,14 +41,14 @@ export class SocketService {
     this.logger.debug(`New connection - socket ${socketId}`);
     this.connectedClients.addClient(socketId, socket, userId);
 
-    const userOrg = await this.userOrganizationRepository.findOne({
+    const userOrg = await this.userOrganizationRepository.find({
       loadRelationIds: true,
       where: { user: { id: userId } },
     });
     console.log('userOrg', userOrg);
 
-    if (userOrg) {
-      socket.join(`organization-${userOrg.organization}`);
+    for (const org of userOrg) {
+      socket.join(`organization-${org.organization}`);
     }
 
     // Cuando un cliente se une a un room
@@ -100,15 +100,13 @@ export class SocketService {
     this.socketServer.to(room).emit(type, data);
   }
 
-  sendMessageToChat(userId: number, conversationId: number, message: Message): void {
-    const userConections = this.connectedClients.getClientsByUserId(userId);
-    for (const userConection of userConections) {
-      userConection.socket?.emit('message', {
-        action: 'new-message',
-        conversation_id: conversationId,
-        data: message,
-      });
-    }
+  sendMessageToChat(organizationId: number, conversationId: number, message: Message): void {
+    const room = `organization-${organizationId}`;
+    this.socketServer.to(room).emit('new-message', {
+      action: 'new-message',
+      conversation_id: conversationId,
+      data: message,
+    });
   }
 
   // Método para registrar un cliente de WebChat
@@ -124,7 +122,6 @@ export class SocketService {
   async sendMessageToUser(conversation: Conversation, agentMessage: string, type: MessageType = MessageType.AGENT) {
     const message = await this.messageService.createMessage(conversation, agentMessage, type);
     // Enviamos al servidor de WebChat si existe el cliente
-    console.log('conversation on sendmessagetouser', conversation);
     if (conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
       const clientSocket = this.webChatClients.get(conversation.chat_user.id);
       if (!clientSocket) return;
@@ -137,7 +134,24 @@ export class SocketService {
       );
     }
 
-    if (!conversation.user?.id) return;
+    if (!conversation.user?.id) return message;
     this.sendMessageToChat(conversation.user?.id, conversation.id, message);
+
+    return message;
+  }
+
+  async countClientInRoom(room: string) {
+    return await this.socketServer.in(room).allSockets();
+  }
+
+  async sendMessageToChatByOrganizationId(organizationId: number, conversationId: number, message: Message) {
+    const listRonnOrganization = await this.countClientInRoom(`organization-${organizationId}`);
+    for (const clientId of listRonnOrganization) {
+      this.socketServer.to(clientId).emit('message', {
+        action: 'new-message',
+        conversation_id: conversationId,
+        data: message,
+      });
+    }
   }
 }

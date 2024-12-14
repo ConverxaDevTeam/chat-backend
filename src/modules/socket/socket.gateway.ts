@@ -1,6 +1,6 @@
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Logger, OnModuleInit } from '@nestjs/common';
+import { forwardRef, Inject, Logger, OnModuleInit } from '@nestjs/common';
 import { SocketService } from './socket.service';
 import { AuthService } from '@modules/auth/auth.service';
 import { agentIdentifier } from 'src/interfaces/agent';
@@ -26,6 +26,7 @@ export class SocketGateway {
   private readonly logger = new Logger(SocketGateway.name);
 
   constructor(
+    @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly authService: AuthService,
   ) {}
@@ -85,6 +86,7 @@ export class WebChatSocketGateway implements OnModuleInit {
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
     private readonly integrationRouterService: IntegrationRouterService,
+    @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
   ) {}
 
@@ -172,11 +174,15 @@ export class WebChatSocketGateway implements OnModuleInit {
             if (conversation) {
               const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
-              this.socketService.sendMessageToChat(1, conversation.id, message);
+
+              const organizationId = Number(departamentoActual.organizacion);
+              this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
               try {
                 const response = await this.integrationRouterService.processMessage(dataJson.message, conversation.id);
                 if (!response) return;
-                this.socketService.sendMessageToUser(conversation, response.message);
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message);
+                if (!messageAi) return; //te debo amigo back :'v
+                this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
               } catch (error) {
                 console.log('error:', error);
               }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
@@ -17,6 +17,7 @@ export class AgentManagerService {
   constructor(
     @InjectRepository(Agente)
     private readonly agenteRepository: Repository<Agente<SofiaLLMConfig>>,
+    @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly functionCallService: FunctionCallService,
   ) {}

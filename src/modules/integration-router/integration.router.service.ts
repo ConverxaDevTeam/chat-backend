@@ -16,6 +16,7 @@ export class IntegrationRouterService {
     private readonly agentService: AgentService,
     @InjectRepository(Conversation)
     private readonly conversationRepository: Repository<Conversation>,
+    @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
   ) {}
 
