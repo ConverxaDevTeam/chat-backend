@@ -5,7 +5,7 @@ import { ClientMap } from './socket.type';
 import { AgentService } from '@modules/agent/agentServer';
 import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/interfaces/agent';
 import { Message, MessageType } from '@models/Message.entity';
-import { NotificationMessage } from 'src/interfaces/notifications.interface';
+import { NotificationMessage, NotificationType } from 'src/interfaces/notifications.interface';
 import { MessageService } from '@modules/message/message.service';
 import { Conversation } from '@models/Conversation.entity';
 import { Repository } from 'typeorm';
@@ -67,12 +67,6 @@ export class SocketService {
   handleDisconnect(socketId: string): void {
     this.connectedClients.removeClient(socketId);
   }
-
-  sendNotificationToOrganization<T extends { type: string; data?: unknown }>(organizationId: number, notification: NotificationMessage<T>): void {
-    const room = `organization-${organizationId}`;
-    this.socketServer.to(room).emit('notification', notification);
-  }
-
   // Enviar notificación a un usuario específico
   sendNotificationToUser<T extends { type: string; data?: unknown }>(userId: number, notification: NotificationMessage<T>): void {
     const userSockets = this.connectedClients.getClientsByUserId(userId);
@@ -152,6 +146,22 @@ export class SocketService {
         conversation_id: conversationId,
         data: message,
       });
+    }
+  }
+
+  async sendNotificationToOrganization(
+    organizationId: number,
+    event: {
+      type: NotificationType;
+      message: string;
+      data: {
+        conversationId: number;
+      };
+    },
+  ) {
+    const listRonnOrganization = await this.countClientInRoom(`organization-${organizationId}`);
+    for (const clientId of listRonnOrganization) {
+      this.socketServer.to(clientId).emit('notification', event);
     }
   }
 }

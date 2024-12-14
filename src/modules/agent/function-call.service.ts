@@ -23,12 +23,22 @@ export class FunctionCallService {
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
     if (functionName === HitlName) {
       console.log('conversacion enviada a agente humano', conversationId);
+      const conversation = await this.conversationRepository.findOne({
+        where: { id: conversationId },
+        relations: ['departamento.organizacion'],
+      });
+
+      console.log('organization', conversation);
+
       await this.conversationRepository.update(conversationId, {
         need_human: true,
       });
-      this.socketService.sendNotificationToOrganization(conversationId, {
+      if (!conversation) {
+        throw new NotFoundException(`Conversation with id ${conversationId} not found`);
+      }
+      this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
         type: NotificationType.MESSAGE_RECEIVED,
-        message: 'Nuevo mensaje en la conversación',
+        message: 'Usuario necesita ayuda de un agente humano',
         data: {
           conversationId: conversationId,
         },
