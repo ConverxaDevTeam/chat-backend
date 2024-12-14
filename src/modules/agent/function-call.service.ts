@@ -43,6 +43,9 @@ export class FunctionCallService {
           conversationId: conversationId,
         },
       });
+      if (!conversation.need_human) {
+        return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
+      }
       return { message: 'conversacion enviada a agente humano' };
     }
     // Buscar la función en la base de datos
