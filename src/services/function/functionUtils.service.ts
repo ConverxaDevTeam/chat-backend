@@ -21,19 +21,17 @@ export class FunctionUtilsService {
     });
 
     if (!functions[0]?.agente?.config?.agentId) throw new Error('No se pudo obtener la configuración del agente');
-
-    const config = functions[0].agente.config;
-    if (!config.instruccion) throw new Error('No se encontró la instrucción del agente');
+    const agent = functions[0].agente;
+    if (!agent.config.instruccion) throw new Error('No se encontró la instrucción del agente');
 
     const agentConfig = {
-      instruccion: config.instruccion as string,
-      agentId: config.agentId as string,
-      vectorStoreId: config.vectorStoreId,
+      instruccion: agent.config.instruccion as string,
+      agentId: agent.config.agentId as string,
+      vectorStoreId: agent.config.vectorStoreId,
     };
 
     const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, agentConfig);
 
-    const functionsWithNormalizedNames = functions.map((f) => Object.assign(f, { name: f.normalizedName }));
-    await llmService.updateFunctions(functionsWithNormalizedNames, agentConfig.agentId!, !!agentConfig.vectorStoreId);
+    await llmService.updateFunctions(functions, agentConfig.agentId!, !!agentConfig.vectorStoreId, agent.canEscalateToHuman);
   }
 }

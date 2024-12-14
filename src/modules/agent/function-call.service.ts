@@ -1,21 +1,56 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HttpMethod, HttpRequestConfig, AutenticadorType, injectPlaces, HttpAutenticador, BearerConfig } from 'src/interfaces/function.interface';
 import { Funcion } from '@models/agent/Function.entity';
 import { Autenticador } from '@models/agent/Autenticador.entity';
+import { HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
+import { Conversation } from '@models/Conversation.entity';
+import { NotificationType } from 'src/interfaces/notifications.interface';
+import { SocketService } from '@modules/socket/socket.service';
 
 @Injectable()
 export class FunctionCallService {
   constructor(
     @InjectRepository(Funcion)
     private readonly functionRepository: Repository<Funcion>,
+    @InjectRepository(Conversation)
+    private readonly conversationRepository: Repository<Conversation>,
+    @Inject(forwardRef(() => SocketService))
+    private readonly socketService: SocketService,
   ) {}
 
-  async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>) {
+  async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
+    if (functionName === HitlName) {
+      console.log('conversacion enviada a agente humano', conversationId);
+      const conversation = await this.conversationRepository.findOne({
+        where: { id: conversationId },
+        relations: ['departamento.organizacion'],
+      });
+
+      console.log('organization', conversation);
+
+      await this.conversationRepository.update(conversationId, {
+        need_human: true,
+      });
+      if (!conversation) {
+        throw new NotFoundException(`Conversation with id ${conversationId} not found`);
+      }
+      this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
+        type: NotificationType.MESSAGE_RECEIVED,
+        message: 'Usuario necesita ayuda de un agente humano',
+        data: {
+          conversationId: conversationId,
+        },
+      });
+      if (!conversation.need_human) {
+        return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
+      }
+      return { message: 'conversacion enviada a agente humano' };
+    }
     // Buscar la función en la base de datos
     const functionConfig = await this.functionRepository.findOne({
-      where: { normalizedName: functionName, agente: { id: agentId } },
+      where: { normalizedName: functionName.replace(UserFunctionPrefix, ''), agente: { id: agentId } },
       relations: ['autenticador'],
     });
 

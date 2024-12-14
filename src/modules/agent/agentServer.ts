@@ -57,7 +57,7 @@ export class AgentService {
    * @param identifier identificador del agente
    * @returns respuesta del agente
    */
-  async getAgentResponse(message: string, identifier: agentIdentifier, agentId: number): Promise<AgentResponse> {
+  async getAgentResponse(message: string, identifier: agentIdentifier, agentId: number, conversationId: number): Promise<AgentResponse> {
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       const queryBuilder = this.agenteRepository
@@ -89,7 +89,7 @@ export class AgentService {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
     const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
-    const response = await llmService.response(message);
+    const response = await llmService.response(message, conversationId);
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }
 
@@ -124,7 +124,7 @@ export class AgentService {
       } as agentIdentifier;
     }
 
-    const response = await this.getAgentResponse(message, identifier, conversation.departamento.agente?.id);
+    const response = await this.getAgentResponse(message, identifier, conversation.departamento.agente?.id, conversation.id);
     if (!isConfigured) {
       config.agentIdentifier.agentId = response.agentId;
       config.agentIdentifier.threatId = response.threadId;

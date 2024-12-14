@@ -34,4 +34,10 @@ export class LlmAgentController {
   async updateAgent(@Param('id') id: number, @Body() updateAgentDto: Partial<CreateAgentDto>, @GetUser() user: User): Promise<Agente> {
     return this.agentManagerService.updateAgent(id, updateAgentDto, user.id);
   }
+
+  @ApiOperation({ summary: 'Actualiza la capacidad de escalar a humano del agente' })
+  @Put('/:id/escalate-to-human')
+  async updateEscalateToHuman(@Param('id') id: number, @Body('canEscalateToHuman') canEscalateToHuman: boolean): Promise<Agente> {
+    return this.agentManagerService.updateEscalateToHuman(id, canEscalateToHuman);
+  }
 }

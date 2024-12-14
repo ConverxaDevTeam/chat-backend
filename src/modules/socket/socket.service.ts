@@ -5,9 +5,12 @@ import { ClientMap } from './socket.type';
 import { AgentService } from '@modules/agent/agentServer';
 import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/interfaces/agent';
 import { Message, MessageType } from '@models/Message.entity';
-import { NotificationMessage } from 'src/interfaces/notifications.interface';
+import { NotificationMessage, NotificationType } from 'src/interfaces/notifications.interface';
 import { MessageService } from '@modules/message/message.service';
 import { Conversation } from '@models/Conversation.entity';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { UserOrganization } from '@models/UserOrganization.entity';
 
 @Injectable()
 export class SocketService {
@@ -20,6 +23,8 @@ export class SocketService {
   constructor(
     private readonly agentService: AgentService,
     private readonly messageService: MessageService,
+    @InjectRepository(UserOrganization)
+    private readonly userOrganizationRepository: Repository<UserOrganization>,
   ) {}
 
   // Establecer el servidor de sockets
@@ -32,9 +37,19 @@ export class SocketService {
   }
 
   // Manejar la conexión de un socket
-  handleConnection(socketId: string, socket: Socket, userId: number): void {
+  async handleConnection(socketId: string, socket: Socket, userId: number): Promise<void> {
     this.logger.debug(`New connection - socket ${socketId}`);
     this.connectedClients.addClient(socketId, socket, userId);
+
+    const userOrg = await this.userOrganizationRepository.find({
+      loadRelationIds: true,
+      where: { user: { id: userId } },
+    });
+    console.log('userOrg', userOrg);
+
+    for (const org of userOrg) {
+      socket.join(`organization-${org.organization}`);
+    }
 
     // Cuando un cliente se une a un room
     socket.on('join', (room: string) => {
@@ -52,7 +67,6 @@ export class SocketService {
   handleDisconnect(socketId: string): void {
     this.connectedClients.removeClient(socketId);
   }
-
   // Enviar notificación a un usuario específico
   sendNotificationToUser<T extends { type: string; data?: unknown }>(userId: number, notification: NotificationMessage<T>): void {
     const userSockets = this.connectedClients.getClientsByUserId(userId);
@@ -66,13 +80,13 @@ export class SocketService {
     }
   }
 
-  async sendToChatBot(message: string, room: string, identifier: agentIdentifier) {
+  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number) {
     this.socketServer.to(room).emit('typing', message);
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
-    const { message: response, ...conf } = await this.agentService.getAgentResponse(message, identifier, agentId);
+    const { message: response, ...conf } = await this.agentService.getAgentResponse(message, identifier, agentId, conversationId);
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
 
@@ -80,15 +94,13 @@ export class SocketService {
     this.socketServer.to(room).emit(type, data);
   }
 
-  sendMessageToChat(userId: number, conversationId: number, message: Message): void {
-    const userConections = this.connectedClients.getClientsByUserId(userId);
-    for (const userConection of userConections) {
-      userConection.socket?.emit('message', {
-        action: 'new-message',
-        conversation_id: conversationId,
-        data: message,
-      });
-    }
+  sendMessageToChat(organizationId: number, conversationId: number, message: Message): void {
+    const room = `organization-${organizationId}`;
+    this.socketServer.to(room).emit('new-message', {
+      action: 'new-message',
+      conversation_id: conversationId,
+      data: message,
+    });
   }
 
   // Método para registrar un cliente de WebChat
@@ -104,7 +116,6 @@ export class SocketService {
   async sendMessageToUser(conversation: Conversation, agentMessage: string, type: MessageType = MessageType.AGENT) {
     const message = await this.messageService.createMessage(conversation, agentMessage, type);
     // Enviamos al servidor de WebChat si existe el cliente
-    console.log('conversation on sendmessagetouser', conversation);
     if (conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
       const clientSocket = this.webChatClients.get(conversation.chat_user.id);
       if (!clientSocket) return;
@@ -117,7 +128,40 @@ export class SocketService {
       );
     }
 
-    if (!conversation.user?.id) return;
+    if (!conversation.user?.id) return message;
     this.sendMessageToChat(conversation.user?.id, conversation.id, message);
+
+    return message;
+  }
+
+  async countClientInRoom(room: string) {
+    return await this.socketServer.in(room).allSockets();
+  }
+
+  async sendMessageToChatByOrganizationId(organizationId: number, conversationId: number, message: Message) {
+    const listRonnOrganization = await this.countClientInRoom(`organization-${organizationId}`);
+    for (const clientId of listRonnOrganization) {
+      this.socketServer.to(clientId).emit('message', {
+        action: 'new-message',
+        conversation_id: conversationId,
+        data: message,
+      });
+    }
+  }
+
+  async sendNotificationToOrganization(
+    organizationId: number,
+    event: {
+      type: NotificationType;
+      message: string;
+      data: {
+        conversationId: number;
+      };
+    },
+  ) {
+    const listRonnOrganization = await this.countClientInRoom(`organization-${organizationId}`);
+    for (const clientId of listRonnOrganization) {
+      this.socketServer.to(clientId).emit('notification', event);
+    }
   }
 }
