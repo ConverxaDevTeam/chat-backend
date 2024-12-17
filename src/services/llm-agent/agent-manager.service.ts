@@ -27,7 +27,7 @@ export class AgentManagerService {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     return {
-      name: agente.name,
+      name: `sofia_${agente.departamento.id}_${agente.name}`,
       instruccion: agente.config.instruccion,
       agentId: agente.config.agentId ?? '',
     };
