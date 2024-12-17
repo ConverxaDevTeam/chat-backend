@@ -78,9 +78,8 @@ export class AgentManagerService {
       const config = this.buildAgentConfig(sofiaAgent);
       const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
       await llmService.init();
-
-      // Guardar el ID del asistente
       sofiaAgent.config.agentId = llmService.getAgentId();
+      // Guardar el ID del asistente
       return await this.agenteRepository.save(sofiaAgent);
     }
 

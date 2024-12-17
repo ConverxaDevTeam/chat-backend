@@ -98,6 +98,7 @@ export class SofiaLLMService extends BaseAgent {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
+    this.renderHITL(true, tools);
     const assistant = await this.openai.beta.assistants.create({
       name: config.name || 'Sofia Assistant',
       instructions: config.instruccion,
@@ -212,16 +213,27 @@ export class SofiaLLMService extends BaseAgent {
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     this.renderHITL(hasHitl, tools);
-    await this.openai.beta.assistants.update(assistantId, {
+    console.log('tools', tools);
+    console.log('tools format:', JSON.stringify(tools, null, 2));
+    const response = await this.openai.beta.assistants.update(assistantId, {
       tools,
     });
+    console.log('response', response);
   }
 
   private renderHITL(hasHitl: boolean, tools: OpenAI.Beta.Assistants.AssistantTool[]) {
     if (hasHitl)
       tools.push({
         type: 'function',
-        function: { name: HitlName, description: 'envia la conversacion a una persona' },
+        function: {
+          name: HitlName,
+          description: 'envia la conversacion a una persona',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+        },
       });
   }
 
@@ -326,6 +338,7 @@ export class SofiaLLMService extends BaseAgent {
           },
         };
       }
+      console.log('tools format:', JSON.stringify(updateData.tools, null, 2));
       await this.openai.beta.assistants.update(assistantId, updateData);
     } catch (error) {
       console.error('Error updating assistant tool resources:', error);
