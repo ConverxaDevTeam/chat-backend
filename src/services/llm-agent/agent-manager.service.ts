@@ -152,7 +152,7 @@ export class AgentManagerService {
   }
 
   private emitUpdateEvent(agentId: number, userId: number): void {
-    const room = `test-chat-${agentId}`;
+    const room = `test-chat-${userId}`;
     this.socketService.sendMessageToRoom(room, 'agent:updated', {
       agentId: agentId,
       updatedBy: userId,
