@@ -44,7 +44,6 @@ export class FacebookController {
   @ApiOperation({ summary: 'Get Webhook' })
   @Get('webhook/:integrationId/api')
   async getWebhook(@Query('hub.verify_token') verifyToken: string, @Query('hub.challenge') challenge: string, @Query('hub.mode') mode: string, @Res() res) {
-    console.log('verifyToken', verifyToken);
     if (mode === 'subscribe') {
       return res.status(200).send(challenge);
     }

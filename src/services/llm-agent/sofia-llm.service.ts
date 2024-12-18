@@ -98,6 +98,7 @@ export class SofiaLLMService extends BaseAgent {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
+    this.renderHITL(true, tools);
     const assistant = await this.openai.beta.assistants.create({
       name: config.name || 'Sofia Assistant',
       instructions: config.instruccion,
@@ -221,7 +222,15 @@ export class SofiaLLMService extends BaseAgent {
     if (hasHitl)
       tools.push({
         type: 'function',
-        function: { name: HitlName, description: 'envia la conversacion a una persona' },
+        function: {
+          name: HitlName,
+          description: 'envia la conversacion a una persona',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+        },
       });
   }
 
