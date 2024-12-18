@@ -82,4 +82,8 @@ export class FunctionService {
     }
     await this.functionUtilsService.updateLLMFunctions(result.raw.agenteId);
   }
+
+  async testFunction(functionId: number, params: Record<string, any>): Promise<any> {
+    return this.functionUtilsService.testFunction(functionId, params);
+  }
 }

@@ -27,7 +27,7 @@ export class AgentManagerService {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     return {
-      name: agente.name,
+      name: `sofia_${agente.departamento.id}_${agente.name}`,
       instruccion: agente.config.instruccion,
       agentId: agente.config.agentId ?? '',
     };
@@ -78,9 +78,8 @@ export class AgentManagerService {
       const config = this.buildAgentConfig(sofiaAgent);
       const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
       await llmService.init();
-
-      // Guardar el ID del asistente
       sofiaAgent.config.agentId = llmService.getAgentId();
+      // Guardar el ID del asistente
       return await this.agenteRepository.save(sofiaAgent);
     }
 
@@ -153,7 +152,7 @@ export class AgentManagerService {
   }
 
   private emitUpdateEvent(agentId: number, userId: number): void {
-    const room = `test-chat-${agentId}`;
+    const room = `test-chat-${userId}`;
     this.socketService.sendMessageToRoom(room, 'agent:updated', {
       agentId: agentId,
       updatedBy: userId,

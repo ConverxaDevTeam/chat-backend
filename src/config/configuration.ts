@@ -9,8 +9,8 @@ export default (): any => ({
   session: {
     secretKey: String(process.env.JWT_SECRET_KEY),
     secretKeyRefresh: String(process.env.JWT_SECRET_KEY_REFRESH),
-    jwtTokenExpiration: 3600, // 1 hour
-    jwtTokenRefreshExpiration: 604800, // 1 semana
+    jwtTokenExpiration: 60 * 60 * 5, // 5 minutos
+    jwtTokenRefreshExpiration: 7 * 24 * 60 * 60, // 1 semana
   },
   nodemailer: {
     host: process.env.NODEMAILER_HOST,
