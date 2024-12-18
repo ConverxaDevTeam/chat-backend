@@ -202,11 +202,12 @@ export class SofiaLLMService extends BaseAgent {
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     if (!config?.name) throw new Error('No se pudo obtener el nombre del agente');
-
-    await this.openai.beta.assistants.update(assistantId, {
+    console.log('Actualizando agente...');
+    const response = await this.openai.beta.assistants.update(assistantId, {
       name: config.name.replace(/\s+/g, '_'),
       instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
     });
+    console.log('Actualización de agente exitosa:', response);
   }
 
   async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {

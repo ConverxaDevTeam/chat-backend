@@ -44,7 +44,10 @@ export class FunctionUtilsService {
     if (!function_) {
       throw new Error(`Function ${functionId} not found`);
     }
-
-    return await this.functionCallService.executeFunctionCall(function_.normalizedName, Number(function_.agente), params, 0);
+    try {
+      return await this.functionCallService.executeFunctionCall(function_.normalizedName, Number(function_.agente), params, 0);
+    } catch (error) {
+      throw error;
+    }
   }
 }
