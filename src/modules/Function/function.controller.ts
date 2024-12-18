@@ -51,7 +51,7 @@ export class FunctionController {
   @Post('test/:functionId')
   @ApiOperation({ summary: 'Test a function execution' })
   async testFunction(@Param('functionId', ParseIntPipe) functionId: number, @Body() params: Record<string, any>): Promise<any> {
-    return this.functionService.testFunction(functionId, params);
+    return this.functionService.testFunction(functionId, params.params);
   }
 
   @Delete(':id')
