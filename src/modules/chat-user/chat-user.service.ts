@@ -1,7 +1,7 @@
 import { Repository } from 'typeorm';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ChatUser } from '@models/ChatUser.entity';
+import { ChatUser, ChatUserType } from '@models/ChatUser.entity';
 
 @Injectable()
 export class ChatUserService {
@@ -38,10 +38,16 @@ export class ChatUserService {
     return chatUser;
   }
 
-  async createChatUserWhatsApp(phone: string): Promise<ChatUser> {
+  async createChatUserFacebook(identified: string, type: ChatUserType): Promise<ChatUser> {
     const chatUser = new ChatUser();
-    chatUser.phone = phone;
+    chatUser.identified = identified;
+    chatUser.type = type;
     await this.chatUserRepository.save(chatUser);
+    return chatUser;
+  }
+
+  async findByIdentifiedId(identified: string): Promise<ChatUser | null> {
+    const chatUser = await this.chatUserRepository.findOne({ where: { identified: identified } });
     return chatUser;
   }
 }
