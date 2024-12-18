@@ -34,4 +34,17 @@ export class FunctionUtilsService {
 
     await llmService.updateFunctions(functions, agentConfig.agentId!, !!agentConfig.vectorStoreId, agent.canEscalateToHuman);
   }
+
+  async testFunction(functionId: number, params: Record<string, any>): Promise<any> {
+    const function_ = await this.functionRepository.findOne({
+      where: { id: functionId },
+      loadRelationIds: true,
+    });
+
+    if (!function_) {
+      throw new Error(`Function ${functionId} not found`);
+    }
+
+    return await this.functionCallService.executeFunctionCall(function_.normalizedName, Number(function_.agente), params, 0);
+  }
 }
