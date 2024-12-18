@@ -271,6 +271,7 @@ export class IntegrationService {
         type: IntegrationType.MESSENGER,
       },
       relations: ['departamento.organizacion'],
+      select: ['id', 'type', 'config', 'page_id', 'token'],
     });
 
     return integration;

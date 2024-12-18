@@ -14,6 +14,7 @@ import { IntegrationRouterModule } from '@modules/integration-router/integration
 import { AgentModule } from '@modules/agent/agent.module';
 import { UserOrganization } from '@models/UserOrganization.entity';
 import { Conversation } from '@models/Conversation.entity';
+import { FacebookModule } from '@modules/facebook/facebook.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { Conversation } from '@models/Conversation.entity';
     forwardRef(() => MessageModule),
     forwardRef(() => FunctionCallModule),
     forwardRef(() => IntegrationRouterModule),
+    forwardRef(() => FacebookModule),
     forwardRef(() => AgentModule),
   ],
   providers: [SocketGateway, SocketService, WebChatSocketGateway],

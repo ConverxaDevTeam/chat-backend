@@ -50,10 +50,15 @@ export class IntegrationRouterService {
   }
 
   async sendAgentMessage(user: User, { message, conversationId }: SendAgentMessageDto) {
-    const conversation = await this.conversationRepository.findOne({
-      where: { id: conversationId },
-      relations: ['user', 'chat_user'],
-    });
+    const conversation = await this.conversationRepository
+      .createQueryBuilder('conversation')
+      .leftJoinAndSelect('conversation.user', 'user')
+      .leftJoinAndSelect('conversation.chat_user', 'chat_user')
+      .leftJoinAndSelect('conversation.integration', 'integration')
+      .addSelect('integration.token')
+      .addSelect('chat_user.identified')
+      .where('conversation.id = :conversationId', { conversationId })
+      .getOne();
 
     if (!conversation) {
       throw new NotFoundException('Conversación no encontrada');

@@ -9,7 +9,6 @@ import { ConversationService } from '@modules/conversation/conversation.service'
 import { Conversation, ConversationType } from '@models/Conversation.entity';
 import { MessageService } from '@modules/message/message.service';
 import { CreateIntegrationWhatsAppDto } from './dto/create-integration-whats-app.dto';
-import { AgentService } from '@modules/agent/agentServer';
 import { CreateIntegrationMessagerDto } from './dto/create-integration-messager.dto';
 import { ConfigService } from '@nestjs/config';
 import { FacebookType, WebhookFacebookDto } from './dto/webhook-facebook.dto';
@@ -18,6 +17,7 @@ import { ChatUserType } from '@models/ChatUser.entity';
 import { MessageType } from '@models/Message.entity';
 import { SocketService } from '@modules/socket/socket.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { MessagerService } from './messager.service';
 
 @Controller('facebook')
 @ApiTags('facebook')
@@ -27,11 +27,11 @@ export class FacebookController {
     private readonly integrationService: IntegrationService,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
-    private readonly agentService: AgentService,
     private readonly configService: ConfigService,
     @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly messagerService: MessagerService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -120,11 +120,11 @@ export class FacebookController {
 
       try {
         const response = await this.integrationRouterService.processMessage(text, actualConversation.id);
-        console.log('response:', response);
-        // if (!response) return;
-        // const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message);
-        // if (!messageAi) return;
-        // this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
+        if (!response) return;
+        const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message);
+        if (!messageAi) return;
+        this.messagerService.sendFacebookMessage(senderId, messageAi.text, integration.token);
+        this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
       } catch (error) {
         console.log('error:', error);
       }

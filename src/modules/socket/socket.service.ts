@@ -7,10 +7,11 @@ import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/i
 import { Message, MessageType } from '@models/Message.entity';
 import { NotificationMessage, NotificationType } from 'src/interfaces/notifications.interface';
 import { MessageService } from '@modules/message/message.service';
-import { Conversation } from '@models/Conversation.entity';
+import { Conversation, ConversationType } from '@models/Conversation.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserOrganization } from '@models/UserOrganization.entity';
+import { MessagerService } from '@modules/facebook/messager.service';
 
 @Injectable()
 export class SocketService {
@@ -23,6 +24,7 @@ export class SocketService {
   constructor(
     private readonly agentService: AgentService,
     private readonly messageService: MessageService,
+    private readonly messagerService: MessagerService,
     @InjectRepository(UserOrganization)
     private readonly userOrganizationRepository: Repository<UserOrganization>,
   ) {}
@@ -125,6 +127,10 @@ export class SocketService {
           message,
         }),
       );
+    }
+
+    if (conversation.type === ConversationType.MESSENGER) {
+      await this.messagerService.sendFacebookMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
     }
 
     if (!conversation.user?.id) return message;

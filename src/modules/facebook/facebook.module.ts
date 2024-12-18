@@ -20,9 +20,10 @@ import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
 import { DepartmentService } from '@modules/department/department.service';
 import { SocketModule } from '@modules/socket/socket.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
+import { MessagerService } from './messager.service';
 
 @Module({
-  providers: [FacebookService, AgentService, DepartmentService],
+  providers: [FacebookService, AgentService, DepartmentService, MessagerService],
   controllers: [FacebookController],
   imports: [
     TypeOrmModule.forFeature([Agente, Funcion, Conversation, Organization, Departamento]),
@@ -38,6 +39,6 @@ import { IntegrationRouterModule } from '@modules/integration-router/integration
     forwardRef(() => MessageModule),
     FunctionCallModule,
   ],
-  exports: [FacebookService],
+  exports: [FacebookService, MessagerService],
 })
 export class FacebookModule {}
