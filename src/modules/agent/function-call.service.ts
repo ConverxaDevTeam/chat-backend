@@ -28,8 +28,6 @@ export class FunctionCallService {
         relations: ['departamento.organizacion'],
       });
 
-      console.log('organization', conversation);
-
       await this.conversationRepository.update(conversationId, {
         need_human: true,
       });
@@ -147,11 +145,23 @@ export class FunctionCallService {
       }
     }
 
-    const response = await fetch(url, {
+    const fetchData: {
+      method: HttpMethod;
+      headers: Record<string, string>;
+      body?: string;
+    } = {
       method,
       headers,
-      body: method !== HttpMethod.GET ? JSON.stringify(params) : undefined,
-    });
+    };
+
+    if (method !== HttpMethod.GET) {
+      fetchData.body = JSON.stringify(params);
+    } else {
+      // Convert nested objects to flat query params
+      url += '?' + Object.keys(params).map((key) => `${key}=${encodeURIComponent(params[key])}`);
+    }
+
+    const response = await fetch(url, fetchData);
 
     if (!response.ok) {
       const errorText = await response.text();

@@ -45,7 +45,6 @@ export class SocketService {
       loadRelationIds: true,
       where: { user: { id: userId } },
     });
-    console.log('userOrg', userOrg);
 
     for (const org of userOrg) {
       socket.join(`organization-${org.organization}`);

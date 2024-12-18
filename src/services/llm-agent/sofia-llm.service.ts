@@ -7,6 +7,8 @@ import { createReadStream } from 'fs';
 import { join } from 'path';
 import { Funcion } from '@models/agent/Function.entity';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
@@ -96,6 +98,7 @@ export class SofiaLLMService extends BaseAgent {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
+    this.renderHITL(true, tools);
     const assistant = await this.openai.beta.assistants.create({
       name: config.name || 'Sofia Assistant',
       instructions: config.instruccion,
@@ -219,7 +222,15 @@ export class SofiaLLMService extends BaseAgent {
     if (hasHitl)
       tools.push({
         type: 'function',
-        function: { name: HitlName, description: 'envia la conversacion a una persona' },
+        function: {
+          name: HitlName,
+          description: 'envia la conversacion a una persona',
+          parameters: {
+            type: 'object',
+            properties: {},
+            required: [],
+          },
+        },
       });
   }
 
@@ -236,28 +247,45 @@ export class SofiaLLMService extends BaseAgent {
   }
 
   async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
-    try {
-      const path_parse = path.parse(file.originalname);
-      const fileName = `${path_parse.name}_${Date.now()}${path_parse.ext}`;
+    if (!file?.buffer || !file?.originalname) {
+      throw new Error('Invalid file upload: Missing buffer or filename');
+    }
 
+    let tempPath: string | null = null;
+
+    try {
+      // Create unique temp file name
+      const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+      tempPath = path.join(os.tmpdir(), `${uniqueSuffix}-${safeName}`);
+
+      // Write buffer to temp file
+      await fs.promises.writeFile(tempPath, file.buffer);
+
+      // Upload to vector store
       await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
-        files: [new File([file.buffer], fileName, { type: file.mimetype })],
+        files: [fs.createReadStream(tempPath)],
       });
 
-      // Obtener la lista de archivos para encontrar el ID del archivo recién subido
+      // Get file ID from vector store
       const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
+      const vectorFile = files.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
 
-      // Ordenar por created_at descendente y tomar el primero (el más reciente)
-      const uploadedFile = files.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
-
-      if (!uploadedFile) {
-        throw new Error('File was uploaded but not found in completed status');
+      if (!vectorFile) {
+        throw new Error('File upload completed but vector store processing failed');
       }
 
-      return uploadedFile.id;
+      return vectorFile.id;
     } catch (error) {
-      console.error('Error uploading file to vector store:', error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Vector store upload failed: ${errorMessage}`);
+    } finally {
+      // Clean up temp file if it exists
+      if (tempPath) {
+        await fs.promises.unlink(tempPath).catch((err) => {
+          console.error(`Failed to clean up temp file ${tempPath}:`, err);
+        });
+      }
     }
   }
 
