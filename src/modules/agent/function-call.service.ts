@@ -164,7 +164,6 @@ export class FunctionCallService {
           .map((key) => `${key}=${encodeURIComponent(params[key])}`)
           .join('&');
     }
-    console.log('API Call:', url, fetchData);
     const response = await fetch(url, fetchData);
 
     if (!response.ok) {
