@@ -335,7 +335,6 @@ export class SofiaLLMService extends BaseAgent {
           },
         };
       }
-      console.log('tools format:', JSON.stringify(updateData.tools, null, 2));
       await this.openai.beta.assistants.update(assistantId, updateData);
     } catch (error) {
       console.error('Error updating assistant tool resources:', error);

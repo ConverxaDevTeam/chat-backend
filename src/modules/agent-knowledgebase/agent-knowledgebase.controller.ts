@@ -58,14 +58,6 @@ export class AgentKnowledgebaseController {
       throw new BadRequestException('No files uploaded');
     }
 
-    const fileDetails = files.map((f) => ({
-      name: f.originalname,
-      type: f.mimetype,
-      size: f.size ? `${Math.round(f.size / 1024)}KB` : 'unknown size',
-    }));
-
-    console.log('Processing files:', fileDetails);
-
     return await this.agentKnowledgebaseService.create(agentId, files);
   }
 

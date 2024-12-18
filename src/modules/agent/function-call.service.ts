@@ -28,8 +28,6 @@ export class FunctionCallService {
         relations: ['departamento.organizacion'],
       });
 
-      console.log('organization', conversation);
-
       await this.conversationRepository.update(conversationId, {
         need_human: true,
       });
@@ -163,7 +161,6 @@ export class FunctionCallService {
       url += '?' + Object.keys(params).map((key) => `${key}=${encodeURIComponent(params[key])}`);
     }
 
-    console.log('url', url, fetchData);
     const response = await fetch(url, fetchData);
 
     if (!response.ok) {
