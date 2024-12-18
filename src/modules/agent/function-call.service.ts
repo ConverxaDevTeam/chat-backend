@@ -158,9 +158,13 @@ export class FunctionCallService {
       fetchData.body = JSON.stringify(params);
     } else {
       // Convert nested objects to flat query params
-      url += '?' + Object.keys(params).map((key) => `${key}=${encodeURIComponent(params[key])}`);
+      url +=
+        '?' +
+        Object.keys(params)
+          .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+          .join('&');
     }
-
+    console.log('API Call:', url, fetchData);
     const response = await fetch(url, fetchData);
 
     if (!response.ok) {
