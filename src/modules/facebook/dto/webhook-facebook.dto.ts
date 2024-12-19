@@ -261,8 +261,8 @@ class PayloadDto {
 
   @ApiProperty({ example: 'Title', description: 'Attachment title' })
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  @IsOptional()
+  title?: string;
 }
 
 class AttachmentDto {

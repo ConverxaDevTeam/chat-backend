@@ -54,6 +54,8 @@ jobs:
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID }}
             FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_APP_SECRET }}
+            FACEBOOK_WEBHOOK_SECRET=${{ secrets.FACEBOOK_WEBHOOK_SECRET }}
+            FACEBOOK_GRAPH_API=${{ secrets.FACEBOOK_GRAPH_API }}
             EOF
             docker-compose build
             docker-compose down -v

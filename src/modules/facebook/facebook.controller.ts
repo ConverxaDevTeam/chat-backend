@@ -14,7 +14,7 @@ import { ConfigService } from '@nestjs/config';
 import { FacebookType, WebhookFacebookDto } from './dto/webhook-facebook.dto';
 import { IntegrationType } from '@models/Integration.entity';
 import { ChatUserType } from '@models/ChatUser.entity';
-import { MessageType } from '@models/Message.entity';
+import { Message, MessageFormatType, MessageType } from '@models/Message.entity';
 import { SocketService } from '@modules/socket/socket.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { MessagerService } from './messager.service';
@@ -110,16 +110,28 @@ export class FacebookController {
 
       const text = webhookFacebookDto.entry[0].messaging[0].message.text;
 
-      if (!text) {
-        throw new BadRequestException('Invalid object');
+      let message: Message;
+      if (text) {
+        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
+      } else if (
+        !text &&
+        webhookFacebookDto.entry[0].messaging[0].message.attachments[0].type === 'audio' &&
+        webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url
+      ) {
+        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER, {
+          platform: IntegrationType.MESSENGER,
+          format: MessageFormatType.AUDIO,
+          audio_url: webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url,
+        });
+      } else {
+        new BadRequestException('Invalid object');
+        return;
       }
-
-      const message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
 
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
 
       try {
-        const response = await this.integrationRouterService.processMessage(text, actualConversation.id);
+        const response = await this.integrationRouterService.processMessage(message.text, actualConversation.id);
         if (!response) return;
         const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message);
         if (!messageAi) return;

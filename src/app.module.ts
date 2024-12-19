@@ -43,6 +43,10 @@ import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-kno
       rootPath: join(__dirname, '..', '..', 'uploads', 'scripts'),
       serveRoot: '/files',
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'uploads', 'audio'),
+      serveRoot: '/audio',
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

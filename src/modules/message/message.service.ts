@@ -9,6 +9,7 @@ import * as uuid from 'uuid';
 import { join } from 'path';
 import * as fs from 'fs';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { IntegrationType } from '@models/Integration.entity';
 
 @Injectable()
 export class MessageService {
@@ -20,9 +21,39 @@ export class MessageService {
     private readonly sofiaLLMService: SofiaLLMService,
   ) {}
 
-  async createMessage(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
+  async createMessage(
+    conversation: Conversation,
+    text: string,
+    type: MessageType,
+    options?: {
+      platform: IntegrationType;
+      format: MessageFormatType;
+      audio_url?: string;
+    },
+  ): Promise<Message> {
     const message = new Message();
-    message.text = text;
+    if (options) {
+      message.format = options.format;
+      if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.MESSENGER && options.audio_url) {
+        const audioResponse = await axios.get(options.audio_url, { responseType: 'stream' });
+
+        const uniqueName = `${uuid.v4()}.wav`;
+        const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', uniqueName);
+        const writer = fs.createWriteStream(audioPath);
+
+        audioResponse.data.pipe(writer);
+
+        await new Promise((resolve, reject) => {
+          writer.on('finish', resolve);
+          writer.on('error', reject);
+        });
+        message.audio = uniqueName;
+        const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
+        message.text = transcription.text;
+      }
+    } else {
+      message.text = text;
+    }
     message.type = type;
     message.conversation = conversation;
     await this.messageRepository.save(message);
