@@ -43,6 +43,10 @@ uploads/assets/*
 !uploads/assets/icon-arrow.png
 !uploads/assets/index.html
 
+# Uploader files
+uploads/audio/*
+!uploads/audio/index.html
+
 uploads/logos/*
 !uploads/logos/logo.png
 !uploads/logos/horizontal-logo.png

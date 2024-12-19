@@ -11,7 +11,7 @@ export enum IntegrationType {
 
 @Entity({ name: 'Integrations' })
 export class Integration extends BaseEntity {
-  @Column({ type: 'json', default: '{}' })
+  @Column({ type: 'json', default: '"{}"' })
   config: string;
 
   @Column({ type: 'varchar', nullable: true, select: false })
@@ -22,6 +22,9 @@ export class Integration extends BaseEntity {
 
   @Column({ type: 'varchar', nullable: true, select: false })
   waba_id: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  page_id: string;
 
   @Column({ type: 'enum', enum: IntegrationType })
   type: IntegrationType;
