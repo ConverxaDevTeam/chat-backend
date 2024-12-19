@@ -10,9 +10,13 @@ import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { ConversationService } from '@modules/conversation/conversation.service';
 import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
-import { MessageType } from '@models/Message.entity';
+import { MessageFormatType, MessageType } from '@models/Message.entity';
 import { MessageService } from '@modules/message/message.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import * as uuid from 'uuid';
+import { join } from 'path';
+import * as fs from 'fs';
+import { IntegrationType } from '@models/Integration.entity';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -179,6 +183,38 @@ export class WebChatSocketGateway implements OnModuleInit {
               this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
               try {
                 const response = await this.integrationRouterService.processMessage(dataJson.message, conversation.id);
+                if (!response) return;
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message);
+                if (!messageAi) return; //te debo amigo back :'v
+                this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
+              } catch (error) {
+                console.log('error:', error);
+              }
+            }
+          } else if (dataJson.action === 'send-audio') {
+            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
+            if (conversation) {
+              const audioBuffer = Buffer.from(dataJson.array_buffer, 'base64');
+              const uniqueName = `${uuid.v4()}.wav`;
+              const audioDir = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio');
+
+              if (!fs.existsSync(audioDir)) {
+                fs.mkdirSync(audioDir);
+              }
+
+              const filePath = join(audioDir, uniqueName);
+              fs.writeFileSync(filePath, audioBuffer);
+              const message = await this.messageService.createMessage(conversation, '', MessageType.USER, {
+                platform: IntegrationType.CHAT_WEB,
+                format: MessageFormatType.AUDIO,
+                audio_url: uniqueName,
+              });
+              socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+
+              const organizationId = Number(departamentoActual.organizacion);
+              this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
+              try {
+                const response = await this.integrationRouterService.processMessage(message.text, conversation.id);
                 if (!response) return;
                 const messageAi = await this.socketService.sendMessageToUser(conversation, response.message);
                 if (!messageAi) return; //te debo amigo back :'v
