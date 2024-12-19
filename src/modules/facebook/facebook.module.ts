@@ -6,15 +6,14 @@ import { FacebookService } from './facebook.service';
 import { IntegrationModule } from '@modules/integration/integration.module';
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { MessageModule } from '@modules/message/message.module';
-import { AgentService } from '@modules/agent/agentServer';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
-import { FunctionCallModule } from '@modules/function-call/function-call.module';
+import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 
 @Module({
-  providers: [FacebookService, AgentService],
+  providers: [FacebookService],
   controllers: [FacebookController],
   imports: [
     TypeOrmModule.forFeature([Agente, Funcion, Conversation]),
@@ -23,7 +22,7 @@ import { FunctionCallModule } from '@modules/function-call/function-call.module'
     forwardRef(() => IntegrationModule),
     forwardRef(() => ConversationModule),
     forwardRef(() => MessageModule),
-    FunctionCallModule,
+    IntegrationRouterModule,
   ],
   exports: [FacebookService],
 })

@@ -16,6 +16,13 @@ interface AgentResponse {
   agentId?: string;
 }
 
+interface getAgentResponseProps {
+  message: string;
+  identifier: agentIdentifier;
+  agentId: number;
+  conversationId: number;
+  images: string[];
+}
 /**
  * Funcion que setea la configuracion del agente
  * @param config configuracion del agente
@@ -53,11 +60,11 @@ export class AgentService {
 
   /**
    * Obtiene la respuesta del agente
-   * @param message mensaje a enviar al agente
-   * @param identifier identificador del agente
+   * @param props mensaje a enviar al agente
    * @returns respuesta del agente
    */
-  async getAgentResponse(message: string, identifier: agentIdentifier, agentId: number, conversationId: number): Promise<AgentResponse> {
+  async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse> {
+    const { message, identifier, agentId, conversationId, images } = props;
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       const queryBuilder = this.agenteRepository
@@ -89,7 +96,7 @@ export class AgentService {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
     const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
-    const response = await llmService.response(message, conversationId);
+    const response = await llmService.response(message, conversationId, images);
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }
 
@@ -99,7 +106,7 @@ export class AgentService {
    * @param conversationId id de la conversación
    * @returns respuesta del agente
    */
-  async processMessageWithConversation(message: string, conversation: Conversation): Promise<AgentResponse> {
+  async processMessageWithConversation(message: string, conversation: Conversation, images: string[]): Promise<AgentResponse> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
     const isConfigured = !!config;
@@ -124,7 +131,7 @@ export class AgentService {
       } as agentIdentifier;
     }
 
-    const response = await this.getAgentResponse(message, identifier, conversation.departamento.agente?.id, conversation.id);
+    const response = await this.getAgentResponse({ message, identifier, agentId: conversation.departamento.agente?.id, conversationId: conversation.id, images });
     if (!isConfigured) {
       config.agentIdentifier.agentId = response.agentId;
       config.agentIdentifier.threatId = response.threadId;

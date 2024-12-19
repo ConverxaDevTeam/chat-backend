@@ -10,7 +10,7 @@ import { ConversationService } from '@modules/conversation/conversation.service'
 import { Conversation } from '@models/Conversation.entity';
 import { MessageService } from '@modules/message/message.service';
 import { CreateIntegrationWhatsAppDto } from './dto/create-integration-whats-app.dto';
-import { AgentService } from '@modules/agent/agentServer';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 @Controller('facebook')
 @ApiTags('facebook')
@@ -20,7 +20,7 @@ export class FacebookController {
     private readonly integrationService: IntegrationService,
     private readonly conversationService: ConversationService,
     private readonly messageService: MessageService,
-    private readonly agentService: AgentService,
+    private readonly integrationRouterService: IntegrationRouterService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -96,7 +96,7 @@ export class FacebookController {
         message: 'Error creating message',
       };
     }
-    await this.agentService.processMessageWithConversation(messageUser.text, actualConversation);
+    await this.integrationRouterService.processMessage(messageUser.text, actualConversation.id);
 
     return {
       ok: true,
