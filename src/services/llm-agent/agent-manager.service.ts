@@ -101,7 +101,10 @@ export class AgentManagerService {
       updateData.departamento = { id: departamento_id } as Partial<Departamento>;
     }
 
-    const agente = await this.agenteRepository.findOneBy({ id });
+    const agente = await this.agenteRepository.findOne({
+      where: { id },
+      relations: ['departamento'],
+    });
     if (!agente) {
       throw new Error(`Agente con ID ${id} no encontrado`);
     }
@@ -111,24 +114,25 @@ export class AgentManagerService {
     // Actualizar según el tipo de agente
     const sofiaAgent = agente as SofiaAgente;
     Object.assign(sofiaAgent, updateData);
-
     // Mantener el agentId si existe
-    if (sofiaAgent.config && !sofiaAgent.config.agentId) {
-      const prevSofiaConfig = previousConfig;
-      sofiaAgent.config.agentId = prevSofiaConfig?.agentId;
-    }
-
-    const updatedSofiaAgent = await this.agenteRepository.save(sofiaAgent);
 
     // Actualizar el asistente si cambió la configuración
-    if (JSON.stringify(previousConfig) !== JSON.stringify(updatedSofiaAgent.config)) {
-      const config = this.buildAgentConfig(updatedSofiaAgent);
+    if (JSON.stringify(previousConfig) !== JSON.stringify(sofiaAgent.config)) {
+      console.log('previousConfig', sofiaAgent);
+      const config = this.buildAgentConfig(sofiaAgent);
+      console.log('config', config);
       const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
       if (!previousConfig.agentId) {
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
       }
+      console.log('previousConfig', previousConfig);
       await llmService.updateAgent(config, previousConfig.agentId);
     }
+    if (sofiaAgent.config && !sofiaAgent.config.agentId) {
+      const prevSofiaConfig = previousConfig;
+      sofiaAgent.config.agentId = prevSofiaConfig?.agentId;
+    }
+    const updatedSofiaAgent = await this.agenteRepository.save(sofiaAgent);
     // Emit update event
     this.emitUpdateEvent(id, userId);
     return updatedSofiaAgent;

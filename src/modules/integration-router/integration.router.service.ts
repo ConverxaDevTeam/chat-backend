@@ -20,7 +20,7 @@ export class IntegrationRouterService {
     private readonly socketService: SocketService,
   ) {}
 
-  async processMessage(message: string, conversationId: number) {
+  async processMessage(message: string, conversationId: number, images: string[] = []) {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
       relations: ['user', 'departamento.agente'],
@@ -46,7 +46,7 @@ export class IntegrationRouterService {
       return null;
     }
 
-    return await this.agentService.processMessageWithConversation(message, conversation);
+    return await this.agentService.processMessageWithConversation(message, conversation, images);
   }
 
   async sendAgentMessage(user: User, { message, conversationId }: SendAgentMessageDto) {

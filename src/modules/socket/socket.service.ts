@@ -81,13 +81,13 @@ export class SocketService {
     }
   }
 
-  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number) {
+  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number, images: string[] = []) {
     this.socketServer.to(room).emit('typing', message);
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
-    const { message: response, ...conf } = await this.agentService.getAgentResponse(message, identifier, agentId, conversationId);
+    const { message: response, ...conf } = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images });
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
 

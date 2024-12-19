@@ -116,11 +116,24 @@ export class SofiaLLMService extends BaseAgent {
     return thread.id;
   }
 
-  protected async addMessageToThread(message: string): Promise<void> {
+  protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
     if (!this.threadId) throw new Error('Thread not initialized');
+    const imagesContent =
+      images?.map((image) => ({
+        type: 'image_url' as const,
+        image_url: {
+          url: image,
+        },
+      })) ?? [];
     await this.openai.beta.threads.messages.create(this.threadId, {
       role: 'user',
-      content: message,
+      content: [
+        {
+          type: 'text',
+          text: message,
+        },
+        ...imagesContent,
+      ],
     });
   }
 
@@ -175,10 +188,10 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number): Promise<string> {
+  async response(message: string, conversationId: number, images?: string[]): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
     console.log('Sending message:', this.threadId);
-    await this.addMessageToThread(message);
+    await this.addMessageToThread(message, images);
     await this.runAgent(this.threadId!, conversationId);
     const response = await this.getResponse();
     return this.validateResponse(response);
@@ -202,11 +215,12 @@ export class SofiaLLMService extends BaseAgent {
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     if (!config?.name) throw new Error('No se pudo obtener el nombre del agente');
-
-    await this.openai.beta.assistants.update(assistantId, {
+    console.log('Actualizando agente...');
+    const response = await this.openai.beta.assistants.update(assistantId, {
       name: config.name.replace(/\s+/g, '_'),
       instructions: this.getContextualizedInstructions() + '\n' + config.instruccion,
     });
+    console.log('Actualización de agente exitosa:', response);
   }
 
   async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
