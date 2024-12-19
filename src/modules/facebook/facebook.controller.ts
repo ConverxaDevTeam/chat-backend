@@ -88,10 +88,18 @@ export class FacebookController {
       const integration = await this.integrationService.getIntegrationMessagerByPageId(pageId);
 
       if (!integration) {
-        throw new BadRequestException('Integration not found');
+        console.log(`Integration not found - pageId: ${pageId}`);
+        return {
+          ok: false,
+          message: 'Integration not found',
+        };
       }
       if (!webhookFacebookDto.entry[0] || !webhookFacebookDto.entry[0].messaging) {
-        throw new BadRequestException('Invalid object');
+        console.log('Invalid object', webhookFacebookDto.entry);
+        return {
+          ok: false,
+          message: 'Invalid object',
+        };
       }
       const senderId = webhookFacebookDto.entry[0].messaging[0].sender.id;
       if (!senderId) {
