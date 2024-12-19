@@ -50,6 +50,10 @@ export class MessageService {
         message.audio = uniqueName;
         const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
         message.text = transcription.text;
+      } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.CHAT_WEB && options.audio_url) {
+        message.audio = options.audio_url;
+        const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        message.text = transcription.text;
       }
     } else {
       message.text = text;
