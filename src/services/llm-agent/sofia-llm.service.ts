@@ -103,7 +103,7 @@ export class SofiaLLMService extends BaseAgent {
       name: config.name || 'Sofia Assistant',
       instructions: config.instruccion,
       tools,
-      model: 'gpt-4-1106-preview',
+      model: 'gpt-4o-mini',
     });
 
     this.assistantId = assistant.id;
@@ -125,6 +125,7 @@ export class SofiaLLMService extends BaseAgent {
           url: image,
         },
       })) ?? [];
+    console.log('Adding message to thread:', imagesContent);
     await this.openai.beta.threads.messages.create(this.threadId, {
       role: 'user',
       content: [

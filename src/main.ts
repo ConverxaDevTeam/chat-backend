@@ -37,7 +37,7 @@ async function bootstrap() {
   // Configuración detallada de CORS
   app.enableCors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
+    allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With', 'ngrok-skip-browser-warning'],
     exposedHeaders: ['Content-Disposition'],
     credentials: true,
     preflightContinue: false,

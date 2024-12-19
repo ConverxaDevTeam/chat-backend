@@ -59,15 +59,15 @@ export class SocketGateway {
   }
 
   @SubscribeMessage('message')
-  handleMessage(@MessageBody() data: { room: string; text: string; identifier?: agentIdentifier }, @ConnectedSocket() client: Socket): void {
+  handleMessage(@MessageBody() data: { room: string; text: string; identifier?: agentIdentifier; images?: string[] }, @ConnectedSocket() client: Socket): void {
     try {
-      const { room, text, identifier } = data;
+      const { room, text, identifier, images = [] } = data;
       if (!client.rooms.has(room)) {
         return;
       }
       if (room.startsWith('test-chat-')) {
         if (!identifier) throw new Error('No se pudo obtener el identificador del agente');
-        this.socketService.sendToChatBot(text, room, identifier, -1);
+        this.socketService.sendToChatBot(text, room, identifier, -1, images);
       }
     } catch (error) {
       this.logger.error(`Error handling message: ${error}`);
