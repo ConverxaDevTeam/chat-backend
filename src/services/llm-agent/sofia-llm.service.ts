@@ -156,7 +156,7 @@ export class SofiaLLMService extends BaseAgent {
           toolCalls.map(async (toolCall) => {
             console.log(`Processing tool call: ${toolCall.function.name}`);
             const result = await handleToolCall(this.agentId!, toolCall, this.functionCallService, conversationId);
-            console.log(`Tool call result for ${toolCall.function.name}:`, result);
+            console.log(`Tool call result for ${toolCall.function.name}:`);
             return result;
           }),
         );
