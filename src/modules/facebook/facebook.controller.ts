@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, forwardRef, Get, HttpException, HttpStatus, Inject, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, forwardRef, Get, HttpException, HttpStatus, Inject, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FacebookService } from './facebook.service';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
@@ -82,129 +82,75 @@ export class FacebookController {
 
   @ApiOperation({ summary: 'Post Webhook' })
   @Post('webhook')
-  async postWebhook(@Body() webhookFacebookDto: WebhookFacebookDto) {
-    if (webhookFacebookDto.object === FacebookType.PAGE) {
-      const pageId = webhookFacebookDto.entry[0].id;
-      const integration = await this.integrationService.getIntegrationMessagerByPageId(pageId);
+  async postWebhook(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
+    res.status(200).send('EVENT_RECEIVED');
+    try {
+      if (webhookFacebookDto.object === FacebookType.PAGE) {
+        const pageId = webhookFacebookDto.entry[0].id;
+        const integration = await this.integrationService.getIntegrationMessagerByPageId(pageId);
 
-      if (!integration) {
-        console.log(`Integration not found - pageId: ${pageId}`);
-        return {
-          ok: false,
-          message: 'Integration not found',
-        };
-      }
-      if (!webhookFacebookDto.entry[0] || !webhookFacebookDto.entry[0].messaging) {
-        console.log('Invalid object', webhookFacebookDto.entry);
-        return {
-          ok: false,
-          message: 'Invalid object',
-        };
-      }
-      const senderId = webhookFacebookDto.entry[0].messaging[0].sender.id;
-      if (!senderId) {
-        throw new BadRequestException('Invalid object');
-      }
+        if (!integration) {
+          console.log(`Integration not found - pageId: ${pageId}`);
+          return res.status(200).send('Integration not found');
+        }
+        if (!webhookFacebookDto.entry[0] || !webhookFacebookDto.entry[0].messaging) {
+          console.log('Invalid object', webhookFacebookDto.entry);
+          return;
+        }
+        const senderId = webhookFacebookDto.entry[0].messaging[0].sender.id;
+        if (!senderId) {
+          console.log('Invalid object', webhookFacebookDto.entry[0].messaging[0].sender);
+          return;
+        }
 
-      let actualConversation: Conversation;
+        let actualConversation: Conversation;
 
-      const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, senderId, IntegrationType.MESSENGER);
+        const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, senderId, IntegrationType.MESSENGER);
 
-      if (!conversation) {
-        actualConversation = await this.conversationService.createConversationAndChatUser(integration, senderId, ConversationType.MESSENGER, ChatUserType.MESSENGER);
-      } else {
-        actualConversation = conversation;
-      }
+        if (!conversation) {
+          actualConversation = await this.conversationService.createConversationAndChatUser(integration, senderId, ConversationType.MESSENGER, ChatUserType.MESSENGER);
+        } else {
+          actualConversation = conversation;
+        }
 
-      const text = webhookFacebookDto.entry[0].messaging[0].message.text;
+        const text = webhookFacebookDto.entry[0].messaging[0].message.text;
 
-      let message: Message;
-      if (text) {
-        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
-      } else if (
-        !text &&
-        webhookFacebookDto.entry[0].messaging[0].message.attachments[0].type === 'audio' &&
-        webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url
-      ) {
-        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER, {
-          platform: IntegrationType.MESSENGER,
-          format: MessageFormatType.AUDIO,
-          audio_url: webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url,
-        });
-      } else {
-        new BadRequestException('Invalid object');
-        return;
-      }
+        let message: Message;
+        if (text) {
+          message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
+        } else if (
+          !text &&
+          webhookFacebookDto.entry[0].messaging[0].message.attachments[0].type === 'audio' &&
+          webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url
+        ) {
+          message = await this.messageService.createMessage(actualConversation, text, MessageType.USER, {
+            platform: IntegrationType.MESSENGER,
+            format: MessageFormatType.AUDIO,
+            audio_url: webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url,
+          });
+        } else {
+          console.log('Invalid object', webhookFacebookDto);
+          return;
+        }
 
-      this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
+        this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
 
-      try {
         const response = await this.integrationRouterService.processMessage(message.text, actualConversation.id);
         if (!response) return;
-        const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message);
+        const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
         if (!messageAi) return;
-        this.messagerService.sendFacebookMessage(senderId, messageAi.text, integration.token);
+
+        if (messageAi.format === MessageFormatType.AUDIO) {
+          this.messagerService.sendFacebookMessageAudio(senderId, messageAi.audio, integration.token);
+        } else {
+          this.messagerService.sendFacebookMessage(senderId, messageAi.text, integration.token);
+        }
         this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
-      } catch (error) {
-        console.log('error:', error);
+      } else {
+        console.log('Invalid object');
       }
-      return {
-        ok: true,
-      };
-    } else {
-      throw new BadRequestException('Invalid object');
+    } catch (error) {
+      console.log('error:', error);
     }
   }
-
-  // @ApiOperation({ summary: 'Create Whastapp Integration' })
-  // @Post('webhook/:integrationId/api')
-  // async webhookWhatsApp(@Param('integrationId') integrationId: number, @Body() webhookWhatsAppDto: WebhookWhatsAppDto) {
-  //   if (!webhookWhatsAppDto.entry[0].changes[0].value.messages) {
-  //     return {
-  //       ok: false,
-  //       message: 'No messages',
-  //     };
-  //   }
-
-  //   const phoneNumber = webhookWhatsAppDto.entry[0].changes[0].value.messages[0].from;
-
-  //   if (!phoneNumber) {
-  //     return {
-  //       ok: false,
-  //       message: 'No phone number',
-  //     };
-  //   }
-
-  //   const integration = await this.integrationService.getIntegrationFacebookById(integrationId, IntegrationType.WHATSAPP);
-
-  //   if (!integration) {
-  //     return {
-  //       ok: false,
-  //       message: 'Integration not found',
-  //     };
-  //   }
-  //   let actualConversation: Conversation;
-
-  //   const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, phoneNumber, IntegrationType.WHATSAPP);
-
-  //   if (!conversation) {
-  //     actualConversation = await this.conversationService.createConversationAndChatUser(integration, phoneNumber, ConversationType.WHATSAPP, ChatUserType.WHATSAPP);
-  //   } else {
-  //     actualConversation = conversation;
-  //   }
-
-  //   const messageUser = await this.messageService.createMessageUserWhatsApp(actualConversation, webhookWhatsAppDto);
-
-  //   if (!messageUser) {
-  //     return {
-  //       ok: false,
-  //       message: 'Error creating message',
-  //     };
-  //   }
-  //   await this.agentService.processMessageWithConversation(messageUser.text, actualConversation);
-
-  //   return {
-  //     ok: true,
-  //   };
-  // }
 }

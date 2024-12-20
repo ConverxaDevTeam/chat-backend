@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 import { ClientMap } from './socket.type';
 import { AgentService } from '@modules/agent/agentServer';
 import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/interfaces/agent';
-import { Message, MessageType } from '@models/Message.entity';
+import { Message, MessageFormatType, MessageType } from '@models/Message.entity';
 import { NotificationMessage, NotificationType } from 'src/interfaces/notifications.interface';
 import { MessageService } from '@modules/message/message.service';
 import { Conversation, ConversationType } from '@models/Conversation.entity';
@@ -114,8 +114,11 @@ export class SocketService {
     this.webChatClients.delete(chatUserId);
   }
 
-  async sendMessageToUser(conversation: Conversation, agentMessage: string, type: MessageType = MessageType.AGENT) {
-    const message = await this.messageService.createMessage(conversation, agentMessage, type);
+  async sendMessageToUser(conversation: Conversation, agentMessage: string, format: MessageFormatType, type: MessageType = MessageType.AGENT) {
+    const message =
+      format === MessageFormatType.TEXT
+        ? await this.messageService.createMessage(conversation, agentMessage, type)
+        : await this.messageService.createMessageAudio(conversation, agentMessage, type);
     // Enviamos al servidor de WebChat si existe el cliente
     if (conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
       const clientSocket = this.webChatClients.get(conversation.chat_user.id);
