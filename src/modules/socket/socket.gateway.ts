@@ -176,13 +176,18 @@ export class WebChatSocketGateway implements OnModuleInit {
           } else if (dataJson.action === 'send-message') {
             const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
             if (conversation) {
-              const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
+              const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
+              const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, {
+                platform: IntegrationType.CHAT_WEB,
+                format: MessageFormatType.IMAGE,
+                images: imageUrls,
+              });
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
 
               const organizationId = Number(departamentoActual.organizacion);
               this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
               try {
-                const response = await this.integrationRouterService.processMessage(dataJson.message, conversation.id);
+                const response = await this.integrationRouterService.processMessage(dataJson.message.text, conversation.id, imageUrls);
                 if (!response) return;
                 const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format);
                 if (!messageAi) return; //te debo amigo back :'v

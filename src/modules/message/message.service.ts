@@ -29,9 +29,11 @@ export class MessageService {
       platform: IntegrationType;
       format: MessageFormatType;
       audio_url?: string;
+      images?: string[];
     },
   ): Promise<Message> {
     const message = new Message();
+    message.text = text;
     if (options) {
       message.format = options.format;
       if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.MESSENGER && options.audio_url) {
@@ -55,8 +57,9 @@ export class MessageService {
         const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
         message.text = transcription.text;
       }
-    } else {
-      message.text = text;
+    }
+    if (options?.images) {
+      message.images = options.images;
     }
     message.type = type;
     message.conversation = conversation;

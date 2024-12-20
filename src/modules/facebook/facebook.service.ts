@@ -112,8 +112,6 @@ export class FacebookService {
     if (!pageOneId || !pageOneToken) {
       throw new BadRequestException('Failed to get page id or token');
     }
-    console.log(pageOneId, pageOneToken);
-    console.log('departamento', departamento);
     const searchIntegration = await this.integrationService.getIntegrationMessagerByPageId(pageOneId);
 
     if (searchIntegration) {
