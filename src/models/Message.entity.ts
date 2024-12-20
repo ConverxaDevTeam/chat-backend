@@ -22,6 +22,9 @@ export class Message extends BaseEntity {
   @Column({ type: 'varchar', default: null, nullable: true })
   audio: string;
 
+  @Column({ type: 'json', default: null, nullable: true })
+  images: string[];
+
   @Column({ type: 'enum', enum: MessageType, default: MessageType.USER })
   type: MessageType;
 

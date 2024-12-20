@@ -8,6 +8,9 @@ import { MessageReceivedNotification, NotificationType } from 'src/interfaces/no
 import { SendAgentMessageDto } from './dto/send-agent-message.dto';
 import { User } from '@models/User.entity';
 import { MessageType } from '@models/Message.entity';
+import { ConfigService } from '@nestjs/config';
+import * as path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class IntegrationRouterService {
@@ -18,7 +21,32 @@ export class IntegrationRouterService {
     private readonly conversationRepository: Repository<Conversation>,
     @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
+    private readonly configService: ConfigService,
   ) {}
+
+  async saveImages(images: string[]): Promise<string[]> {
+    if (!images?.length) return [];
+
+    const uploadDir = path.join(process.cwd(), 'uploads', 'images');
+    const baseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    return Promise.all(
+      images.map(async (base64Image) => {
+        const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
+
+        const buffer = Buffer.from(matches[2], 'base64');
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+        const filePath = path.join(uploadDir, fileName);
+
+        await fs.promises.writeFile(filePath, buffer);
+        return `${baseUrl}/images/${fileName}`;
+      }),
+    );
+  }
 
   async processMessage(message: string, conversationId: number, images: string[] = []) {
     const conversation = await this.conversationRepository.findOne({
@@ -29,13 +57,14 @@ export class IntegrationRouterService {
     if (!conversation) {
       throw new Error('Conversation not found');
     }
+
     if (conversation.user?.id) {
       if (conversation.need_human) {
         this.conversationRepository.update(conversation.id, {
           need_human: false,
         });
       }
-      // Enviar notificación al usuario cuando HITL está activo
+
       this.socketService.sendNotificationToUser<MessageReceivedNotification>(conversation.user.id, {
         type: NotificationType.MESSAGE_RECEIVED,
         message: 'Nuevo mensaje en la conversación',
@@ -46,7 +75,13 @@ export class IntegrationRouterService {
       return null;
     }
 
-    return await this.agentService.processMessageWithConversation(message, conversation, images);
+    const response = await this.agentService.processMessageWithConversation(message, conversation, images);
+
+    return {
+      ...response,
+      message: response.message,
+      images: images,
+    };
   }
 
   async sendAgentMessage(user: User, { message, conversationId }: SendAgentMessageDto) {
