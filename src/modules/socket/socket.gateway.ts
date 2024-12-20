@@ -189,7 +189,7 @@ export class WebChatSocketGateway implements OnModuleInit {
               try {
                 const response = await this.integrationRouterService.processMessage(dataJson.message.text, conversation.id, imageUrls);
                 if (!response) return;
-                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message);
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format);
                 if (!messageAi) return; //te debo amigo back :'v
                 this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
               } catch (error) {
@@ -221,7 +221,7 @@ export class WebChatSocketGateway implements OnModuleInit {
               try {
                 const response = await this.integrationRouterService.processMessage(message.text, conversation.id);
                 if (!response) return;
-                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message);
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format);
                 if (!messageAi) return; //te debo amigo back :'v
                 this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
               } catch (error) {

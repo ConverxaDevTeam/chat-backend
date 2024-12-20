@@ -67,6 +67,18 @@ export class MessageService {
     return message;
   }
 
+  async createMessageAudio(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
+    const audio = await this.sofiaLLMService.textToAudio(text);
+    const message = new Message();
+    message.type = type;
+    message.text = text;
+    message.format = MessageFormatType.AUDIO;
+    message.conversation = conversation;
+    message.audio = audio;
+    await this.messageRepository.save(message);
+    return message;
+  }
+
   async createMessageUserWhatsApp(conversation: Conversation, webhookWhatsAppDto: WebhookWhatsAppDto): Promise<Message | null> {
     if (webhookWhatsAppDto.entry[0].changes[0].value.messages[0].type === 'text') {
       const message = new Message();

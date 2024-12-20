@@ -7,7 +7,7 @@ import { SocketService } from '../socket/socket.service';
 import { MessageReceivedNotification, NotificationType } from 'src/interfaces/notifications.interface';
 import { SendAgentMessageDto } from './dto/send-agent-message.dto';
 import { User } from '@models/User.entity';
-import { MessageType } from '@models/Message.entity';
+import { MessageFormatType, MessageType } from '@models/Message.entity';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -104,7 +104,7 @@ export class IntegrationRouterService {
     }
     // Notificar al usuario del chat
     if (conversation.chat_user?.id) {
-      this.socketService.sendMessageToUser(conversation, message, MessageType.HITL);
+      this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL);
     }
     return message;
   }

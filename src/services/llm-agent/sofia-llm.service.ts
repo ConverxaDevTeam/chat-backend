@@ -9,6 +9,7 @@ import { Funcion } from '@models/agent/Function.entity';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as uuid from 'uuid';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
@@ -211,6 +212,19 @@ export class SofiaLLMService extends BaseAgent {
     });
 
     return transcription;
+  }
+
+  async textToAudio(text: string): Promise<string> {
+    const audioId = uuid.v4();
+    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', `${audioId}.mp3`);
+    const mp3 = await this.openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'alloy',
+      input: text,
+    });
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    await fs.promises.writeFile(pathFileAudio, buffer);
+    return `${audioId}.mp3`;
   }
 
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
