@@ -12,6 +12,9 @@ import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserOrganization } from '@models/UserOrganization.entity';
 import { MessagerService } from '@modules/facebook/messager.service';
+import { ConfigService } from '@nestjs/config';
+import * as path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class SocketService {
@@ -27,6 +30,7 @@ export class SocketService {
     private readonly messagerService: MessagerService,
     @InjectRepository(UserOrganization)
     private readonly userOrganizationRepository: Repository<UserOrganization>,
+    private readonly configService: ConfigService,
   ) {}
 
   // Establecer el servidor de sockets
@@ -81,13 +85,37 @@ export class SocketService {
     }
   }
 
+  private async saveImages(images: string[]): Promise<string[]> {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'images');
+    const baseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    return Promise.all(
+      images.map(async (base64Image) => {
+        const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
+
+        const buffer = Buffer.from(matches[2], 'base64');
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+        const filePath = path.join(uploadDir, fileName);
+
+        await fs.promises.writeFile(filePath, buffer);
+        return `${baseUrl}/images/${fileName}`;
+      }),
+    );
+  }
+
   async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number, images: string[] = []) {
-    this.socketServer.to(room).emit('typing', message);
+    this.socketServer.to(room).emit('typing', { message, images });
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
-    const { message: response, ...conf } = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images });
+    const imageUrls = images?.length ? await this.saveImages(images) : [];
+    const { message: response, ...conf } = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
 

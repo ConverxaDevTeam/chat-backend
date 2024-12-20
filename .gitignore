@@ -54,4 +54,6 @@ uploads/logos/*
 
 uploads/chats/*
 !uploads/chats/index.html
+uploads/images/*
+!uploads/images/index.html
 .windsurfrules
