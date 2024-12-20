@@ -10,11 +10,11 @@ export enum ChatUserType {
 
 @Entity({ name: 'ChatUsers' })
 export class ChatUser extends BaseEntity {
-  @Column({ type: 'varchar', length: 128, nullable: false, select: false })
+  @Column({ type: 'varchar', length: 128, nullable: true, select: false })
   secret: string;
 
   @Column({ type: 'varchar', nullable: true, default: null })
-  phone: string;
+  identified: string;
 
   @Column({ type: 'enum', enum: ChatUserType, default: ChatUserType.CHAT_WEB })
   type: ChatUserType;

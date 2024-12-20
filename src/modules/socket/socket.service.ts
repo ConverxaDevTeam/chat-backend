@@ -4,13 +4,17 @@ import { Logger } from '@nestjs/common';
 import { ClientMap } from './socket.type';
 import { AgentService } from '@modules/agent/agentServer';
 import { agentIdentifier, AgentIdentifierType, TestAgentIdentifier } from 'src/interfaces/agent';
-import { Message, MessageType } from '@models/Message.entity';
+import { Message, MessageFormatType, MessageType } from '@models/Message.entity';
 import { NotificationMessage, NotificationType } from 'src/interfaces/notifications.interface';
 import { MessageService } from '@modules/message/message.service';
-import { Conversation } from '@models/Conversation.entity';
+import { Conversation, ConversationType } from '@models/Conversation.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserOrganization } from '@models/UserOrganization.entity';
+import { MessagerService } from '@modules/facebook/messager.service';
+import { ConfigService } from '@nestjs/config';
+import * as path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class SocketService {
@@ -23,8 +27,10 @@ export class SocketService {
   constructor(
     private readonly agentService: AgentService,
     private readonly messageService: MessageService,
+    private readonly messagerService: MessagerService,
     @InjectRepository(UserOrganization)
     private readonly userOrganizationRepository: Repository<UserOrganization>,
+    private readonly configService: ConfigService,
   ) {}
 
   // Establecer el servidor de sockets
@@ -79,13 +85,37 @@ export class SocketService {
     }
   }
 
-  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number) {
-    this.socketServer.to(room).emit('typing', message);
+  private async saveImages(images: string[]): Promise<string[]> {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'images');
+    const baseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    return Promise.all(
+      images.map(async (base64Image) => {
+        const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
+
+        const buffer = Buffer.from(matches[2], 'base64');
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+        const filePath = path.join(uploadDir, fileName);
+
+        await fs.promises.writeFile(filePath, buffer);
+        return `${baseUrl}/images/${fileName}`;
+      }),
+    );
+  }
+
+  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number, images: string[] = []) {
+    this.socketServer.to(room).emit('typing', { message, images });
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
-    const { message: response, ...conf } = await this.agentService.getAgentResponse(message, identifier, agentId, conversationId);
+    const imageUrls = images?.length ? await this.saveImages(images) : [];
+    const { message: response, ...conf } = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
 
@@ -112,8 +142,11 @@ export class SocketService {
     this.webChatClients.delete(chatUserId);
   }
 
-  async sendMessageToUser(conversation: Conversation, agentMessage: string, type: MessageType = MessageType.AGENT) {
-    const message = await this.messageService.createMessage(conversation, agentMessage, type);
+  async sendMessageToUser(conversation: Conversation, agentMessage: string, format: MessageFormatType, type: MessageType = MessageType.AGENT) {
+    const message =
+      format === MessageFormatType.TEXT
+        ? await this.messageService.createMessage(conversation, agentMessage, type)
+        : await this.messageService.createMessageAudio(conversation, agentMessage, type);
     // Enviamos al servidor de WebChat si existe el cliente
     if (conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
       const clientSocket = this.webChatClients.get(conversation.chat_user.id);
@@ -125,6 +158,10 @@ export class SocketService {
           message,
         }),
       );
+    }
+
+    if (conversation.type === ConversationType.MESSENGER) {
+      await this.messagerService.sendFacebookMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
     }
 
     if (!conversation.user?.id) return message;

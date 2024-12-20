@@ -4,23 +4,18 @@ import { FacebookService } from './facebook.service';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
-import { WebhookWhatsAppDto } from './dto/webhook.dto';
-import { IntegrationService } from '@modules/integration/integration.service';
-import { ConversationService } from '@modules/conversation/conversation.service';
-import { Conversation } from '@models/Conversation.entity';
-import { MessageService } from '@modules/message/message.service';
 import { CreateIntegrationWhatsAppDto } from './dto/create-integration-whats-app.dto';
-import { AgentService } from '@modules/agent/agentServer';
+import { CreateIntegrationMessagerDto } from './dto/create-integration-messager.dto';
+import { ConfigService } from '@nestjs/config';
+import { FacebookType, WebhookFacebookDto } from './dto/webhook-facebook.dto';
 
 @Controller('facebook')
 @ApiTags('facebook')
 export class FacebookController {
   constructor(
     private readonly facebookService: FacebookService,
-    private readonly integrationService: IntegrationService,
-    private readonly conversationService: ConversationService,
-    private readonly messageService: MessageService,
-    private readonly agentService: AgentService,
+
+    private readonly configService: ConfigService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -41,65 +36,43 @@ export class FacebookController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Create Messager Integration' })
+  @ApiBearerAuth()
+  @Post('create-messager/:organizationId/:departamentoId')
+  async createIntegrationMessager(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Body() createIntegrationMessagerDto: CreateIntegrationMessagerDto,
+  ) {
+    const integration = await this.facebookService.createIntegrationMessager(user, createIntegrationMessagerDto, organizationId, departamentoId);
+
+    return {
+      ok: true,
+      integration: integration,
+    };
+  }
+
   @ApiOperation({ summary: 'Get Webhook' })
-  @Get('webhook/:integrationId/api')
+  @Get('webhook')
   async getWebhook(@Query('hub.verify_token') verifyToken: string, @Query('hub.challenge') challenge: string, @Query('hub.mode') mode: string, @Res() res) {
-    if (mode === 'subscribe') {
+    if (mode === 'subscribe' && verifyToken === this.configService.get<string>('facebook.webhookSecret')) {
       return res.status(200).send(challenge);
     }
 
     throw new HttpException('Authentication failed. Invalid Token.', HttpStatus.UNAUTHORIZED);
   }
 
-  @ApiOperation({ summary: 'Create Whastapp Integration' })
-  @Post('webhook/:integrationId/api')
-  async webhookWhatsApp(@Param('integrationId') integrationId: number, @Body() webhookWhatsAppDto: WebhookWhatsAppDto) {
-    if (!webhookWhatsAppDto.entry[0].changes[0].value.messages) {
-      return {
-        ok: false,
-        message: 'No messages',
-      };
-    }
-
-    const phoneNumber = webhookWhatsAppDto.entry[0].changes[0].value.messages[0].from;
-
-    if (!phoneNumber) {
-      return {
-        ok: false,
-        message: 'No phone number',
-      };
-    }
-
-    const integration = await this.integrationService.getIntegrationWhatsAppById(integrationId);
-
-    if (!integration) {
-      return {
-        ok: false,
-        message: 'Integration not found',
-      };
-    }
-    let actualConversation: Conversation;
-
-    const conversation = await this.conversationService.getConversationByIntegrationIdAndByPhoneNumber(integration.id, phoneNumber);
-
-    if (!conversation) {
-      actualConversation = await this.conversationService.createConversationAndChatUser(integration, phoneNumber);
+  @ApiOperation({ summary: 'Post Webhook' })
+  @Post('webhook')
+  async postWebhook(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
+    if (webhookFacebookDto.object === FacebookType.PAGE) {
+      console.log('Received page event');
+      this.facebookService.analyzefacebookmessage(webhookFacebookDto);
     } else {
-      actualConversation = conversation;
+      console.log('Invalid object');
     }
-
-    const messageUser = await this.messageService.createMessageUserWhatsApp(actualConversation, webhookWhatsAppDto);
-
-    if (!messageUser) {
-      return {
-        ok: false,
-        message: 'Error creating message',
-      };
-    }
-    await this.agentService.processMessageWithConversation(messageUser.text, actualConversation);
-
-    return {
-      ok: true,
-    };
+    return res.status(200).send('EVENT_RECEIVED');
   }
 }

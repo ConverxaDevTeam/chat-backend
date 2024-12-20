@@ -9,6 +9,7 @@ import { Funcion } from '@models/agent/Function.entity';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import * as uuid from 'uuid';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
@@ -103,7 +104,7 @@ export class SofiaLLMService extends BaseAgent {
       name: config.name || 'Sofia Assistant',
       instructions: config.instruccion,
       tools,
-      model: 'gpt-4-1106-preview',
+      model: 'gpt-4o-mini',
     });
 
     this.assistantId = assistant.id;
@@ -116,11 +117,25 @@ export class SofiaLLMService extends BaseAgent {
     return thread.id;
   }
 
-  protected async addMessageToThread(message: string): Promise<void> {
+  protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
     if (!this.threadId) throw new Error('Thread not initialized');
+    const imagesContent =
+      images?.map((image) => ({
+        type: 'image_url' as const,
+        image_url: {
+          url: image,
+        },
+      })) ?? [];
+    console.log('Adding message to thread:', imagesContent);
     await this.openai.beta.threads.messages.create(this.threadId, {
       role: 'user',
-      content: message,
+      content: [
+        {
+          type: 'text',
+          text: message,
+        },
+        ...imagesContent,
+      ],
     });
   }
 
@@ -142,7 +157,7 @@ export class SofiaLLMService extends BaseAgent {
           toolCalls.map(async (toolCall) => {
             console.log(`Processing tool call: ${toolCall.function.name}`);
             const result = await handleToolCall(this.agentId!, toolCall, this.functionCallService, conversationId);
-            console.log(`Tool call result for ${toolCall.function.name}:`, result);
+            console.log(`Tool call result for ${toolCall.function.name}:`);
             return result;
           }),
         );
@@ -175,10 +190,10 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number): Promise<string> {
+  async response(message: string, conversationId: number, images?: string[]): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
     console.log('Sending message:', this.threadId);
-    await this.addMessageToThread(message);
+    await this.addMessageToThread(message, images);
     await this.runAgent(this.threadId!, conversationId);
     const response = await this.getResponse();
     return this.validateResponse(response);
@@ -197,6 +212,19 @@ export class SofiaLLMService extends BaseAgent {
     });
 
     return transcription;
+  }
+
+  async textToAudio(text: string): Promise<string> {
+    const audioId = uuid.v4();
+    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', `${audioId}.mp3`);
+    const mp3 = await this.openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'alloy',
+      input: text,
+    });
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    await fs.promises.writeFile(pathFileAudio, buffer);
+    return `${audioId}.mp3`;
   }
 
   async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {

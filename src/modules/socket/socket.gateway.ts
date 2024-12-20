@@ -10,9 +10,13 @@ import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { ConversationService } from '@modules/conversation/conversation.service';
 import { ChatUser } from '@models/ChatUser.entity';
 import { Departamento } from '@models/Departamento.entity';
-import { MessageType } from '@models/Message.entity';
+import { MessageFormatType, MessageType } from '@models/Message.entity';
 import { MessageService } from '@modules/message/message.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import * as uuid from 'uuid';
+import { join } from 'path';
+import * as fs from 'fs';
+import { IntegrationType } from '@models/Integration.entity';
 
 @WebSocketGateway({
   path: '/api/events/socket.io',
@@ -59,15 +63,15 @@ export class SocketGateway {
   }
 
   @SubscribeMessage('message')
-  handleMessage(@MessageBody() data: { room: string; text: string; identifier?: agentIdentifier }, @ConnectedSocket() client: Socket): void {
+  handleMessage(@MessageBody() data: { room: string; text: string; identifier?: agentIdentifier; images?: string[] }, @ConnectedSocket() client: Socket): void {
     try {
-      const { room, text, identifier } = data;
+      const { room, text, identifier, images = [] } = data;
       if (!client.rooms.has(room)) {
         return;
       }
       if (room.startsWith('test-chat-')) {
         if (!identifier) throw new Error('No se pudo obtener el identificador del agente');
-        this.socketService.sendToChatBot(text, room, identifier, -1);
+        this.socketService.sendToChatBot(text, room, identifier, -1, images);
       }
     } catch (error) {
       this.logger.error(`Error handling message: ${error}`);
@@ -172,15 +176,52 @@ export class WebChatSocketGateway implements OnModuleInit {
           } else if (dataJson.action === 'send-message') {
             const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
             if (conversation) {
-              const message = await this.messageService.createMessage(conversation, dataJson.message, MessageType.USER);
+              const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
+              const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, {
+                platform: IntegrationType.CHAT_WEB,
+                format: MessageFormatType.IMAGE,
+                images: imageUrls,
+              });
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
 
               const organizationId = Number(departamentoActual.organizacion);
               this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
               try {
-                const response = await this.integrationRouterService.processMessage(dataJson.message, conversation.id);
+                const response = await this.integrationRouterService.processMessage(dataJson.message.text, conversation.id, imageUrls);
                 if (!response) return;
-                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message);
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format);
+                if (!messageAi) return; //te debo amigo back :'v
+                this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
+              } catch (error) {
+                console.log('error:', error);
+              }
+            }
+          } else if (dataJson.action === 'send-audio') {
+            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
+            if (conversation) {
+              const audioBuffer = Buffer.from(dataJson.array_buffer, 'base64');
+              const uniqueName = `${uuid.v4()}.wav`;
+              const audioDir = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio');
+
+              if (!fs.existsSync(audioDir)) {
+                fs.mkdirSync(audioDir);
+              }
+
+              const filePath = join(audioDir, uniqueName);
+              fs.writeFileSync(filePath, audioBuffer);
+              const message = await this.messageService.createMessage(conversation, '', MessageType.USER, {
+                platform: IntegrationType.CHAT_WEB,
+                format: MessageFormatType.AUDIO,
+                audio_url: uniqueName,
+              });
+              socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+
+              const organizationId = Number(departamentoActual.organizacion);
+              this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
+              try {
+                const response = await this.integrationRouterService.processMessage(message.text, conversation.id);
+                if (!response) return;
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format);
                 if (!messageAi) return; //te debo amigo back :'v
                 this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
               } catch (error) {

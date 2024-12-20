@@ -33,16 +33,20 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
+  const allowedHeaders = ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With', 'Access-Control-Allow-Origin'];
+  if (process.env.NGROK_DEV === '1') {
+    allowedHeaders.push('ngrok-skip-browser-warning');
+  }
 
   // Configuración detallada de CORS
   app.enableCors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With'],
+    allowedHeaders,
     exposedHeaders: ['Content-Disposition'],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
-    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io'],
+    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io', 'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io'],
   });
 
   app.setGlobalPrefix('api');

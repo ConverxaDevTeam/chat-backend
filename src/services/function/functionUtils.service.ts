@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
@@ -42,12 +42,25 @@ export class FunctionUtilsService {
     });
 
     if (!function_) {
-      throw new Error(`Function ${functionId} not found`);
+      throw new NotFoundException(`Function ${functionId} not found`);
     }
     try {
       return await this.functionCallService.executeFunctionCall(function_.normalizedName, Number(function_.agente), params, 0);
     } catch (error) {
-      throw error;
+      let errorObj: unknown;
+      try {
+        errorObj = JSON.parse(error.message);
+      } catch (e) {
+        errorObj = error;
+      }
+
+      return {
+        error: {
+          status: (errorObj as { status: number })?.status || 500,
+          message: (errorObj as { statusText: string })?.statusText || error,
+          complete: error.message ?? error,
+        },
+      };
     }
   }
 }

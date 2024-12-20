@@ -20,7 +20,7 @@ export abstract class BaseAgent {
     return null;
   }
 
-  protected async addMessageToThread(threadId: string, message: string): Promise<void> {
+  protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
     // Base message adding logic
   }
 

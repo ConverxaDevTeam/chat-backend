@@ -253,14 +253,38 @@ export class IntegrationService {
     return newIntegration;
   }
 
-  async getIntegrationWhatsAppById(integrationId: number): Promise<Integration | null> {
+  async getIntegrationFacebookById(integrationId: number, type: IntegrationType): Promise<Integration | null> {
     const integration = await this.integrationRepository.findOne({
       where: {
         id: integrationId,
-        type: IntegrationType.WHATSAPP,
+        type: type,
       },
     });
 
     return integration;
+  }
+
+  async getIntegrationMessagerByPageId(pageId: string): Promise<Integration | null> {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        page_id: pageId,
+        type: IntegrationType.MESSENGER,
+      },
+      relations: ['departamento.organizacion'],
+      select: ['id', 'type', 'config', 'page_id', 'token'],
+    });
+
+    return integration;
+  }
+
+  async createIntegrationMessager(departamento: Departamento, page_id: string, token: string): Promise<Integration> {
+    const newIntegration = new Integration();
+    newIntegration.type = IntegrationType.MESSENGER;
+    newIntegration.departamento = departamento;
+    newIntegration.page_id = page_id;
+    newIntegration.token = token;
+    await this.integrationRepository.save(newIntegration);
+
+    return newIntegration;
   }
 }
