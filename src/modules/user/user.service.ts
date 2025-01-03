@@ -85,4 +85,23 @@ export class UserService {
 
     return password;
   }
+
+  async AllUserMyOrganization(organizationId: number): Promise<User[]> {
+    const users = await this.userRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.userOrganizations', 'userOrganization')
+      .innerJoin('userOrganization.organization', 'organization')
+      .where('organization.id = :organizationId', { organizationId })
+      .select([
+        'user.id',
+        'user.email',
+        'user.first_name',
+        'user.last_name',
+        'user.email_verified',
+        'user.last_login',
+        'userOrganization.role', // Incluye el rol en la selección
+      ])
+      .getMany();
+    return users;
+  }
 }

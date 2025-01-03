@@ -6,13 +6,13 @@ import { AuthModule } from '@modules/auth/auth.module';
 import { Organization } from '@models/Organization.entity';
 import { UserModule } from '@modules/user/user.module';
 import { UserOrganization } from '@models/UserOrganization.entity';
-import { EmailService } from '@modules/email/email.service';
 import { UserOrganizationService } from './UserOrganization.service';
+import { EmailModule } from '@modules/email/email.module';
 
 @Module({
-  providers: [OrganizationService, EmailService, UserOrganizationService],
+  providers: [OrganizationService, UserOrganizationService],
   controllers: [OrganizationController],
-  imports: [forwardRef(() => AuthModule), forwardRef(() => UserModule), TypeOrmModule.forFeature([Organization, UserOrganization])],
-  exports: [OrganizationService],
+  imports: [forwardRef(() => AuthModule), forwardRef(() => UserModule), forwardRef(() => EmailModule), TypeOrmModule.forFeature([Organization, UserOrganization])],
+  exports: [OrganizationService, UserOrganizationService],
 })
 export class OrganizationModule {}
