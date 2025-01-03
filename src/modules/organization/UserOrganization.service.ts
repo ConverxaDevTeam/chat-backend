@@ -49,4 +49,18 @@ export class UserOrganizationService {
 
     return userOrganization;
   }
+
+  async searchUserInOrganization(user: User, organizationId: number): Promise<UserOrganization | null> {
+    const userOrganization = await this.userOrganizationRepository.findOne({
+      where: {
+        user: {
+          id: user.id,
+        },
+        organization: {
+          id: organizationId,
+        },
+      },
+    });
+    return userOrganization;
+  }
 }

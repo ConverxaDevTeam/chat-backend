@@ -1,5 +1,5 @@
 import { Organization } from '@models/Organization.entity';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -14,8 +14,8 @@ export class OrganizationService {
   constructor(
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
-    private readonly userService: UserService,
     private readonly emailService: EmailService,
+    private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
   ) {}
 
@@ -47,5 +47,33 @@ export class OrganizationService {
   async getRolInOrganization(user: User, organizationId: number): Promise<OrganizationRoleType> {
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
     return userOrganization.role;
+  }
+
+  async addUserInOrganizationById(organizationId: number, email: string): Promise<User> {
+    const organization = await this.organizationRepository.findOne({ where: { id: organizationId } });
+
+    if (!organization) {
+      throw new NotFoundException('La organización no existe.');
+    }
+
+    const responseCreateUser = await this.userService.getUserForEmailOrCreate(email);
+
+    if (responseCreateUser.created && responseCreateUser.password) {
+      await this.emailService.sendUserWellcome(email, responseCreateUser.password);
+    }
+
+    const userOrganization = await this.userOrganizationService.searchUserInOrganization(responseCreateUser.user, organizationId);
+
+    if (userOrganization) {
+      throw new NotFoundException('El usuario ya pertenece a la organización.');
+    }
+
+    await this.userOrganizationService.create({
+      organization,
+      user: responseCreateUser.user,
+      role: OrganizationRoleType.USER,
+    });
+
+    return responseCreateUser.user;
   }
 }
