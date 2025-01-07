@@ -1,14 +1,20 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { OrganizationService } from '@modules/organization/organization.service';
+import { OrganizationRoleType } from '@models/UserOrganization.entity';
+import { AddUserInOrganizationDto } from '@modules/socket/dto/add-user-in-organization.dto';
 
 @Controller('user')
 @ApiTags('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly organizationService: OrganizationService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtiene tu datos de usuario' })
@@ -18,6 +24,57 @@ export class UserController {
     return {
       ok: true,
       user,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtiene tu datos de usuario' })
+  @ApiBearerAuth()
+  @Get('all/:organizationId')
+  async AllUserMyOrganization(@GetUser() user: User, @Param('organizationId') organizationId: number) {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new NotFoundException('No tienes permisos para obtener los usuarios de esta organización.');
+    }
+
+    const users = await this.userService.AllUserMyOrganization(organizationId);
+
+    const userFormat = users.map((user: any) => ({
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email_verified: user.email_verified,
+      last_login: user.last_login,
+      role: user.userOrganizations[0]?.role || 'user',
+    }));
+
+    return {
+      ok: true,
+      users: userFormat,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtiene tu datos de usuario' })
+  @ApiBearerAuth()
+  @Post('add/:organizationId')
+  async addUserInOrganizationById(@GetUser() user: User, @Param('organizationId') organizationId: number, @Body() addUserInOrganizationDto: AddUserInOrganizationDto) {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+    const allowedRoles = [OrganizationRoleType.OWNER];
+
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new NotFoundException('No tienes permisos agregar usuarios a esta organización.');
+    }
+
+    const userAdd = await this.organizationService.addUserInOrganizationById(organizationId, addUserInOrganizationDto.email);
+
+    return {
+      ok: true,
+      user: userAdd,
     };
   }
 }

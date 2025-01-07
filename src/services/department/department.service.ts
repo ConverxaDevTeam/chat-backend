@@ -62,7 +62,7 @@ export class DepartmentService {
   async findOne(id: number): Promise<Departamento> {
     const department = await this.departmentRepository.findOne({
       where: { id },
-      relations: ['organizacion', 'departamentos'],
+      relations: ['organizacion', 'departamentos', 'integrations'],
     });
 
     if (!department) {
@@ -93,12 +93,16 @@ export class DepartmentService {
         name: defaultDepartmentName,
         organizacion: { id: organizationId },
       },
-      relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador'],
+      relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador', 'integrations'],
       select: {
         id: true,
         name: true,
         organizacion: {
           id: true,
+        },
+        integrations: {
+          id: true,
+          type: true,
         },
         agente: {
           id: true,
@@ -123,7 +127,7 @@ export class DepartmentService {
       // Obtener las relaciones
       department = await this.departmentRepository.findOne({
         where: { id: department.id },
-        relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador'],
+        relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador', 'integrations'],
         select: {
           id: true,
           name: true,
