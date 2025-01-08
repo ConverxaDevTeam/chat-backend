@@ -7,7 +7,6 @@ import { UpdateDepartmentDto } from '@modules/department/dto/update-department.d
 import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
-import { defaultDepartmentName } from 'src/interfaces/department';
 import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
 
 interface DepartmentWithAgents {
@@ -94,12 +93,11 @@ export class DepartmentService {
     return this.departmentRepository.save(department);
   }
 
-  async getDefaultDepartment(organizationId: number): Promise<DepartmentResponse> {
+  async getDepartmentWithDetails(departmentId: number): Promise<DepartmentResponse> {
     // Buscar departamento existente
-    let department = await this.departmentRepository.findOne({
+    const department = await this.departmentRepository.findOne({
       where: {
-        name: defaultDepartmentName,
-        organizacion: { id: organizationId },
+        id: departmentId,
       },
       relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador', 'integrations'],
       select: {
@@ -125,39 +123,8 @@ export class DepartmentService {
       },
     });
 
-    // Crear departamento si no existe
     if (!department) {
-      department = await this.departmentRepository.save({
-        name: defaultDepartmentName,
-        organizacion: { id: organizationId },
-      });
-
-      // Obtener las relaciones
-      department = await this.departmentRepository.findOne({
-        where: { id: department.id },
-        relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador', 'integrations'],
-        select: {
-          id: true,
-          name: true,
-          organizacion: {
-            id: true,
-          },
-          agente: {
-            id: true,
-            funciones: {
-              id: true,
-              name: true,
-              autenticador: {
-                id: true,
-              },
-            },
-          },
-        },
-      });
-
-      if (!department) {
-        throw new NotFoundException('Could not create default department');
-      }
+      throw new NotFoundException(`Department with ID ${departmentId} not found`);
     }
 
     // Verificar si existe un agente asociado al departamento
@@ -166,7 +133,7 @@ export class DepartmentService {
         name: 'default agent',
         departamento_id: department.id,
         type: AgenteType.SOFIA_ASISTENTE,
-        organization_id: organizationId,
+        organization_id: department.organizacion.id,
         config: {
           instruccion: 'Eres un asistente para registrar las quejas de los usuarios',
         },

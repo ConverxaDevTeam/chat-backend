@@ -37,10 +37,10 @@ export class DepartmentController {
     return this.departmentService.findByOrganization(+id);
   }
 
-  @Get('default/:organizationId')
-  @ApiOperation({ summary: 'Get or create default department with chat and agent' })
-  async getDefaultDepartment(@Param('organizationId', ParseIntPipe) organizationId: number) {
-    return await this.departmentService.getDefaultDepartment(organizationId);
+  @Get(':id/workspace')
+  @ApiOperation({ summary: 'Get department details with agent information' })
+  async getDepartmentWithDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.departmentService.getDepartmentWithDetails(id);
   }
 
   @Patch(':id')

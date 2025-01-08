@@ -33,9 +33,9 @@ export class IntegrationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtiene todas las integraciones' })
   @ApiBearerAuth()
-  @Get('all/:organizationId/:departamentoId')
-  async getAllIntegrations(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('departamentoId') departamentoId: number) {
-    const integrations = await this.integrationService.getAllIntegrations(user, organizationId, departamentoId);
+  @Get('all/:departamentoId')
+  async getAllIntegrations(@GetUser() user: User, @Param('departamentoId') departamentoId: number) {
+    const integrations = await this.integrationService.getAllIntegrations(user, departamentoId);
     const integrationsConfig = integrations.map((integration) => {
       return JSON.parse(integration.config);
     });
