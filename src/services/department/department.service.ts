@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from '@modules/department/dto/create-department.dto';
+import { UpdateDepartmentDto } from '@modules/department/dto/update-department.dto';
 import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
@@ -55,14 +56,14 @@ export class DepartmentService {
 
   async findAll(): Promise<Departamento[]> {
     return this.departmentRepository.find({
-      relations: ['organizacion', 'departamentos'],
+      relations: ['organizacion'],
     });
   }
 
   async findOne(id: number): Promise<Departamento> {
     const department = await this.departmentRepository.findOne({
       where: { id },
-      relations: ['organizacion', 'departamentos', 'integrations'],
+      relations: ['organizacion', 'integrations'],
     });
 
     if (!department) {
@@ -75,7 +76,6 @@ export class DepartmentService {
   async findByOrganization(organizationId: number): Promise<Departamento[]> {
     return this.departmentRepository.find({
       where: { organizacion: { id: organizationId } },
-      relations: ['departamentos'],
     });
   }
 
@@ -84,6 +84,14 @@ export class DepartmentService {
     if (result.affected === 0) {
       throw new NotFoundException(`Department with ID ${id} not found`);
     }
+  }
+
+  async update(id: number, updateDepartmentDto: UpdateDepartmentDto): Promise<Departamento> {
+    const department = await this.findOne(id);
+    const { ...updateData } = updateDepartmentDto;
+
+    Object.assign(department, updateData);
+    return this.departmentRepository.save(department);
   }
 
   async getDefaultDepartment(organizationId: number): Promise<DepartmentResponse> {
