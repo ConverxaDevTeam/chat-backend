@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Logger, Body, Post } from '@nestjs/common';
+import { Controller, Get, UseGuards, Logger, Body, Post, Delete, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
@@ -49,5 +49,21 @@ export class OrganizationController {
   async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto) {
     const organization = await this.organizationService.createOrganization(createOrganizationDto);
     return { ok: true, organization };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'eliminacion suave de una organización, solo super admin' })
+  @Delete(':id')
+  async deleteOrganization(@Param('id') id: number) {
+    const organization = await this.organizationService.deleteOrganization(id);
+    return { ok: true, organization };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'setear un usuario a una organización, solo super admin' })
+  @Post(':organizationId/users/:userId')
+  async setUserInOrganizationById(@Param('organizationId') organizationId: number, @Param('userId') userId: number) {
+    const user = await this.organizationService.setUserInOrganizationById(organizationId, userId);
+    return { ok: true, user };
   }
 }
