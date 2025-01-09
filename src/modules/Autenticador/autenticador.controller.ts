@@ -4,7 +4,7 @@ import { AutenticadorService } from './autenticador.service';
 import { CreateAutenticadorDto } from './dto/create-autenticador.dto';
 import { Autenticador } from '../../models/agent/Autenticador.entity';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
-import { BearerConfig, HttpAutenticador } from 'src/interfaces/function.interface';
+import { ApiKeyAutenticador, BearerConfig, HttpAutenticador } from 'src/interfaces/function.interface';
 
 @ApiTags('autenticadores')
 @Controller('autenticadores')
@@ -17,7 +17,7 @@ export class AutenticadorController {
   @ApiOperation({ summary: 'Create a new authenticator' })
   create(
     @Body(new ValidationPipe({ transform: true }))
-    createAutenticadorDto: CreateAutenticadorDto<HttpAutenticador<BearerConfig>> & { organizationId: string },
+    createAutenticadorDto: (CreateAutenticadorDto<HttpAutenticador<BearerConfig>> | CreateAutenticadorDto<Autenticador<ApiKeyAutenticador>>) & { organizationId: string },
   ): Promise<Autenticador> {
     return this.autenticadorService.create(createAutenticadorDto);
   }
