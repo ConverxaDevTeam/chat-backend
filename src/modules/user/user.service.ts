@@ -1,8 +1,10 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@models/User.entity';
 import * as bcrypt from 'bcrypt';
+import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
+import { EmailService } from '@modules/email/email.service';
 
 @Injectable()
 export class UserService {
@@ -11,6 +13,9 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(UserOrganization)
+    private readonly userOrganizationRepository: Repository<UserOrganization>,
+    private readonly emailService: EmailService,
   ) {}
 
   async save(user: User): Promise<User> {
@@ -61,6 +66,10 @@ export class UserService {
       const hashedPassword = await bcrypt.hash(password, salt);
       newUser.password = hashedPassword;
       await this.userRepository.save(newUser);
+
+      if (newUser.password) {
+        await this.emailService.sendUserWellcome(newUser.email, newUser.password);
+      }
       return { created: true, user: newUser, password };
     }
 
@@ -103,5 +112,31 @@ export class UserService {
       ])
       .getMany();
     return users;
+  }
+
+  async getGlobalUsers(user: User): Promise<User[]> {
+    const roles: OrganizationRoleType[] = [];
+    if (user.is_super_admin) {
+      roles.push(OrganizationRoleType.ING_PREVENTA, OrganizationRoleType.USR_TECNICO);
+    }
+    const users = await this.userRepository.find({
+      where: { userOrganizations: { role: In(roles) } },
+      select: ['id', 'email', 'first_name', 'last_name', 'email_verified', 'last_login'],
+    });
+    return users;
+  }
+
+  async setGlobalRole(user: User, role: OrganizationRoleType, organizationId?: number): Promise<void> {
+    const allowedRoles = [OrganizationRoleType.ING_PREVENTA, OrganizationRoleType.USR_TECNICO];
+    if (!allowedRoles.includes(role)) {
+      throw new Error('Solo se permiten los roles ING_PREVENTA y USR_TECNICO');
+    }
+
+    const userOrganization = this.userOrganizationRepository.create({
+      user,
+      role,
+      organization: organizationId ? { id: organizationId } : undefined,
+    });
+    await this.userOrganizationRepository.save(userOrganization);
   }
 }

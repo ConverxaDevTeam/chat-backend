@@ -7,6 +7,7 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { OrganizationService } from '@modules/organization/organization.service';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { AddUserInOrganizationDto } from '@modules/socket/dto/add-user-in-organization.dto';
+import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 
 @Controller('user')
 @ApiTags('user')
@@ -71,6 +72,31 @@ export class UserController {
     }
 
     const userAdd = await this.organizationService.addUserInOrganizationById(organizationId, addUserInOrganizationDto.email);
+
+    return {
+      ok: true,
+      user: userAdd,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtiene usuarios globales' })
+  @ApiBearerAuth()
+  @Get('')
+  async getGlobalUsers(@GetUser() user: User) {
+    const users = await this.userService.getGlobalUsers(user);
+    return {
+      ok: true,
+      users: users,
+    };
+  }
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'crea un usuario global' })
+  @ApiBearerAuth()
+  @Post('')
+  async createGlobalUser(@Body() email: string, @Body() role: OrganizationRoleType, @Body() organizationId?: number) {
+    const userAdd = await this.userService.getUserForEmailOrCreate(email);
+    await this.userService.setGlobalRole(userAdd.user, role, organizationId);
 
     return {
       ok: true,

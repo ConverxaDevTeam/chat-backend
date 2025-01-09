@@ -4,7 +4,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UserService } from '@modules/user/user.service';
-import { EmailService } from '@modules/email/email.service';
 import { UserOrganizationService } from './UserOrganization.service';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { User } from '@models/User.entity';
@@ -16,7 +15,6 @@ export class OrganizationService {
     private readonly organizationRepository: Repository<Organization>,
     @InjectRepository(UserOrganization)
     private readonly userOrganizationRepository: Repository<UserOrganization>,
-    private readonly emailService: EmailService,
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
   ) {}
@@ -52,10 +50,6 @@ export class OrganizationService {
 
     const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
 
-    if (responseCreateUser.created && responseCreateUser.password) {
-      await this.emailService.sendUserWellcome(createOrganizationDto.email, responseCreateUser.password);
-    }
-
     await this.userOrganizationService.create({
       organization,
       user: responseCreateUser.user,
@@ -78,10 +72,6 @@ export class OrganizationService {
     }
 
     const responseCreateUser = await this.userService.getUserForEmailOrCreate(email);
-
-    if (responseCreateUser.created && responseCreateUser.password) {
-      await this.emailService.sendUserWellcome(email, responseCreateUser.password);
-    }
 
     const userOrganization = await this.userOrganizationService.searchUserInOrganization(responseCreateUser.user, organizationId);
 

@@ -22,8 +22,9 @@ export class UserOrganization {
 
   @ManyToOne(() => Organization, (organization) => organization.userOrganizations, {
     onDelete: 'CASCADE',
+    nullable: true,
   })
-  organization: Organization;
+  organization?: Organization | null;
 
   @Column({ type: 'enum', enum: OrganizationRoleType, default: OrganizationRoleType.USER })
   role: OrganizationRoleType;
