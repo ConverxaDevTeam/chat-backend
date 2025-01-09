@@ -32,12 +32,12 @@ export class UserController {
   @ApiBearerAuth()
   @Get('all/:organizationId')
   async AllUserMyOrganization(@GetUser() user: User, @Param('organizationId') organizationId: number) {
-    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
-
-    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
-
-    if (!allowedRoles.includes(rolInOrganization)) {
-      throw new NotFoundException('No tienes permisos para obtener los usuarios de esta organización.');
+    if (!user.is_super_admin) {
+      const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+      const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+      if (!allowedRoles.includes(rolInOrganization)) {
+        throw new NotFoundException('No tienes permisos para obtener los usuarios de esta organización.');
+      }
     }
 
     const users = await this.userService.AllUserMyOrganization(organizationId);
