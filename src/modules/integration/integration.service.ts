@@ -199,18 +199,11 @@ export class IntegrationService {
     return integration;
   }
 
-  async getAllIntegrations(user: User, organizationId: number, departamentoId: number): Promise<Integration[]> {
-    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
-
-    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
-    if (!allowedRoles.includes(rolInOrganization)) {
-      throw new Error('No tienes permisos para obtener las integraciones');
-    }
-
-    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+  async getAllIntegrations(user: User, departamentoId: number): Promise<Integration[]> {
+    const departamento = await this.departmentService.getDepartamentoById(departamentoId);
 
     if (!departamento) {
-      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+      throw new Error(`El departamento con ID ${departamentoId} no existe`);
     }
 
     const integrations = await this.integrationRepository.find({
