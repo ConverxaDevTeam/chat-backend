@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, PrimaryGeneratedColumn, DeleteDateColumn } from 'typeorm';
 import { User } from './User.entity';
 import { Organization } from './Organization.entity';
 
@@ -16,9 +16,14 @@ export class UserOrganization {
   @ManyToOne(() => User, (user) => user.userOrganizations, { onDelete: 'CASCADE' })
   user: User;
 
-  @ManyToOne(() => Organization, (organization) => organization.userOrganizations, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Organization, (organization) => organization.userOrganizations, {
+    onDelete: 'CASCADE',
+  })
   organization: Organization;
 
   @Column({ type: 'enum', enum: OrganizationRoleType, default: OrganizationRoleType.USER })
   role: OrganizationRoleType;
+
+  @DeleteDateColumn()
+  deletedAt: Date;
 }

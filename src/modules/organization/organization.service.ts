@@ -6,7 +6,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UserService } from '@modules/user/user.service';
 import { EmailService } from '@modules/email/email.service';
 import { UserOrganizationService } from './UserOrganization.service';
-import { OrganizationRoleType } from '@models/UserOrganization.entity';
+import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { User } from '@models/User.entity';
 
 @Injectable()
@@ -14,6 +14,8 @@ export class OrganizationService {
   constructor(
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
+    @InjectRepository(UserOrganization)
+    private readonly userOrganizationRepository: Repository<UserOrganization>,
     private readonly emailService: EmailService,
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
@@ -75,5 +77,35 @@ export class OrganizationService {
     });
 
     return responseCreateUser.user;
+  }
+
+  async deleteOrganization(organizationId: number): Promise<void> {
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    await this.organizationRepository.softRemove(organization);
+  }
+
+  async setUserInOrganizationById(organizationId: number, userId: number): Promise<void> {
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada o inactiva');
+    }
+
+    await this.userOrganizationRepository.update(
+      {
+        organization: { id: organizationId },
+        role: OrganizationRoleType.OWNER,
+      },
+      { user: { id: userId } },
+    );
   }
 }
