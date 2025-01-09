@@ -3,10 +3,6 @@ import { Type } from 'class-transformer';
 
 export enum FunctionType {
   API_ENDPOINT = 'apiEndpoint',
-  // Futuros tipos de funciones
-  // WEBSOCKET = 'websocket',
-  // DATABASE = 'database',
-  // etc...
 }
 
 export enum HttpMethod {
@@ -113,9 +109,14 @@ export class FunctionResponse {
   autenticadorId?: number;
 }
 
+export enum ApiKeyInjectPlaces {
+  HEADER = 'header',
+  QUERY_PARAM = 'query_PARAMS',
+}
+
 export enum AutenticadorType {
   ENDPOINT = 'endpoint',
-  CONSTANT = 'constant',
+  API_KEY = 'api_key',
 }
 
 export enum injectPlaces {
@@ -127,6 +128,14 @@ export interface BearerConfig {
   injectConfig: {
     tokenPath: string;
     refreshPath: string;
+  };
+}
+
+export interface ApiKeyAutenticador {
+  type: AutenticadorType.API_KEY;
+  config: {
+    injectPlace: ApiKeyInjectPlaces;
+    key: string;
   };
 }
 

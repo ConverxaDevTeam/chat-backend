@@ -73,15 +73,6 @@ export class FunctionCallService {
   }
 
   private async getAuthToken(authenticator: Autenticador): Promise<Record<string, string>> {
-    if (authenticator.type !== AutenticadorType.ENDPOINT) {
-      throw new Error('Authenticator is not of type ENDPOINT');
-    }
-
-    const config = authenticator.config as HttpAutenticador<BearerConfig>['config'];
-    if (config.injectPlace !== injectPlaces.BEARER_HEADER) {
-      throw new Error('Authenticator is not of bearer token');
-    }
-
     // Check if we have a valid stored token
     if (authenticator.value) {
       const currentTime = new Date();
@@ -91,6 +82,14 @@ export class FunctionCallService {
       if (authenticator.life_time === 0 || (diffSeconds !== null && tokenTime && diffSeconds < authenticator.life_time)) {
         return { Authorization: authenticator.value };
       }
+    }
+    if (authenticator.type !== AutenticadorType.ENDPOINT) {
+      throw new Error('Authenticator is not of type ENDPOINT');
+    }
+
+    const config = authenticator.config as HttpAutenticador<BearerConfig>['config'];
+    if (config.injectPlace !== injectPlaces.BEARER_HEADER) {
+      throw new Error('Authenticator is not of bearer token');
     }
 
     try {

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Autenticador as AutenticadorEntity } from '../../models/agent/Autenticador.entity';
 import { CreateAutenticadorDto } from './dto/create-autenticador.dto';
-import { AutenticadorType } from '../../interfaces/function.interface';
+import { ApiKeyAutenticador, AutenticadorType } from '../../interfaces/function.interface';
 
 @Injectable()
 export class AutenticadorService {
@@ -15,6 +15,9 @@ export class AutenticadorService {
   async create<T extends { type: AutenticadorType; config: Record<string, unknown> }>(
     createAutenticadorDto: CreateAutenticadorDto<T> & { organizationId: string },
   ): Promise<AutenticadorEntity<T>> {
+    if (createAutenticadorDto.type === AutenticadorType.API_KEY) {
+      createAutenticadorDto.value = (createAutenticadorDto.config as CreateAutenticadorDto<ApiKeyAutenticador>['config']).key;
+    }
     const autenticador = this.autenticadorRepository.create(createAutenticadorDto) as AutenticadorEntity<T>;
     return this.autenticadorRepository.save(autenticador);
   }
