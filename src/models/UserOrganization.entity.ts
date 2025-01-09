@@ -3,8 +3,12 @@ import { User } from './User.entity';
 import { Organization } from './Organization.entity';
 
 export enum OrganizationRoleType {
-  OWNER = 'owner',
   ADMIN = 'admin',
+  ING_PREVENTA = 'ing_preventa',
+  USR_TECNICO = 'usr_tecnico',
+  OWNER = 'owner',
+  SUPERVISOR = 'supervisor',
+  HITL = 'hitl',
   USER = 'user',
 }
 
