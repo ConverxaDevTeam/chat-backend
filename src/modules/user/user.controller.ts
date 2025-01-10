@@ -82,7 +82,7 @@ export class UserController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtiene usuarios globales' })
   @ApiBearerAuth()
-  @Get('')
+  @Get('global')
   async getGlobalUsers(@GetUser() user: User) {
     const users = await this.userService.getGlobalUsers(user);
     return {
@@ -94,10 +94,9 @@ export class UserController {
   @ApiOperation({ summary: 'crea un usuario global' })
   @ApiBearerAuth()
   @Post('')
-  async createGlobalUser(@Body() email: string, @Body() role: OrganizationRoleType, @Body() organizationId?: number) {
+  async createGlobalUser(@Body() { email, role, organizationId }: { email: string; role: OrganizationRoleType; organizationId: number }) {
     const userAdd = await this.userService.getUserForEmailOrCreate(email);
     await this.userService.setGlobalRole(userAdd.user, role, organizationId);
-
     return {
       ok: true,
       user: userAdd,

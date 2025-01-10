@@ -66,6 +66,7 @@ export class UserService {
       const hashedPassword = await bcrypt.hash(password, salt);
       newUser.password = hashedPassword;
       await this.userRepository.save(newUser);
+      console.log(newUser);
 
       if (newUser.password) {
         await this.emailService.sendUserWellcome(newUser.email, newUser.password);
@@ -121,7 +122,22 @@ export class UserService {
     }
     const users = await this.userRepository.find({
       where: { userOrganizations: { role: In(roles) } },
-      select: ['id', 'email', 'first_name', 'last_name', 'email_verified', 'last_login'],
+      relations: ['userOrganizations', 'userOrganizations.organization'],
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        email_verified: true,
+        last_login: true,
+        userOrganizations: {
+          role: true,
+          organization: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
     return users;
   }
