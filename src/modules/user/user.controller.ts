@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
@@ -100,6 +100,17 @@ export class UserController {
     return {
       ok: true,
       user: userAdd,
+    };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'elimina un usuario global' })
+  @ApiBearerAuth()
+  @Delete('global/:userId')
+  async deleteGlobalUser(@Param('userId') userId: number) {
+    await this.userService.deleteGlobalUser(userId);
+    return {
+      ok: true,
     };
   }
 }

@@ -155,4 +155,8 @@ export class UserService {
     });
     await this.userOrganizationRepository.save(userOrganization);
   }
+
+  async deleteGlobalUser(userId: number): Promise<void> {
+    await this.userRepository.softRemove({ id: userId });
+  }
 }
