@@ -132,4 +132,13 @@ export class UserController {
     const updatedUser = await this.userService.updateGlobalUser(userId, updateUserDto);
     return { ok: true, user: updatedUser };
   }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Elimina un rol de usuario' })
+  @ApiBearerAuth()
+  @Delete('role/:roleId')
+  async deleteRole(@Param('roleId') roleId: number) {
+    const updatedUser = await this.userService.deleteRole(roleId);
+    return { ok: true, user: updatedUser };
+  }
 }

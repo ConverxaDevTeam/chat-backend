@@ -199,4 +199,8 @@ export class UserService {
     Object.assign(user, updateUserDto);
     return await this.userRepository.save(user);
   }
+
+  async deleteRole(roleId: number): Promise<void> {
+    await this.userOrganizationRepository.softRemove({ id: roleId });
+  }
 }
