@@ -1,4 +1,4 @@
-import { Entity, Column, OneToMany } from 'typeorm';
+import { Entity, Column, OneToMany, DeleteDateColumn } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { UserOrganization } from './UserOrganization.entity';
 import { Departamento } from './Departamento.entity';
@@ -15,4 +15,7 @@ export class Organization extends BaseEntity {
   userOrganizations: UserOrganization[];
   @OneToMany(() => Departamento, (departamento) => departamento.organizacion)
   departamentos: Departamento[];
+
+  @DeleteDateColumn()
+  deletedAt: Date;
 }

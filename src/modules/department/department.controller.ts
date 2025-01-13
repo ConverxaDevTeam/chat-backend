@@ -46,7 +46,6 @@ export class DepartmentController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update a department' })
   update(@Param('id', ParseIntPipe) id: number, @Body() updateDepartmentDto: UpdateDepartmentDto) {
-    console.log(id);
     return this.departmentService.update(id, updateDepartmentDto);
   }
 
