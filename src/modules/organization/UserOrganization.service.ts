@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { Organization } from '@models/Organization.entity';
 import { User } from '@models/User.entity';
@@ -26,6 +26,7 @@ export class UserOrganizationService {
         user: {
           id: user.id,
         },
+        organization: Not(IsNull()),
       },
       relations: ['organization'],
     });

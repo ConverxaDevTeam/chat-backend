@@ -3,10 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from '@modules/department/dto/create-department.dto';
+import { UpdateDepartmentDto } from '@modules/department/dto/update-department.dto';
 import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
-import { defaultDepartmentName } from 'src/interfaces/department';
 import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
 
 interface DepartmentWithAgents {
@@ -55,14 +55,14 @@ export class DepartmentService {
 
   async findAll(): Promise<Departamento[]> {
     return this.departmentRepository.find({
-      relations: ['organizacion', 'departamentos'],
+      relations: ['organizacion'],
     });
   }
 
   async findOne(id: number): Promise<Departamento> {
     const department = await this.departmentRepository.findOne({
       where: { id },
-      relations: ['organizacion', 'departamentos', 'integrations'],
+      relations: ['organizacion', 'integrations'],
     });
 
     if (!department) {
@@ -75,7 +75,6 @@ export class DepartmentService {
   async findByOrganization(organizationId: number): Promise<Departamento[]> {
     return this.departmentRepository.find({
       where: { organizacion: { id: organizationId } },
-      relations: ['departamentos'],
     });
   }
 
@@ -86,12 +85,19 @@ export class DepartmentService {
     }
   }
 
-  async getDefaultDepartment(organizationId: number): Promise<DepartmentResponse> {
+  async update(id: number, updateDepartmentDto: UpdateDepartmentDto): Promise<Departamento> {
+    const department = await this.findOne(id);
+    const { ...updateData } = updateDepartmentDto;
+
+    Object.assign(department, updateData);
+    return this.departmentRepository.save(department);
+  }
+
+  async getDepartmentWithDetails(departmentId: number): Promise<DepartmentResponse> {
     // Buscar departamento existente
-    let department = await this.departmentRepository.findOne({
+    const department = await this.departmentRepository.findOne({
       where: {
-        name: defaultDepartmentName,
-        organizacion: { id: organizationId },
+        id: departmentId,
       },
       relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador', 'integrations'],
       select: {
@@ -117,39 +123,8 @@ export class DepartmentService {
       },
     });
 
-    // Crear departamento si no existe
     if (!department) {
-      department = await this.departmentRepository.save({
-        name: defaultDepartmentName,
-        organizacion: { id: organizationId },
-      });
-
-      // Obtener las relaciones
-      department = await this.departmentRepository.findOne({
-        where: { id: department.id },
-        relations: ['organizacion', 'agente', 'agente.funciones', 'agente.funciones.autenticador', 'integrations'],
-        select: {
-          id: true,
-          name: true,
-          organizacion: {
-            id: true,
-          },
-          agente: {
-            id: true,
-            funciones: {
-              id: true,
-              name: true,
-              autenticador: {
-                id: true,
-              },
-            },
-          },
-        },
-      });
-
-      if (!department) {
-        throw new NotFoundException('Could not create default department');
-      }
+      throw new NotFoundException(`Department with ID ${departmentId} not found`);
     }
 
     // Verificar si existe un agente asociado al departamento
@@ -158,7 +133,7 @@ export class DepartmentService {
         name: 'default agent',
         departamento_id: department.id,
         type: AgenteType.SOFIA_ASISTENTE,
-        organization_id: organizationId,
+        organization_id: department.organizacion.id,
         config: {
           instruccion: 'Eres un asistente para registrar las quejas de los usuarios',
         },

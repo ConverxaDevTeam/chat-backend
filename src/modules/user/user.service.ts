@@ -1,8 +1,11 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@models/User.entity';
 import * as bcrypt from 'bcrypt';
+import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
+import { EmailService } from '@modules/email/email.service';
+import { UpdateUserDto } from './update-user.dto';
 
 @Injectable()
 export class UserService {
@@ -11,6 +14,9 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(UserOrganization)
+    private readonly userOrganizationRepository: Repository<UserOrganization>,
+    private readonly emailService: EmailService,
   ) {}
 
   async save(user: User): Promise<User> {
@@ -61,6 +67,11 @@ export class UserService {
       const hashedPassword = await bcrypt.hash(password, salt);
       newUser.password = hashedPassword;
       await this.userRepository.save(newUser);
+      console.log(newUser);
+
+      if (newUser.password) {
+        await this.emailService.sendUserWellcome(newUser.email, newUser.password);
+      }
       return { created: true, user: newUser, password };
     }
 
@@ -103,5 +114,93 @@ export class UserService {
       ])
       .getMany();
     return users;
+  }
+
+  async getGlobalUsers(user: User): Promise<User[]> {
+    const roles: OrganizationRoleType[] = [];
+    if (user.is_super_admin) {
+      roles.push(OrganizationRoleType.ING_PREVENTA, OrganizationRoleType.USR_TECNICO);
+    }
+    const users = await this.userRepository.find({
+      where: { userOrganizations: { role: In(roles) } },
+      relations: ['userOrganizations', 'userOrganizations.organization'],
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        email_verified: true,
+        last_login: true,
+        userOrganizations: {
+          role: true,
+          organization: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+    return users;
+  }
+
+  async setGlobalRole(user: User, role: OrganizationRoleType, organizationId?: number): Promise<void> {
+    const allowedRoles = [OrganizationRoleType.ING_PREVENTA, OrganizationRoleType.USR_TECNICO];
+    if (!allowedRoles.includes(role)) {
+      throw new Error('Solo se permiten los roles ING_PREVENTA y USR_TECNICO');
+    }
+
+    const userOrganization = this.userOrganizationRepository.create({
+      user,
+      role,
+      organization: organizationId ? { id: organizationId } : undefined,
+    });
+    await this.userOrganizationRepository.save(userOrganization);
+  }
+
+  async deleteGlobalUser(userId: number): Promise<void> {
+    await this.userRepository.softRemove({ id: userId });
+  }
+  async getGlobalUser(userId: number): Promise<User> {
+    // Busca al usuario por ID
+    const user = await this.userRepository.findOne({
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        email_verified: true,
+        last_login: true,
+        userOrganizations: {
+          id: true,
+          role: true,
+          organization: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      relations: ['userOrganizations', 'userOrganizations.organization'],
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+    return user;
+  }
+
+  async updateGlobalUser(userId: number, updateUserDto: UpdateUserDto): Promise<User> {
+    // Encuentra al usuario y actualiza sus datos
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    // Actualizamos los campos del usuario
+    Object.assign(user, updateUserDto);
+    return await this.userRepository.save(user);
+  }
+
+  async deleteRole(roleId: number): Promise<void> {
+    await this.userOrganizationRepository.softRemove({ id: roleId });
   }
 }

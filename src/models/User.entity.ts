@@ -1,4 +1,4 @@
-import { Index, OneToMany, Column, Entity } from 'typeorm';
+import { Index, OneToMany, Column, Entity, DeleteDateColumn } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Session } from './Session.entity';
 import { UserOrganization } from './UserOrganization.entity';
@@ -27,6 +27,9 @@ export class User extends BaseEntity {
 
   @Column({ type: 'varchar', length: 255, default: null, nullable: true })
   last_name: string;
+
+  @DeleteDateColumn()
+  deletedAt: Date;
 
   @OneToMany(() => Session, (session) => session.user)
   sessions: Session[];

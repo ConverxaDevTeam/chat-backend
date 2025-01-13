@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Patch, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { DepartmentService } from '../../services/department/department.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 import { ParseIntPipe } from '@nestjs/common';
+import { UpdateDepartmentDto } from './dto/update-department.dto';
 
 @ApiTags('departments')
 @Controller('departments')
@@ -36,10 +37,16 @@ export class DepartmentController {
     return this.departmentService.findByOrganization(+id);
   }
 
-  @Get('default/:organizationId')
-  @ApiOperation({ summary: 'Get or create default department with chat and agent' })
-  async getDefaultDepartment(@Param('organizationId', ParseIntPipe) organizationId: number) {
-    return await this.departmentService.getDefaultDepartment(organizationId);
+  @Get(':id/workspace')
+  @ApiOperation({ summary: 'Get department details with agent information' })
+  async getDepartmentWithDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.departmentService.getDepartmentWithDetails(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update a department' })
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateDepartmentDto: UpdateDepartmentDto) {
+    return this.departmentService.update(id, updateDepartmentDto);
   }
 
   @Delete(':id')

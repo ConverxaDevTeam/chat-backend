@@ -16,6 +16,7 @@ export class JwtAuthGuard implements CanActivate {
       const { user, sessionId } = await this.authService.validateSession(accessToken);
       request.user = user;
       request.sessionId = sessionId;
+
       return true;
     } catch (error) {
       throw new ForbiddenException(error.message || 'session expired! Please sign In');

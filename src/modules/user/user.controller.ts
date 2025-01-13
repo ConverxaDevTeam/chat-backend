@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
@@ -7,6 +7,8 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { OrganizationService } from '@modules/organization/organization.service';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { AddUserInOrganizationDto } from '@modules/socket/dto/add-user-in-organization.dto';
+import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
+import { UpdateUserDto } from './update-user.dto';
 
 @Controller('user')
 @ApiTags('user')
@@ -32,12 +34,12 @@ export class UserController {
   @ApiBearerAuth()
   @Get('all/:organizationId')
   async AllUserMyOrganization(@GetUser() user: User, @Param('organizationId') organizationId: number) {
-    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
-
-    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
-
-    if (!allowedRoles.includes(rolInOrganization)) {
-      throw new NotFoundException('No tienes permisos para obtener los usuarios de esta organización.');
+    if (!user.is_super_admin) {
+      const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+      const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+      if (!allowedRoles.includes(rolInOrganization)) {
+        throw new NotFoundException('No tienes permisos para obtener los usuarios de esta organización.');
+      }
     }
 
     const users = await this.userService.AllUserMyOrganization(organizationId);
@@ -76,5 +78,67 @@ export class UserController {
       ok: true,
       user: userAdd,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtiene usuarios globales' })
+  @ApiBearerAuth()
+  @Get('global')
+  async getGlobalUsers(@GetUser() user: User) {
+    const users = await this.userService.getGlobalUsers(user);
+    return {
+      ok: true,
+      users: users,
+    };
+  }
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'crea un usuario global' })
+  @ApiBearerAuth()
+  @Post('')
+  async createGlobalUser(@Body() { email, role, organizationId }: { email: string; role: OrganizationRoleType; organizationId: number }) {
+    const userAdd = await this.userService.getUserForEmailOrCreate(email);
+    await this.userService.setGlobalRole(userAdd.user, role, organizationId);
+    return {
+      ok: true,
+      user: userAdd,
+    };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'elimina un usuario global' })
+  @ApiBearerAuth()
+  @Delete('global/:userId')
+  async deleteGlobalUser(@Param('userId') userId: number) {
+    await this.userService.deleteGlobalUser(userId);
+    return {
+      ok: true,
+    };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Obtiene un usuario global por ID' })
+  @ApiBearerAuth()
+  @Get('global/:userId')
+  async getGlobalUser(@Param('userId') userId: number) {
+    const user = await this.userService.getGlobalUser(userId);
+    return { ok: true, user };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Actualiza un usuario global' })
+  @ApiBearerAuth()
+  @Put('global/:userId')
+  async updateGlobalUser(@Param('userId') userId: number, @Body() updateUserDto: UpdateUserDto) {
+    const updatedUser = await this.userService.updateGlobalUser(userId, updateUserDto);
+    return { ok: true, user: updatedUser };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Elimina un rol de usuario' })
+  @ApiBearerAuth()
+  @Delete('role/:roleId')
+  async deleteRole(@Param('roleId') roleId: number) {
+    const updatedUser = await this.userService.deleteRole(roleId);
+    return { ok: true, user: updatedUser };
   }
 }

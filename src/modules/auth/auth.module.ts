@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { User } from '../../models/User.entity';
 import { Session } from '@models/Session.entity';
 import { SessionService } from './session.service';
-import { UserService } from '@modules/user/user.service';
+import { EmailModule } from '@modules/email/email.module';
 
 @Module({
   imports: [
@@ -23,8 +23,9 @@ import { UserService } from '@modules/user/user.service';
       }),
     }),
     TypeOrmModule.forFeature([User, Session]),
+    EmailModule,
   ],
-  providers: [UserService, AuthService, SessionService],
+  providers: [AuthService, SessionService],
   controllers: [AuthController],
   exports: [SessionService, AuthService],
 })
