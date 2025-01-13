@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
@@ -8,6 +8,7 @@ import { OrganizationService } from '@modules/organization/organization.service'
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { AddUserInOrganizationDto } from '@modules/socket/dto/add-user-in-organization.dto';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
+import { UpdateUserDto } from './update-user.dto';
 
 @Controller('user')
 @ApiTags('user')
@@ -112,5 +113,23 @@ export class UserController {
     return {
       ok: true,
     };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Obtiene un usuario global por ID' })
+  @ApiBearerAuth()
+  @Get('global/:userId')
+  async getGlobalUser(@Param('userId') userId: number) {
+    const user = await this.userService.getGlobalUser(userId);
+    return { ok: true, user };
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Actualiza un usuario global' })
+  @ApiBearerAuth()
+  @Put('global/:userId')
+  async updateGlobalUser(@Param('userId') userId: number, @Body() updateUserDto: UpdateUserDto) {
+    const updatedUser = await this.userService.updateGlobalUser(userId, updateUserDto);
+    return { ok: true, user: updatedUser };
   }
 }

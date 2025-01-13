@@ -5,6 +5,7 @@ import { User } from '@models/User.entity';
 import * as bcrypt from 'bcrypt';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { EmailService } from '@modules/email/email.service';
+import { UpdateUserDto } from './update-user.dto';
 
 @Injectable()
 export class UserService {
@@ -158,5 +159,44 @@ export class UserService {
 
   async deleteGlobalUser(userId: number): Promise<void> {
     await this.userRepository.softRemove({ id: userId });
+  }
+  async getGlobalUser(userId: number): Promise<User> {
+    // Busca al usuario por ID
+    const user = await this.userRepository.findOne({
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        email_verified: true,
+        last_login: true,
+        userOrganizations: {
+          id: true,
+          role: true,
+          organization: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      relations: ['userOrganizations', 'userOrganizations.organization'],
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+    return user;
+  }
+
+  async updateGlobalUser(userId: number, updateUserDto: UpdateUserDto): Promise<User> {
+    // Encuentra al usuario y actualiza sus datos
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    // Actualizamos los campos del usuario
+    Object.assign(user, updateUserDto);
+    return await this.userRepository.save(user);
   }
 }
