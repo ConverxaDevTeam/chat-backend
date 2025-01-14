@@ -100,16 +100,28 @@ export class ConversationService {
       throw new BadRequestException('El usuario no pertenece a esta organización');
     }
 
-    const conversations = await this.conversationRepository.find({
-      relations: ['user', 'messages'],
-      where: {
-        departamento: {
-          organizacion: {
-            id: organizationId,
-          },
-        },
-      },
-    });
+    const conversations = await this.conversationRepository
+      .createQueryBuilder('c')
+      .select([
+        'c.id as id',
+        'c.created_at as created_at',
+        'c.need_human as need_human',
+        'c.type as type',
+        'c.userId as user_id',
+        'lm.id as message_id',
+        'lm.created_at as message_created_at',
+        'lm.text as message_text',
+        'lm.type as message_type',
+      ])
+      .leftJoin(
+        (subQuery) => subQuery.from('Messages', 'm').select('m.*').addSelect('ROW_NUMBER() OVER (PARTITION BY m."conversationId" ORDER BY m.created_at DESC)', 'rn'),
+        'lm',
+        'lm."conversationId" = c.id AND lm.rn = 1',
+      )
+      .innerJoin('departamento', 'd', 'd.id = c."departamentoId"')
+      .innerJoin('Organizations', 'o', 'o.id = d.organization_id')
+      .where('o.id = :organizationId', { organizationId })
+      .getRawMany();
 
     return conversations;
   }
