@@ -59,6 +59,10 @@ export class ConversationService {
     return conversation;
   }
 
+  async softDeleteConversation(id: number) {
+    await this.conversationRepository.softRemove({ id });
+  }
+
   async assignHitl(conversationId: number, user: User): Promise<Conversation> {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },

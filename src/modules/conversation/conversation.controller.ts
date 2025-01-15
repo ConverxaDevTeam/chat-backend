@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards, Post, Query } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Post, Query, Delete } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConversationService } from './conversation.service';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
@@ -39,6 +39,13 @@ export class ConversationController {
   @Post(':conversationId/reassign-hitl')
   async reassignHitl(@GetUser() user: User, @Param('conversationId') conversationId: number) {
     const conversation = await this.conversationService.reassignHitl(conversationId, user);
+    return { ok: true, conversation };
+  }
+
+  @ApiOperation({ summary: 'Delete a conversation' })
+  @Delete(':conversationId')
+  async deleteConversation(@GetUser() user: User, @Param('conversationId') conversationId: number) {
+    const conversation = await this.conversationService.softDeleteConversation(conversationId);
     return { ok: true, conversation };
   }
 }
