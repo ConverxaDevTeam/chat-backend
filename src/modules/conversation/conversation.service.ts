@@ -9,6 +9,7 @@ import { User } from '@models/User.entity';
 import { Integration, IntegrationType } from '@models/Integration.entity';
 import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { DepartmentService } from '@modules/department/department.service';
+import { MessageType } from '@models/Message.entity';
 
 @Injectable()
 export class ConversationService {
@@ -107,19 +108,57 @@ export class ConversationService {
         'c.created_at as created_at',
         'c.need_human as need_human',
         'c.type as type',
-        'c.userId as user_id',
+        'null as avatar',
+        'c."userId" as user_id',
+        'cu.secret as secret',
         'lm.id as message_id',
         'lm.created_at as message_created_at',
         'lm.text as message_text',
         'lm.type as message_type',
+        'COALESCE(uc.unread_count, 0) as unread_messages',
       ])
       .leftJoin(
-        (subQuery) => subQuery.from('Messages', 'm').select('m.*').addSelect('ROW_NUMBER() OVER (PARTITION BY m."conversationId" ORDER BY m.created_at DESC)', 'rn'),
+        (qb) =>
+          qb
+            .select('DISTINCT ON (m."conversationId") m.id, m."conversationId", m.created_at, m.text, m.type')
+            .from('Messages', 'm')
+            .orderBy('m."conversationId"', 'ASC')
+            .addOrderBy('m.created_at', 'DESC'),
         'lm',
-        'lm."conversationId" = c.id AND lm.rn = 1',
+        'lm."conversationId" = c.id',
+      )
+      .leftJoin(
+        (qb) =>
+          qb
+            .select(
+              `
+            m."conversationId",
+            CASE 
+              WHEN lh.last_staff_date IS NULL THEN 0
+              ELSE COUNT(m.id)
+            END as unread_count
+          `,
+            )
+            .from('Messages', 'm')
+            .leftJoin(
+              (qb) =>
+                qb
+                  .select('"conversationId", MAX(created_at) as last_staff_date')
+                  .from('Messages', 'staff')
+                  .where('staff.type = ANY(:staffTypes)', { staffTypes: [MessageType.HITL, MessageType.AGENT] })
+                  .groupBy('"conversationId"'),
+              'lh',
+              'lh."conversationId" = m."conversationId"',
+            )
+            .where('m.type = :userType', { userType: MessageType.USER })
+            .andWhere('(lh.last_staff_date IS NULL OR m.created_at > lh.last_staff_date)')
+            .groupBy('m."conversationId", lh.last_staff_date'),
+        'uc',
+        'uc."conversationId" = c.id',
       )
       .innerJoin('departamento', 'd', 'd.id = c."departamentoId"')
       .innerJoin('Organizations', 'o', 'o.id = d.organization_id')
+      .innerJoin('ChatUsers', 'cu', 'cu.id = c."chatUserId"')
       .where('o.id = :organizationId', { organizationId })
       .getRawMany();
 
