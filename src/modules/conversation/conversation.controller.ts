@@ -25,7 +25,7 @@ export class ConversationController {
   @Get(':organizationId/:conversationId')
   async getConversationByOrganizationIdAndById(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('conversationId') conversationId: number) {
     const conversation = await this.conversationService.getConversationByOrganizationIdAndById(organizationId, conversationId, user);
-    return { ok: true, conversation };
+    return conversation;
   }
 
   @ApiOperation({ summary: 'Assign a conversation to a user (HITL)' })
