@@ -10,6 +10,7 @@ import { Integration, IntegrationType } from '@models/Integration.entity';
 import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { DepartmentService } from '@modules/department/department.service';
 import { MessageType } from '@models/Message.entity';
+import { SearchConversationDto } from './dto/search-conversation.dto';
 
 @Injectable()
 export class ConversationService {
@@ -94,14 +95,14 @@ export class ConversationService {
     return await this.conversationRepository.save(conversation);
   }
 
-  async findByOrganizationIdAndUserId(organizationId: number, user: User): Promise<Conversation[]> {
+  async findByOrganizationIdAndUserId(organizationId: number, user: User, searchParams?: SearchConversationDto): Promise<any[]> {
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
 
     if (!userOrganization) {
       throw new BadRequestException('El usuario no pertenece a esta organización');
     }
 
-    const conversations = await this.conversationRepository
+    const queryBuilder = this.conversationRepository
       .createQueryBuilder('c')
       .select([
         'c.id as id',
@@ -159,10 +160,21 @@ export class ConversationService {
       .innerJoin('departamento', 'd', 'd.id = c."departamentoId"')
       .innerJoin('Organizations', 'o', 'o.id = d.organization_id')
       .innerJoin('ChatUsers', 'cu', 'cu.id = c."chatUserId"')
-      .where('o.id = :organizationId', { organizationId })
-      .getRawMany();
+      .where('o.id = :organizationId', { organizationId });
 
-    return conversations;
+    if (searchParams?.conversationId) {
+      queryBuilder.andWhere('c.id = :conversationId', { conversationId: searchParams.conversationId });
+    }
+
+    if (searchParams?.secret) {
+      queryBuilder.andWhere('cu.secret = :secret', { secret: searchParams.secret });
+    }
+
+    if (searchParams?.type) {
+      queryBuilder.andWhere('c.type = :type', { type: searchParams.type });
+    }
+
+    return queryBuilder.getRawMany();
   }
 
   async getConversationByIntegrationIdAndByIdentified(integrationId: number, identified: string, type: IntegrationType): Promise<Conversation | null> {
