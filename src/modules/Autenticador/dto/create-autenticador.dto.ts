@@ -45,6 +45,10 @@ export class CreateAutenticadorDto<T extends { type: AutenticadorType; config: R
   @IsOptional()
   life_time?: number;
 
+  @IsString()
+  @IsOptional()
+  field_name?: string;
+
   @ApiProperty({
     example: 'Bearer token value',
     description: 'Value of the authenticator (e.g., token)',

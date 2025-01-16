@@ -80,7 +80,7 @@ export class FunctionCallService {
       const diffSeconds = tokenTime ? Math.floor((currentTime.getTime() - tokenTime.getTime()) / 1000) : null;
 
       if (authenticator.life_time === 0 || (diffSeconds !== null && tokenTime && diffSeconds < authenticator.life_time)) {
-        return { Authorization: authenticator.value };
+        return { [authenticator.field_name]: authenticator.value };
       }
     }
     if (authenticator.type !== AutenticadorType.ENDPOINT) {
@@ -121,7 +121,7 @@ export class FunctionCallService {
         updated_at: new Date(),
       });
 
-      return { Authorization: bearerToken };
+      return { [authenticator.field_name]: bearerToken };
     } catch (error) {
       console.error('Error getting auth token:', error);
       throw new Error('Failed to get authentication token');
