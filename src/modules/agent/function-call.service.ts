@@ -153,17 +153,29 @@ export class FunctionCallService {
       headers,
     };
 
+    const urlParams = url.match(/\/:([^\/]+)/g)?.map((p) => p.replace(/\/:/, '')) || [];
+    const missingParams = urlParams.filter((param) => !(param in params));
+
+    if (missingParams.length > 0) {
+      throw new NotFoundException(`Required URL parameters missing: ${missingParams.join(', ')}`);
+    }
+
+    let processedUrl = urlParams.reduce((acc, param) => acc.replace(`:${param}`, params[param].toString()), url);
+
+    const nonUrlParams = Object.fromEntries(Object.entries(params).filter(([key]) => !urlParams.includes(key)));
+
     if (method !== HttpMethod.GET) {
-      fetchData.body = JSON.stringify(params);
+      fetchData.body = JSON.stringify(nonUrlParams);
     } else {
-      // Convert nested objects to flat query params
-      url +=
+      processedUrl +=
         '?' +
-        Object.keys(params)
-          .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+        Object.entries(nonUrlParams)
+          .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
           .join('&');
     }
-    const response = await fetch(url, fetchData);
+    console.log('processedUrl', processedUrl, fetchData);
+
+    const response = await fetch(processedUrl, fetchData);
 
     if (!response.ok) {
       const errorText = await response.text();
