@@ -142,10 +142,10 @@ export class SocketService {
     this.webChatClients.delete(chatUserId);
   }
 
-  async sendMessageToUser(conversation: Conversation, agentMessage: string, format: MessageFormatType, type: MessageType = MessageType.AGENT) {
+  async sendMessageToUser(conversation: Conversation, agentMessage: string, format: MessageFormatType, type: MessageType = MessageType.AGENT, images?: string[]) {
     const message =
       format === MessageFormatType.TEXT
-        ? await this.messageService.createMessage(conversation, agentMessage, type)
+        ? await this.messageService.createMessage(conversation, agentMessage, type, { images, format, platform: 'HITL' })
         : await this.messageService.createMessageAudio(conversation, agentMessage, type);
     // Enviamos al servidor de WebChat si existe el cliente
     if (conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
