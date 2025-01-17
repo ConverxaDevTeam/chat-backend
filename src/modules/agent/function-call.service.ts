@@ -80,7 +80,7 @@ export class FunctionCallService {
       const diffSeconds = tokenTime ? Math.floor((currentTime.getTime() - tokenTime.getTime()) / 1000) : null;
 
       if (authenticator.life_time === 0 || (diffSeconds !== null && tokenTime && diffSeconds < authenticator.life_time)) {
-        return { Authorization: authenticator.value };
+        return { [authenticator.field_name]: authenticator.value };
       }
     }
     if (authenticator.type !== AutenticadorType.ENDPOINT) {
@@ -121,7 +121,7 @@ export class FunctionCallService {
         updated_at: new Date(),
       });
 
-      return { Authorization: bearerToken };
+      return { [authenticator.field_name]: bearerToken };
     } catch (error) {
       console.error('Error getting auth token:', error);
       throw new Error('Failed to get authentication token');
@@ -153,17 +153,29 @@ export class FunctionCallService {
       headers,
     };
 
+    const urlParams = url.match(/\/:([^\/]+)/g)?.map((p) => p.replace(/\/:/, '')) || [];
+    const missingParams = urlParams.filter((param) => !(param in params));
+
+    if (missingParams.length > 0) {
+      throw new NotFoundException(`Required URL parameters missing: ${missingParams.join(', ')}`);
+    }
+
+    let processedUrl = urlParams.reduce((acc, param) => acc.replace(`:${param}`, params[param].toString()), url);
+
+    const nonUrlParams = Object.fromEntries(Object.entries(params).filter(([key]) => !urlParams.includes(key)));
+
     if (method !== HttpMethod.GET) {
-      fetchData.body = JSON.stringify(params);
+      fetchData.body = JSON.stringify(nonUrlParams);
     } else {
-      // Convert nested objects to flat query params
-      url +=
+      processedUrl +=
         '?' +
-        Object.keys(params)
-          .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+        Object.entries(nonUrlParams)
+          .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
           .join('&');
     }
-    const response = await fetch(url, fetchData);
+    console.log('processedUrl', processedUrl, fetchData);
+
+    const response = await fetch(processedUrl, fetchData);
 
     if (!response.ok) {
       const errorText = await response.text();
