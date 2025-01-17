@@ -33,6 +33,10 @@ export class Autenticador<T extends { type: AutenticadorType; config: Record<str
   @Column({ type: 'integer', default: 0 })
   life_time: number;
 
+  @ApiProperty({ example: 'Authorization', description: 'Nombre del field de autenticación' })
+  @Column({ type: 'varchar', length: 255, nullable: false, default: 'Authorization' })
+  field_name: string;
+
   @ApiProperty({ example: 'some value', description: 'Value of the authenticator', nullable: true })
   @Column({ type: 'varchar', nullable: true })
   value?: string | null;

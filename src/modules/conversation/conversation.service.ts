@@ -9,6 +9,8 @@ import { User } from '@models/User.entity';
 import { Integration, IntegrationType } from '@models/Integration.entity';
 import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { DepartmentService } from '@modules/department/department.service';
+import { MessageType } from '@models/Message.entity';
+import { SearchConversationDto } from './dto/search-conversation.dto';
 
 @Injectable()
 export class ConversationService {
@@ -57,6 +59,10 @@ export class ConversationService {
     return conversation;
   }
 
+  async softDeleteConversation(id: number) {
+    await this.conversationRepository.softRemove({ id });
+  }
+
   async assignHitl(conversationId: number, user: User): Promise<Conversation> {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
@@ -93,25 +99,86 @@ export class ConversationService {
     return await this.conversationRepository.save(conversation);
   }
 
-  async findByOrganizationIdAndUserId(organizationId: number, user: User): Promise<Conversation[]> {
+  async findByOrganizationIdAndUserId(organizationId: number, user: User, searchParams?: SearchConversationDto): Promise<any[]> {
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
 
     if (!userOrganization) {
       throw new BadRequestException('El usuario no pertenece a esta organización');
     }
 
-    const conversations = await this.conversationRepository.find({
-      relations: ['user', 'messages'],
-      where: {
-        departamento: {
-          organizacion: {
-            id: organizationId,
-          },
-        },
-      },
-    });
+    const queryBuilder = this.conversationRepository
+      .createQueryBuilder('c')
+      .select([
+        'c.id as id',
+        'c.created_at as created_at',
+        'c.need_human as need_human',
+        'c.type as type',
+        'null as avatar',
+        'c."userId" as user_id',
+        'cu.secret as secret',
+        'lm.id as message_id',
+        'lm.created_at as message_created_at',
+        'lm.text as message_text',
+        'lm.type as message_type',
+        'COALESCE(uc.unread_count, 0) as unread_messages',
+      ])
+      .leftJoin(
+        (qb) =>
+          qb
+            .select('DISTINCT ON (m."conversationId") m.id, m."conversationId", m.created_at, m.text, m.type')
+            .from('Messages', 'm')
+            .orderBy('m."conversationId"', 'ASC')
+            .addOrderBy('m.created_at', 'DESC'),
+        'lm',
+        'lm."conversationId" = c.id',
+      )
+      .leftJoin(
+        (qb) =>
+          qb
+            .select(
+              `
+            m."conversationId",
+            CASE 
+              WHEN lh.last_staff_date IS NULL THEN 0
+              ELSE COUNT(m.id)
+            END as unread_count
+          `,
+            )
+            .from('Messages', 'm')
+            .leftJoin(
+              (qb) =>
+                qb
+                  .select('"conversationId", MAX(created_at) as last_staff_date')
+                  .from('Messages', 'staff')
+                  .where('staff.type = ANY(:staffTypes)', { staffTypes: [MessageType.HITL, MessageType.AGENT] })
+                  .groupBy('"conversationId"'),
+              'lh',
+              'lh."conversationId" = m."conversationId"',
+            )
+            .where('m.type = :userType', { userType: MessageType.USER })
+            .andWhere('(lh.last_staff_date IS NULL OR m.created_at > lh.last_staff_date)')
+            .groupBy('m."conversationId", lh.last_staff_date'),
+        'uc',
+        'uc."conversationId" = c.id',
+      )
+      .innerJoin('departamento', 'd', 'd.id = c."departamentoId"')
+      .innerJoin('Organizations', 'o', 'o.id = d.organization_id')
+      .innerJoin('ChatUsers', 'cu', 'cu.id = c."chatUserId"')
+      .where('o.id = :organizationId', { organizationId });
 
-    return conversations;
+    if (searchParams?.conversationId) {
+      queryBuilder.andWhere('c.id = :conversationId', { conversationId: searchParams.conversationId });
+    }
+
+    if (searchParams?.secret) {
+      queryBuilder.andWhere('cu.secret = :secret', { secret: searchParams.secret });
+    }
+
+    if (searchParams?.type) {
+      queryBuilder.andWhere('c.type = :type', { type: searchParams.type });
+    }
+
+    return queryBuilder.getRawMany();
   }
 
   async getConversationByIntegrationIdAndByIdentified(integrationId: number, identified: string, type: IntegrationType): Promise<Conversation | null> {
@@ -156,7 +223,24 @@ export class ConversationService {
     }
 
     return await this.conversationRepository.findOne({
-      relations: ['user', 'messages'],
+      select: {
+        id: true,
+        user: {
+          id: true,
+        },
+        messages: {
+          id: true,
+          created_at: true,
+          text: true,
+          type: true,
+          images: true,
+          audio: true,
+        },
+        chat_user: {
+          secret: true,
+        },
+      },
+      relations: ['messages', 'chat_user', 'user'],
       where: {
         id: conversationId,
         departamento: {

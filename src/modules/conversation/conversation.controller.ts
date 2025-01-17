@@ -1,9 +1,11 @@
-import { Controller, Get, Param, UseGuards, Post } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, Post, Query, Delete } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConversationService } from './conversation.service';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { User } from '@models/User.entity';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
+import { ParseIntPipe } from '@nestjs/common';
+import { SearchConversationDto } from './dto/search-conversation.dto';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
@@ -14,8 +16,8 @@ export class ConversationController {
 
   @ApiOperation({ summary: 'get conversations by organization id' })
   @Get('organization/:organizationId')
-  async getConversationsByOrganizationId(@GetUser() user: User, @Param('organizationId') organizationId: number) {
-    const conversations = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user);
+  async getConversationsByOrganizationId(@GetUser() user: User, @Param('organizationId', ParseIntPipe) organizationId: number, @Query() searchParams: SearchConversationDto) {
+    const conversations = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user, searchParams);
     return { ok: true, conversations };
   }
 
@@ -23,7 +25,7 @@ export class ConversationController {
   @Get(':organizationId/:conversationId')
   async getConversationByOrganizationIdAndById(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('conversationId') conversationId: number) {
     const conversation = await this.conversationService.getConversationByOrganizationIdAndById(organizationId, conversationId, user);
-    return { ok: true, conversation };
+    return conversation;
   }
 
   @ApiOperation({ summary: 'Assign a conversation to a user (HITL)' })
@@ -37,6 +39,13 @@ export class ConversationController {
   @Post(':conversationId/reassign-hitl')
   async reassignHitl(@GetUser() user: User, @Param('conversationId') conversationId: number) {
     const conversation = await this.conversationService.reassignHitl(conversationId, user);
+    return { ok: true, conversation };
+  }
+
+  @ApiOperation({ summary: 'Delete a conversation' })
+  @Delete(':conversationId')
+  async deleteConversation(@GetUser() user: User, @Param('conversationId') conversationId: number) {
+    const conversation = await this.conversationService.softDeleteConversation(conversationId);
     return { ok: true, conversation };
   }
 }

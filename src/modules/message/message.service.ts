@@ -26,7 +26,7 @@ export class MessageService {
     text: string,
     type: MessageType,
     options?: {
-      platform: IntegrationType;
+      platform: IntegrationType | 'HITL';
       format: MessageFormatType;
       audio_url?: string;
       images?: string[];
