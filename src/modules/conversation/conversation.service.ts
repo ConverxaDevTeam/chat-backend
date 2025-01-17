@@ -225,6 +225,9 @@ export class ConversationService {
     return await this.conversationRepository.findOne({
       select: {
         id: true,
+        user: {
+          id: true,
+        },
         messages: {
           id: true,
           created_at: true,
@@ -237,7 +240,7 @@ export class ConversationService {
           secret: true,
         },
       },
-      relations: ['messages', 'chat_user'],
+      relations: ['messages', 'chat_user', 'user'],
       where: {
         id: conversationId,
         departamento: {
