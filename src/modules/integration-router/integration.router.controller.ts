@@ -1,10 +1,12 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Post, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { IntegrationRouterService } from './integration.router.service';
 import { SendAgentMessageDto } from './dto/send-agent-message.dto';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { User } from '@models/User.entity';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { UploadedFiles } from '@nestjs/common';
 
 @ApiTags('integration-router')
 @Controller('integration-router')
@@ -14,8 +16,10 @@ export class IntegrationRouterController {
 
   @Post('send-message')
   @ApiOperation({ summary: 'Enviar mensaje como agente a una conversación' })
-  async sendAgentMessage(@GetUser() user: User, @Body() sendMessageDto: SendAgentMessageDto) {
-    const message = await this.integrationRouterService.sendAgentMessage(user, sendMessageDto);
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FilesInterceptor('images'))
+  async sendAgentMessage(@GetUser() user: User, @Body() sendMessageDto: SendAgentMessageDto, @UploadedFiles() images?: Array<Express.Multer.File>) {
+    const message = await this.integrationRouterService.sendAgentMessage(user, { ...sendMessageDto, images });
     return { ok: true, message };
   }
 }

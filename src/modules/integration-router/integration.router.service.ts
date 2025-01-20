@@ -11,6 +11,7 @@ import { MessageFormatType, MessageType } from '@models/Message.entity';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
+import { Express } from 'express';
 
 @Injectable()
 export class IntegrationRouterService {
@@ -24,28 +25,40 @@ export class IntegrationRouterService {
     private readonly configService: ConfigService,
   ) {}
 
-  async saveImages(images: string[]): Promise<string[]> {
+  async saveImages(images: string[] | Array<Express.Multer.File>): Promise<string[]> {
     if (!images?.length) return [];
 
     const uploadDir = path.join(process.cwd(), 'uploads', 'images');
-    const baseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
+    const baseUrl = this.configService.get<string>('URL_FILES') || 'http://localhost:3001';
 
     if (!fs.existsSync(uploadDir)) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
+
     return Promise.all(
-      images.map(async (base64Image) => {
-        const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-        if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
-
-        const buffer = Buffer.from(matches[2], 'base64');
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.png`;
+      images.map(async (image) => {
+        const { buffer, fileName } = await this.processImageInput(image);
         const filePath = path.join(uploadDir, fileName);
-
         await fs.promises.writeFile(filePath, buffer);
         return `${baseUrl}/images/${fileName}`;
       }),
     );
+  }
+
+  private async processImageInput(input: string | Express.Multer.File): Promise<{ buffer: Buffer; fileName: string }> {
+    if (typeof input === 'string') {
+      const matches = input.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (!matches || matches.length !== 3) throw new Error('Invalid base64 string');
+      return {
+        buffer: Buffer.from(matches[2], 'base64'),
+        fileName: `${Date.now()}-${Math.random().toString(36).substring(7)}.png`,
+      };
+    }
+
+    return {
+      buffer: input.buffer,
+      fileName: `${Date.now()}-${input.originalname}`,
+    };
   }
 
   async processMessage(message: string, conversationId: number, images: string[] = []) {
@@ -84,7 +97,7 @@ export class IntegrationRouterService {
     };
   }
 
-  async sendAgentMessage(user: User, { message, conversationId }: SendAgentMessageDto) {
+  async sendAgentMessage(user: User, { message, conversationId, images }: SendAgentMessageDto) {
     const conversation = await this.conversationRepository
       .createQueryBuilder('conversation')
       .leftJoinAndSelect('conversation.user', 'user')
@@ -102,10 +115,13 @@ export class IntegrationRouterService {
     if (conversation.user?.id !== user.id) {
       throw new UnauthorizedException('No tienes permiso para enviar mensajes en esta conversación');
     }
+
+    const savedImages = images?.length ? await this.saveImages(images) : [];
+
     // Notificar al usuario del chat
     if (conversation.chat_user?.id) {
-      this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL);
+      this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL, savedImages);
     }
-    return message;
+    return { message, images: savedImages };
   }
 }

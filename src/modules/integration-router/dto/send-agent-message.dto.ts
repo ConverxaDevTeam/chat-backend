@@ -11,4 +11,7 @@ export class SendAgentMessageDto {
   @IsNumber()
   @IsNotEmpty()
   conversationId: number;
+
+  @ApiProperty({ description: 'Imágenes a enviar', type: 'array', items: { type: 'string', format: 'binary' }, required: false })
+  images?: Array<Express.Multer.File>;
 }
