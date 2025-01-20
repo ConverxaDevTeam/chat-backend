@@ -23,6 +23,7 @@ import { MessageModule } from '@modules/message/message.module';
 import { FacebookModule } from '@modules/facebook/facebook.module';
 import { AutenticadorModule } from '@modules/Autenticador/autenticador.module';
 import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-knowledgebase.module';
+import { NodeModule } from './modules/node/node.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-kno
     FacebookModule,
     AutenticadorModule,
     AgentKnowledgebaseModule,
+    NodeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -75,7 +75,7 @@ export class CreateFunctionDto<T extends FunctionType = FunctionType> extends Ba
 
   @IsObject()
   @ValidateNested()
-  config: FunctionConfig[T];
+  config: { position: { x: number; y: number } } & FunctionConfig[T];
 }
 
 export class UpdateFunctionDto<T extends FunctionType = FunctionType> extends BaseFunctionDto {
@@ -84,7 +84,7 @@ export class UpdateFunctionDto<T extends FunctionType = FunctionType> extends Ba
 
   @IsObject()
   @ValidateNested()
-  config: FunctionConfig[T];
+  config: { position: { x: number; y: number } } & FunctionConfig[T];
 }
 
 export class FunctionResponse {
