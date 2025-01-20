@@ -115,6 +115,7 @@ export class DepartmentService {
           funciones: {
             id: true,
             name: true,
+            config: {},
             autenticador: {
               id: true,
             },
@@ -151,6 +152,7 @@ export class DepartmentService {
               ? department.agente.funciones.map((funcion) => ({
                   id: funcion.id,
                   name: funcion.name,
+                  config: funcion.config,
                   autenticador: funcion.autenticador ? { id: funcion.autenticador.id } : undefined,
                 }))
               : [],

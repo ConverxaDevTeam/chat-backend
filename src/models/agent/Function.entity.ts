@@ -4,6 +4,14 @@ import { Agente } from './Agente.entity';
 import { Autenticador } from './Autenticador.entity';
 import { FunctionType } from 'src/interfaces/function.interface';
 
+interface FunctionConfig {
+  position?: {
+    x: number;
+    y: number;
+  };
+  [key: string]: unknown;
+}
+
 @Entity({ name: 'funcion' })
 @Unique(['normalizedName', 'agente'])
 export class Funcion extends BaseEntity {
@@ -19,8 +27,8 @@ export class Funcion extends BaseEntity {
   @Column({ type: 'enum', enum: FunctionType, nullable: false })
   type: FunctionType;
 
-  @Column({ type: 'json', nullable: true })
-  config: Record<string, unknown>;
+  @Column({ type: 'simple-json', nullable: true })
+  config: FunctionConfig;
 
   @ManyToOne(() => Agente, (agente) => agente.funciones)
   @JoinColumn({ name: 'agent_id' })
