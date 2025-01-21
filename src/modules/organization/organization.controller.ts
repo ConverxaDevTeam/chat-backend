@@ -3,12 +3,12 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
-import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
 import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
+import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard';
 
 @Controller('organization')
 @ApiTags('organization')
@@ -35,7 +35,6 @@ export class OrganizationController {
     return { ok: true, organizations: formattedOrganization };
   }
 
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtiene tu datos de usuario' })
   @ApiBearerAuth()
   @Get('my-organizations')
@@ -47,7 +46,6 @@ export class OrganizationController {
     };
   }
 
-  @UseGuards(JwtAuthRolesGuard)
   @ApiOperation({ summary: 'crear una organización, solo super admin' })
   @Post('')
   async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto) {
@@ -55,7 +53,7 @@ export class OrganizationController {
     return { ok: true, organization };
   }
 
-  @UseGuards(JwtAuthRolesGuard)
+  @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: 'eliminacion suave de una organización, solo super admin' })
   @Delete(':id')
   async deleteOrganization(@Param('id') id: number) {
@@ -63,7 +61,6 @@ export class OrganizationController {
     return { ok: true, organization };
   }
 
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'setear un usuario a una organización, solo super admin' })
   @Patch(':organizationId')
   async setUserInOrganizationById(@Param('organizationId') organizationId: number, @Body('owner_id') userId: number) {
