@@ -45,8 +45,8 @@ export class MessageService {
 
         audioResponse.data.pipe(writer);
 
-        await new Promise((resolve, reject) => {
-          writer.on('finish', resolve);
+        await new Promise<void>((resolve, reject) => {
+          writer.on('finish', () => resolve());
           writer.on('error', reject);
         });
         message.audio = uniqueName;
