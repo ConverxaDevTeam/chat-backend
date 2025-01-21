@@ -11,26 +11,39 @@ export class JwtAuthRolesGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const allowedRoles = this.reflector.get<string[]>(META_ROLES, context.getHandler());
-    if (!allowedRoles) {
-      return true; // Si no hay roles especificados, permitir el acceso
-    }
     try {
       const request = context.switchToHttp().getRequest();
       const { authorization }: any = request.headers;
-      if (!authorization || authorization.trim() === '') {
+
+      if (!authorization?.trim()) {
         throw new UnauthorizedException('Please provide token');
       }
+
       const accessToken = authorization.replace(/bearer/gim, '').trim();
       const { user, sessionId } = await this.authService.validateSession(accessToken);
+
+      if (!user) {
+        throw new UnauthorizedException('Invalid session');
+      }
+
       request.user = user;
       request.sessionId = sessionId;
-      if (!user.is_super_admin) {
-        throw new ForbiddenException('You do not have permission to access this resource');
+
+      if (user.is_super_admin) return true;
+
+      const allowedRoles = this.reflector.get<string[]>(META_ROLES, context.getHandler());
+      if (!allowedRoles) return true;
+      const hasRole = allowedRoles.some((role) => user.userOrganizations.some((userOrganization) => userOrganization.role?.includes(role)));
+      if (!hasRole) {
+        throw new ForbiddenException('You do not have the required role to access this resource');
       }
+
       return true;
     } catch (error) {
-      throw new ForbiddenException(error.message || 'Session expired! Please sign in');
+      if (error instanceof UnauthorizedException || error instanceof ForbiddenException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Session expired or invalid');
     }
   }
 }

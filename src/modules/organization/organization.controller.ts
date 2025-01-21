@@ -7,10 +7,13 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
+import { Roles } from '@infrastructure/decorators/role-protected.decorator';
+import { OrganizationRoleType } from '@models/UserOrganization.entity';
 
 @Controller('organization')
 @ApiTags('organization')
 @ApiBearerAuth()
+@UseGuards(JwtAuthRolesGuard)
 export class OrganizationController {
   private readonly logger = new Logger(OrganizationController.name);
 
@@ -19,12 +22,11 @@ export class OrganizationController {
     private readonly userOrganizationService: UserOrganizationService,
   ) {}
 
-  @UseGuards(JwtAuthRolesGuard)
+  @Roles(OrganizationRoleType.ING_PREVENTA)
   @ApiOperation({ summary: 'obtener todas las organizaciones, solo super admin' })
   @Get('')
   async getAll() {
     const organizations = await this.organizationService.getAll();
-    console.log(organizations);
     const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => ({
       ...organization,
       users: userOrganizations.length,
