@@ -41,7 +41,7 @@ async function bootstrap() {
 
   // Configuración detallada de CORS
   app.use((req, res, next) => {
-    if (req.path.startsWith('/sofia-chat')) {
+    if (req.path.startsWith('/files')) {
       return next(); // Excluir esta ruta del middleware global
     }
 
@@ -63,7 +63,7 @@ async function bootstrap() {
   });
 
   // Configuración de CORS específica para '/sofia-chat'
-  app.use('/sofia-chat', cors());
+  app.use('/files', cors());
 
   app.setGlobalPrefix('api');
 
