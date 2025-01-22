@@ -179,7 +179,7 @@ export class WebChatSocketGateway implements OnModuleInit {
               const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
               const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, {
                 platform: IntegrationType.CHAT_WEB,
-                format: MessageFormatType.IMAGE,
+                format: MessageFormatType.TEXT,
                 images: imageUrls,
               });
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
