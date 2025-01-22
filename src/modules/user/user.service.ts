@@ -67,10 +67,9 @@ export class UserService {
       const hashedPassword = await bcrypt.hash(password, salt);
       newUser.password = hashedPassword;
       await this.userRepository.save(newUser);
-      console.log(newUser);
 
       if (newUser.password) {
-        await this.emailService.sendUserWellcome(newUser.email, newUser.password);
+        await this.emailService.sendUserWellcome(newUser.email, password);
       }
       return { created: true, user: newUser, password };
     }
