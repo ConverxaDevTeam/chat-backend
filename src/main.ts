@@ -46,7 +46,7 @@ async function bootstrap() {
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
-    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io', 'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io'],
+    origin: [/http\:\/\/localhost\:\d{1,5}$/, '*', 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io', 'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io'],
   });
 
   app.setGlobalPrefix('api');
