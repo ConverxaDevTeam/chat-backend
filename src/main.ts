@@ -34,31 +34,40 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
-
-  // Configuración CORS específica para '/sofia-chat'
-  app.use('/sofia-chat', cors());
-
-  // Configuración CORS específica para otras rutas
   const allowedHeaders = ['Authorization', 'Content-Type', 'Accept', 'Origin', 'X-Requested-With', 'Access-Control-Allow-Origin'];
   if (process.env.NGROK_DEV === '1') {
     allowedHeaders.push('ngrok-skip-browser-warning');
   }
 
-  app.use(
+  // Configuración detallada de CORS
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/sofia-chat')) {
+      return next(); // Excluir esta ruta del middleware global
+    }
+
     cors({
+      origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io', 'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io'],
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-      allowedHeaders,
+      allowedHeaders: [
+        'Authorization',
+        'Content-Type',
+        'Accept',
+        'Origin',
+        'X-Requested-With',
+        'Access-Control-Allow-Origin',
+        ...(process.env.NGROK_DEV === '1' ? ['ngrok-skip-browser-warning'] : []),
+      ],
       exposedHeaders: ['Content-Disposition'],
       credentials: true,
-      preflightContinue: false,
-      optionsSuccessStatus: 204,
-      origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io', 'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io'],
-    }),
-  );
+    })(req, res, next);
+  });
+
+  // Configuración de CORS específica para '/sofia-chat'
+  app.use('/sofia-chat', cors());
 
   app.setGlobalPrefix('api');
 
-  const config = new DocumentBuilder().setTitle('SofiaChat API').setDescription('SofiaChat API documentation').addBearerAuth().setVersion('1.0').build();
+  const config = new DocumentBuilder().setTitle('SofiaChat API').setDescription('SofiaChat API docuemntation').addBearerAuth().setVersion('1.0').build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('doc', app, document);
 
