@@ -57,6 +57,7 @@ export class FacebookController {
   @ApiOperation({ summary: 'Get Webhook' })
   @Get('webhook')
   async getWebhook(@Query('hub.verify_token') verifyToken: string, @Query('hub.challenge') challenge: string, @Query('hub.mode') mode: string, @Res() res) {
+    console.log('on get webhook');
     if (mode === 'subscribe' && verifyToken === this.configService.get<string>('facebook.webhookSecret')) {
       return res.status(200).send(challenge);
     }
@@ -67,6 +68,7 @@ export class FacebookController {
   @ApiOperation({ summary: 'Post Webhook' })
   @Post('webhook')
   async postWebhook(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
+    console.log('on webhook', webhookFacebookDto);
     if (webhookFacebookDto.object === FacebookType.PAGE) {
       console.log('Received page event');
       this.facebookService.analyzefacebookmessage(webhookFacebookDto);

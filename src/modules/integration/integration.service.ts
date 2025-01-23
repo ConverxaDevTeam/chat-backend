@@ -219,7 +219,7 @@ export class IntegrationService {
     user: User,
     organizationId: number,
     departamentoId: number,
-    createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto,
+    createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto & { config: string },
     token: string,
   ): Promise<Integration> {
     const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
