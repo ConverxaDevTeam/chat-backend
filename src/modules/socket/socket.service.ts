@@ -15,6 +15,7 @@ import { MessagerService } from '@modules/facebook/messager.service';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
+import { WhatsAppService } from '../facebook/whatsapp.service';
 
 @Injectable()
 export class SocketService {
@@ -31,6 +32,7 @@ export class SocketService {
     @InjectRepository(UserOrganization)
     private readonly userOrganizationRepository: Repository<UserOrganization>,
     private readonly configService: ConfigService,
+    private readonly whatsAppService: WhatsAppService,
   ) {}
 
   // Establecer el servidor de sockets
@@ -162,6 +164,15 @@ export class SocketService {
 
     if (conversation.type === ConversationType.MESSENGER) {
       await this.messagerService.sendFacebookMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
+    }
+
+    if (conversation.type === ConversationType.WHATSAPP) {
+      console.log('Sending message to WhatsApp');
+      console.log('identified', conversation.chat_user.identified);
+      console.log('token', conversation.integration.token);
+      console.log('waba_id', conversation.integration.waba_id);
+      const res = await this.whatsAppService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.waba_id, conversation.integration.token);
+      console.log('res', res);
     }
 
     if (!conversation.user?.id) return message;

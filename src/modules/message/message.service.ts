@@ -56,6 +56,10 @@ export class MessageService {
         message.audio = options.audio_url;
         const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
         message.text = transcription.text;
+      } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.WHATSAPP && options.audio_url) {
+        message.audio = options.audio_url;
+        const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        message.text = transcription.text;
       }
     }
     if (options?.images) {

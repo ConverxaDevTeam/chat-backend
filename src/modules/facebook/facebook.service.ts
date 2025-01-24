@@ -21,6 +21,9 @@ import { ChatUserType } from '@models/ChatUser.entity';
 import { InjectConnection } from '@nestjs/typeorm';
 import { Connection } from 'typeorm';
 import { Integration } from '@models/Integration.entity';
+import { join } from 'path';
+import * as fs from 'fs';
+import * as uuid from 'uuid';
 
 @Injectable()
 export class FacebookService {
@@ -135,9 +138,11 @@ export class FacebookService {
       try {
         const accessToken = await this.getAccessToken(createIntegrationWhatsAppDto.code);
         const pin = await this.registerPhoneNumber(createIntegrationWhatsAppDto.phone_number_id, accessToken);
+        console.log('accessToken', accessToken);
+        console.log('pin', pin);
 
         // Validate all external services before saving
-        await this.sendTestMessage(createIntegrationWhatsAppDto.phone_number_id, accessToken);
+        // await this.sendTestMessage(createIntegrationWhatsAppDto.phone_number_id, accessToken);
 
         // Only save if all validations pass
         const integration = await entityManager.getRepository(Integration).save({
@@ -290,5 +295,93 @@ export class FacebookService {
     } catch (error) {
       console.log('Error', error);
     }
+  }
+
+  async analyzeWhatsAppMessage(webhookFacebookDto: WebhookFacebookDto) {
+    try {
+      const phone = await this.getPhoneByNumberPhone(webhookFacebookDto);
+      const wabaId = webhookFacebookDto.entry ? webhookFacebookDto.entry[0].id : null;
+      if (!wabaId) {
+        throw new Error('WabaId not found');
+      }
+      const integration = await this.integrationService.getIntegrationByphoneNumberId(wabaId);
+
+      if (!integration) {
+        throw new Error('Integration not found');
+      }
+
+      let actualConversation: Conversation;
+
+      const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, phone, IntegrationType.WHATSAPP);
+
+      if (!conversation) {
+        actualConversation = await this.conversationService.createConversationAndChatUser(integration, phone, ConversationType.WHATSAPP, ChatUserType.WHATSAPP);
+      } else {
+        actualConversation = conversation;
+      }
+
+      if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'text' && webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body) {
+        const text = webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body;
+
+        const message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
+        this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
+        const response = await this.integrationRouterService.processMessage(text, actualConversation.id);
+        if (!response) return;
+        const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
+        if (!messageAi) return;
+      } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'image' && webhookFacebookDto.entry[0].changes[0].value.messages[0].image) {
+        console.log('message image');
+      } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'audio') {
+        const mediaResponse = await axios({
+          method: 'get',
+          url: `https://graph.facebook.com/v20.0/${webhookFacebookDto.entry[0].changes[0].value.messages[0].audio?.id}`,
+          headers: {
+            Authorization: `Bearer ${integration.token}`,
+          },
+        });
+        const audioResponse = await axios.get(mediaResponse.data.url, {
+          responseType: 'stream',
+          headers: {
+            Authorization: `Bearer ${integration.token}`,
+          },
+        });
+        const uniqueName = `${uuid.v4()}.ogg`;
+        const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', uniqueName);
+        const writer = fs.createWriteStream(audioPath);
+        audioResponse.data.pipe(writer);
+        await new Promise<void>((resolve, reject) => {
+          writer.on('finish', () => resolve());
+          writer.on('error', reject);
+        });
+        const message = await this.messageService.createMessage(actualConversation, '', MessageType.USER, {
+          platform: IntegrationType.WHATSAPP,
+          format: MessageFormatType.AUDIO,
+          audio_url: uniqueName,
+        });
+        this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
+        const response = await this.integrationRouterService.processMessage(message.text, actualConversation.id);
+        if (!response) return;
+        const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
+        if (!messageAi) return;
+        this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
+      } else {
+        throw new Error('Message type not found');
+      }
+    } catch (error) {
+      console.log('Error', error);
+    }
+  }
+
+  async getPhoneByNumberPhone(webhookFacebookDto: WebhookFacebookDto): Promise<string> {
+    let phoneNumber = webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from ?? null;
+    if (!phoneNumber) {
+      throw new Error('Phone number not found');
+    }
+
+    if (phoneNumber === '5493415313878') {
+      phoneNumber = '54341155313878';
+    }
+
+    return phoneNumber;
   }
 }

@@ -68,10 +68,12 @@ export class FacebookController {
   @ApiOperation({ summary: 'Post Webhook' })
   @Post('webhook')
   async postWebhook(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
-    console.log('on webhook', webhookFacebookDto);
     if (webhookFacebookDto.object === FacebookType.PAGE) {
       console.log('Received page event');
       this.facebookService.analyzefacebookmessage(webhookFacebookDto);
+    } else if (webhookFacebookDto.object === FacebookType.WHATSAPP_BUSINESS_ACCOUNT) {
+      console.log('Received page event');
+      this.facebookService.analyzeWhatsAppMessage(webhookFacebookDto);
     } else {
       console.log('Invalid object');
     }
