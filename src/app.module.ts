@@ -24,6 +24,7 @@ import { FacebookModule } from '@modules/facebook/facebook.module';
 import { AutenticadorModule } from '@modules/Autenticador/autenticador.module';
 import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-knowledgebase.module';
 import { NodeModule } from './modules/node/node.module';
+import { DashboardCardModule } from './modules/dashboard/dashboard-card.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { NodeModule } from './modules/node/node.module';
     AutenticadorModule,
     AgentKnowledgebaseModule,
     NodeModule,
+    DashboardCardModule,
   ],
   controllers: [AppController],
   providers: [AppService],

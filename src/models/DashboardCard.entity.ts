@@ -3,8 +3,8 @@ import { BaseEntity } from './Base.entity';
 import { UserOrganization } from './UserOrganization.entity';
 import { AnalyticType, StatisticsDisplayType, TimeRange } from '../interfaces/analytics.enum';
 
-@Entity({ name: 'Dashboards' })
-export class Dashboard extends BaseEntity {
+@Entity({ name: 'DashboardCards' })
+export class DashboardCard extends BaseEntity {
   @Column()
   title: string;
 
@@ -28,6 +28,6 @@ export class Dashboard extends BaseEntity {
   @Column({ default: true })
   showLegend: boolean;
 
-  @ManyToOne(() => UserOrganization, { onDelete: 'CASCADE' })
+  @ManyToOne(() => UserOrganization, { onDelete: 'CASCADE', nullable: true })
   userOrganization: UserOrganization;
 }
