@@ -167,12 +167,12 @@ export class SocketService {
     }
 
     if (conversation.type === ConversationType.WHATSAPP) {
-      console.log('Sending message to WhatsApp');
-      console.log('identified', conversation.chat_user.identified);
-      console.log('token', conversation.integration.token);
-      console.log('waba_id', conversation.integration.waba_id);
-      const res = await this.whatsAppService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.waba_id, conversation.integration.token);
-      console.log('res', res);
+      // console.log('Sending message to WhatsApp');
+      // console.log('identified', conversation.chat_user.identified);
+      // console.log('token', conversation.integration.token);
+      // console.log('waba_id', conversation.integration.waba_id);
+      // const res = await this.whatsAppService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.waba_id, conversation.integration.token);
+      // console.log('res', res);
     }
 
     if (!conversation.user?.id) return message;

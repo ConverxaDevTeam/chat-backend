@@ -241,6 +241,7 @@ export class ConversationService {
         chat_user: {
           secret: true,
         },
+        created_at: true,
       },
       relations: ['messages', 'chat_user', 'user'],
       where: {
