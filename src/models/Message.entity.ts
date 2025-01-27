@@ -22,6 +22,9 @@ export class Message extends BaseEntity {
   @Column({ type: 'varchar', default: null, nullable: true })
   audio: string;
 
+  @Column({ type: 'int', default: 0, nullable: true })
+  time: number;
+
   @Column({ type: 'json', default: null, nullable: true })
   images: string[];
 

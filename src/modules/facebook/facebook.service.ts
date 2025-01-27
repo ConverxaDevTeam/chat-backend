@@ -300,14 +300,17 @@ export class FacebookService {
   async analyzeWhatsAppMessage(webhookFacebookDto: WebhookFacebookDto) {
     try {
       const phone = await this.getPhoneByNumberPhone(webhookFacebookDto);
+      if (!phone) {
+        throw new BadRequestException('Phone number not found');
+      }
       const wabaId = webhookFacebookDto.entry ? webhookFacebookDto.entry[0].id : null;
       if (!wabaId) {
-        throw new Error('WabaId not found');
+        throw new BadRequestException('WabaId not found');
       }
       const integration = await this.integrationService.getIntegrationByphoneNumberId(wabaId);
 
       if (!integration) {
-        throw new Error('Integration not found');
+        throw new BadRequestException('Integration not found');
       }
 
       let actualConversation: Conversation;
@@ -315,7 +318,7 @@ export class FacebookService {
       const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, phone, IntegrationType.WHATSAPP);
 
       if (!conversation) {
-        actualConversation = await this.conversationService.createConversationAndChatUser(integration, phone, ConversationType.WHATSAPP, ChatUserType.WHATSAPP);
+        actualConversation = await this.conversationService.createConversationAndChatUserWhatsApp(integration, phone, webhookFacebookDto);
       } else {
         actualConversation = conversation;
       }
@@ -365,7 +368,7 @@ export class FacebookService {
         if (!messageAi) return;
         this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
       } else {
-        throw new Error('Message type not found');
+        throw new BadRequestException('Message type not found');
       }
     } catch (error) {
       console.log('Error', error);
@@ -373,13 +376,9 @@ export class FacebookService {
   }
 
   async getPhoneByNumberPhone(webhookFacebookDto: WebhookFacebookDto): Promise<string> {
-    let phoneNumber = webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from ?? null;
+    const phoneNumber = webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from ?? null;
     if (!phoneNumber) {
       throw new Error('Phone number not found');
-    }
-
-    if (phoneNumber === '5493415313878') {
-      phoneNumber = '54341155313878';
     }
 
     return phoneNumber;

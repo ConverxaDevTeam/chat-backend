@@ -25,6 +25,12 @@ export class ChatUser extends BaseEntity {
   @Column({ type: 'varchar', nullable: true, default: null })
   phone: string;
 
+  @Column({ type: 'varchar', nullable: true, default: null })
+  web: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  name: string;
+
   @Column({ type: 'timestamp', nullable: true })
   last_login?: Date;
 
