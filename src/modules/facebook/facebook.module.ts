@@ -10,7 +10,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
-import { FunctionCallModule } from '@modules/function-call/function-call.module';
 import { OrganizationModule } from '@modules/organization/organization.module';
 import { DepartmentModule } from '@modules/department/department.module';
 import { Organization } from '@models/Organization.entity';

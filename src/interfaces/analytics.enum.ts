@@ -1,0 +1,19 @@
+export enum AnalyticType {
+  MESSAGES_BY_WHATSAPP = 'MESSAGES_BY_WHATSAPP',
+  MESSAGES_BY_FACEBOOK = 'MESSAGES_BY_FACEBOOK',
+  MESSAGES_BY_WEB = 'MESSAGES_BY_WEB',
+}
+
+export enum StatisticsDisplayType {
+  PIE = 'PIE',
+  BAR = 'BAR',
+  LINE = 'LINE',
+}
+
+export enum TimeRange {
+  LAST_24_HOURS = 'LAST_24_HOURS',
+  LAST_7_DAYS = 'LAST_7_DAYS',
+  LAST_30_DAYS = 'LAST_30_DAYS',
+  LAST_90_DAYS = 'LAST_90_DAYS',
+  CUSTOM = 'CUSTOM',
+}
