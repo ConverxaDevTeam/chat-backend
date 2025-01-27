@@ -7,6 +7,7 @@ import { UpdateDashboardCardDto } from './dto/update-dashboard-card.dto';
 import { DashboardCard } from '../../models/DashboardCard.entity';
 import { GetUser } from '../../infrastructure/decorators/get-user.decorator';
 import { User } from '../../models/User.entity';
+import { UpdateLayoutDto } from './dto/update-layout-dto';
 
 @ApiTags('dashboard-cards')
 @Controller('dashboard-cards')
@@ -31,6 +32,12 @@ export class DashboardCardController {
   @ApiOperation({ summary: 'Update dashboard card' })
   update(@GetUser() user: User, @Param('id', ParseIntPipe) id: number, @Body() updateDashboardCardDto: UpdateDashboardCardDto): Promise<DashboardCard> {
     return this.dashboardCardService.update(user, id, updateDashboardCardDto);
+  }
+
+  @Put(':relationId/layout')
+  @ApiOperation({ summary: 'Update dashboard cards layout' })
+  updateLayout(@GetUser() user: User, @Param('relationId', ParseIntPipe) relationId: number, @Body() updateLayoutDto: UpdateLayoutDto): Promise<DashboardCard[]> {
+    return this.dashboardCardService.updateLayout(user, relationId, updateLayoutDto);
   }
 
   @Delete(':id/:organizationId?')

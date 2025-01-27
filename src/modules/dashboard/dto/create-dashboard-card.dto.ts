@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsBoolean, IsEnum, IsObject, IsString } from 'class-validator';
 import { AnalyticType, StatisticsDisplayType, TimeRange } from '../../../interfaces/analytics.enum';
 
-class LayoutConfig {
+export class LayoutConfig {
   @ApiProperty()
   w: number;
 
@@ -16,10 +16,10 @@ class LayoutConfig {
   y: number;
 
   @ApiProperty()
-  i: number;
+  i: string;
 }
 
-class Layout {
+export class Layout {
   @ApiProperty({ type: LayoutConfig })
   lg: LayoutConfig;
 
