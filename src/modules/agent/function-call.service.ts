@@ -74,6 +74,7 @@ export class FunctionCallService {
         result,
         organizationId: functionConfig.agente.departamento.organizacion.id,
         functionName: functionConfig.name,
+        conversationId,
       });
 
       return result;
@@ -92,6 +93,7 @@ export class FunctionCallService {
           error,
           organizationId: functionConfig.agente.departamento.organizacion.id,
           functionName: functionConfig.name,
+          conversationId,
         });
       }
 

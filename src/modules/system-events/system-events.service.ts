@@ -2,13 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SystemEvent, EventType, TableName } from '@models/SystemEvent.entity';
+import { Organization } from '@models/Organization.entity';
+import { Conversation } from '@models/Conversation.entity';
 
 interface CreateEventParams {
   type: EventType;
   metadata: Record<string, any>;
-  organization_id: number;
+  organization: Organization;
   table_name: TableName;
   table_id: number;
+  conversation?: Conversation;
   error_message?: string;
 }
 
@@ -34,18 +37,20 @@ export class SystemEventsService {
     error?: Error;
     organizationId: number;
     functionName: string;
+    conversationId: number;
   }): Promise<SystemEvent> {
     return this.create({
       type: EventType.FUNCTION_CALL,
       metadata: {
         params: params.params,
-        result: params.error ? undefined : params.result,
-        error: params.error ? params.error.message : undefined,
-        function_name: params.functionName,
+        result: params.result,
+        error: params.error?.message,
+        functionName: params.functionName,
       },
-      organization_id: params.organizationId,
+      organization: { id: params.organizationId } as Organization,
       table_name: TableName.FUNCTIONS,
       table_id: params.functionId,
+      conversation: params.conversationId ? ({ id: params.conversationId } as Conversation) : undefined,
       error_message: params.error?.message,
     });
   }
@@ -64,7 +69,7 @@ export class SystemEventsService {
         ...params.metadata,
         department_id: params.departmentId,
       },
-      organization_id: params.organizationId,
+      organization: { id: params.organizationId } as Organization,
       table_name: TableName.CONVERSATIONS,
       table_id: params.conversationId,
     });
@@ -79,7 +84,7 @@ export class SystemEventsService {
         stack: params.error.stack,
         context: params.context,
       },
-      organization_id: params.organizationId,
+      organization: { id: params.organizationId } as Organization,
       table_name: TableName.SYSTEM,
       table_id: 0,
       error_message: params.error.message,
@@ -89,7 +94,7 @@ export class SystemEventsService {
   // Consultas
   async findByOrganizationId(organizationId: number): Promise<SystemEvent[]> {
     return this.systemEventRepository.find({
-      where: { organization_id: organizationId },
+      where: { organization: { id: organizationId } },
       order: { created_at: 'DESC' },
     });
   }

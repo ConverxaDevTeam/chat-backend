@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, ObjectLiteral, DataSource } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Message, MessageType } from '../../models/Message.entity';
 import { Session } from '../../models/Session.entity';
 import { ChatUser } from '../../models/ChatUser.entity';
@@ -19,23 +19,7 @@ export class AnalyticsService {
     private dataSource: DataSource,
   ) {}
 
-  private createBaseQuery<T extends ObjectLiteral>(repository: Repository<T>, dto: GetAnalyticsDto) {
-    const baseQuery = repository.createQueryBuilder('entity').where('entity.organizationId = :organizationId', { organizationId: dto.organizationId });
-
-    const addDateFilters = (field: string) => {
-      if (dto.startDate) {
-        baseQuery.andWhere(`${field} >= :startDate`, { startDate: dto.startDate });
-      }
-      if (dto.endDate) {
-        baseQuery.andWhere(`${field} <= :endDate`, { endDate: dto.endDate });
-      }
-      return baseQuery;
-    };
-
-    return { baseQuery, addDateFilters };
-  }
-
-  async getAnalytics(user: any, dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+  async getAnalytics(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
     const handlers = {
       [AnalyticType.TOTAL_USERS]: () => this.getTotalUsers(dto),
       [AnalyticType.NEW_USERS]: () => this.getNewUsers(dto),
@@ -354,6 +338,7 @@ export class AnalyticsService {
       .select('event.created_at', 'date')
       .from(SystemEvent, 'event')
       .where('event.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere('event.conversation_id IS NOT NULL')
       .andWhere('event.type = :type', { type: EventType.FUNCTION_CALL })
       .andWhere(dto.startDate ? 'event.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
       .andWhere(dto.endDate ? 'event.created_at <= :endDate' : '1=1', { endDate: dto.endDate })

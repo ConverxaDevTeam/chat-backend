@@ -1,4 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Organization } from './Organization.entity';
+import { Conversation } from './Conversation.entity';
 
 export enum EventType {
   // Función
@@ -62,14 +64,19 @@ export class SystemEvent {
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
 
-  @Column()
-  organization_id: number;
+  @ManyToOne(() => Organization)
+  @JoinColumn({ name: 'organization_id' })
+  organization: Organization;
 
   @Column({ type: 'enum', enum: TableName })
   table_name: TableName;
 
   @Column()
   table_id: number;
+
+  @ManyToOne(() => Conversation, { nullable: true })
+  @JoinColumn({ name: 'conversation_id' })
+  conversation: Conversation;
 
   @Column({ nullable: true })
   error_message: string;
