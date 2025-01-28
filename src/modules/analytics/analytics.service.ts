@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, ObjectLiteral, DataSource } from 'typeorm';
-import { Message } from '../../models/Message.entity';
+import { Message, MessageType } from '../../models/Message.entity';
 import { Session } from '../../models/Session.entity';
 import { ChatUser } from '../../models/ChatUser.entity';
 import { GetAnalyticsDto } from './dto/get-analytics.dto';
@@ -197,7 +197,7 @@ export class AnalyticsService {
       .innerJoin('message.conversation', 'conv')
       .innerJoin('conv.departamento', 'departamento')
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
-      .andWhere('message.isFromIA = :isFromIA', { isFromIA: true })
+      .andWhere('message.type = :type', { type: MessageType.AGENT })
       .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
       .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
       .groupBy('message.id')
@@ -220,7 +220,7 @@ export class AnalyticsService {
       .innerJoin('message.conversation', 'conv')
       .innerJoin('conv.departamento', 'departamento')
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
-      .andWhere('message.isFromIA = :isFromIA', { isFromIA: false })
+      .andWhere('message.type = :type', { type: MessageType.HITL })
       .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
       .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
       .groupBy('message.id')
