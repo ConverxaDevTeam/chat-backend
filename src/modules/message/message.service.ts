@@ -10,6 +10,7 @@ import { join } from 'path';
 import * as fs from 'fs';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { IntegrationType } from '@models/Integration.entity';
+import { SessionService } from './session.service';
 
 @Injectable()
 export class MessageService {
@@ -19,6 +20,7 @@ export class MessageService {
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
     private readonly sofiaLLMService: SofiaLLMService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async createMessage(
@@ -64,7 +66,7 @@ export class MessageService {
     message.type = type;
     message.conversation = conversation;
     await this.messageRepository.save(message);
-    return message;
+    return this.sessionService.attachMessageToSession(message, conversation.chat_user);
   }
 
   async createMessageAudio(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
