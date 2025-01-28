@@ -43,6 +43,9 @@ export class AutenticadorService {
     const autenticador = await this.findOne<T>(id);
 
     if (updateAutenticadorDto.config) {
+      if (updateAutenticadorDto.type === AutenticadorType.API_KEY) {
+        updateAutenticadorDto.value = (updateAutenticadorDto.config as CreateAutenticadorDto<ApiKeyAutenticador>['config']).key;
+      }
       Object.assign(autenticador, {
         ...updateAutenticadorDto,
         config: updateAutenticadorDto.config,
