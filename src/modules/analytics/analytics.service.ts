@@ -114,49 +114,66 @@ export class AnalyticsService {
     }));
   }
 
-  private async getRecurringUsers(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.sessionRepository, dto);
-    const result = await addDateFilters('session.createdAt')
-      .from(Session, 'session')
-      .innerJoin('session.chatUser', 'chatUser')
+  private async getRecurringUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const users = await this.dataSource
+      .createQueryBuilder()
+      .select('chatUser.id', 'user')
+      .addSelect('MAX(message.created_at)', 'date')
+      .from(ChatUser, 'chatUser')
       .innerJoin('chatUser.conversations', 'conv')
-      .where('conv.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .select('COUNT(DISTINCT chatUser.id)', 'total')
+      .innerJoin('conv.messages', 'message')
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
       .groupBy('chatUser.id')
-      .having('COUNT(session.id) > 1')
-      .getRawOne();
+      .having('COUNT(DISTINCT DATE(message.created_at)) > 1')
+      .getRawMany();
 
-    return {
+    return users.map(({ date }) => ({
       type: AnalyticType.RECURRING_USERS,
-      created_at: new Date(),
-      value: Number(result?.total || 0),
-    };
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 
-  private async getTotalMessages(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
-    const count = await addDateFilters('message.createdAt')
+  private async getTotalMessages(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const messages = await this.dataSource
+      .createQueryBuilder()
+      .select('message.id', 'id')
+      .addSelect('message.created_at', 'date')
       .from(Message, 'message')
       .innerJoin('message.conversation', 'conv')
       .innerJoin('conv.departamento', 'departamento')
-      .where('departamento.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .getCount();
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('message.id')
+      .addGroupBy('message.created_at')
+      .getRawMany();
 
-    return {
+    return messages.map(({ date }) => ({
       type: AnalyticType.TOTAL_MESSAGES,
-      created_at: new Date(),
-      value: count,
-    };
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 
-  private async getMessagesByType(dto: GetAnalyticsDto, type: IntegrationType): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
-    const count = await addDateFilters('message.createdAt')
+  private async getMessagesByType(dto: GetAnalyticsDto, type: IntegrationType): Promise<StatisticEntry[]> {
+    const response = await this.dataSource
+      .createQueryBuilder()
+      .select('message.id', 'id')
+      .addSelect('message.created_at', 'date')
       .from(Message, 'message')
       .innerJoin('message.conversation', 'conv')
-      .innerJoin('conv.integration', 'integration')
-      .where('integration.type = :type', { type })
-      .getCount();
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere('conv.type = :type', { type })
+      .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('message.id')
+      .addGroupBy('message.created_at')
+      .getRawMany();
 
     const analyticsType = {
       [IntegrationType.WHATSAPP]: AnalyticType.MESSAGES_BY_WHATSAPP,
@@ -164,154 +181,200 @@ export class AnalyticsService {
       [IntegrationType.CHAT_WEB]: AnalyticType.MESSAGES_BY_WEB,
     }[type];
 
-    return {
+    return response.map(({ date }) => ({
       type: analyticsType,
-      created_at: new Date(),
-      value: count,
-    };
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 
-  private async getIAMessages(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
-    const count = await addDateFilters('message.createdAt')
+  private async getIAMessages(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const messages = await this.dataSource
+      .createQueryBuilder()
+      .select('message.id', 'id')
+      .addSelect('message.created_at', 'date')
       .from(Message, 'message')
       .innerJoin('message.conversation', 'conv')
-      .where('conv.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .andWhere('message.isAI = :isAI', { isAI: true })
-      .getCount();
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere('message.isFromIA = :isFromIA', { isFromIA: true })
+      .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('message.id')
+      .addGroupBy('message.created_at')
+      .getRawMany();
 
-    return {
+    return messages.map(({ date }) => ({
       type: AnalyticType.IA_MESSAGES,
-      created_at: new Date(),
-      value: count,
-    };
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 
-  private async getHITLMessages(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
-    const count = await addDateFilters('message.createdAt')
+  private async getHITLMessages(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const messages = await this.dataSource
+      .createQueryBuilder()
+      .select('message.id', 'id')
+      .addSelect('message.created_at', 'date')
       .from(Message, 'message')
       .innerJoin('message.conversation', 'conv')
-      .where('conv.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .andWhere('message.isAI = :isAI', { isAI: false })
-      .getCount();
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere('message.isFromIA = :isFromIA', { isFromIA: false })
+      .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('message.id')
+      .addGroupBy('message.created_at')
+      .getRawMany();
 
-    return {
+    return messages.map(({ date }) => ({
       type: AnalyticType.HITL_MESSAGES,
-      created_at: new Date(),
-      value: count,
-    };
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 
-  private async getAvgIAMessagesPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
-    const result = await addDateFilters('message.createdAt')
-      .from(Message, 'message')
-      .innerJoin('message.conversation', 'conv')
-      .innerJoin('conv.session', 'session')
+  private async getAvgIAMessagesPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const sessions = await this.dataSource
+      .createQueryBuilder()
+      .select('session.id', 'session_id')
+      .addSelect('COUNT(message.id)', 'count')
+      .addSelect('MAX(message.created_at)', 'date')
+      .from(Session, 'session')
       .innerJoin('session.chatUser', 'chatUser')
-      .innerJoin('chatUser.conversations', 'conv2')
-      .where('conv2.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .andWhere('message.isAI = :isAI', { isAI: true })
-      .select('AVG(message_count)', 'average')
+      .innerJoin('chatUser.conversations', 'conv')
+      .innerJoin('conv.departamento', 'departamento')
+      .innerJoin('conv.messages', 'message')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere('message.isFromIA = :isFromIA', { isFromIA: true })
+      .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
       .groupBy('session.id')
-      .getRawOne();
+      .getRawMany();
 
-    return {
+    return sessions.map(({ date, count }) => ({
       type: AnalyticType.AVG_IA_MESSAGES_PER_SESSION,
-      created_at: new Date(),
-      value: Number(result?.average || 0),
-    };
+      created_at: new Date(date),
+      value: Number(count),
+    }));
   }
 
-  private async getAvgHITLMessagesPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
-    const result = await addDateFilters('message.createdAt')
-      .from(Message, 'message')
-      .innerJoin('message.conversation', 'conv')
-      .innerJoin('conv.session', 'session')
+  private async getAvgHITLMessagesPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const sessions = await this.dataSource
+      .createQueryBuilder()
+      .select('session.id', 'session_id')
+      .addSelect('COUNT(message.id)', 'count')
+      .addSelect('MAX(message.created_at)', 'date')
+      .from(Session, 'session')
       .innerJoin('session.chatUser', 'chatUser')
-      .innerJoin('chatUser.conversations', 'conv2')
-      .where('conv2.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .andWhere('message.isAI = :isAI', { isAI: false })
-      .select('AVG(message_count)', 'average')
+      .innerJoin('chatUser.conversations', 'conv')
+      .innerJoin('conv.departamento', 'departamento')
+      .innerJoin('conv.messages', 'message')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere('message.isFromIA = :isFromIA', { isFromIA: false })
+      .andWhere(dto.startDate ? 'message.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'message.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
       .groupBy('session.id')
-      .getRawOne();
+      .getRawMany();
 
-    return {
+    return sessions.map(({ date, count }) => ({
       type: AnalyticType.AVG_HITL_MESSAGES_PER_SESSION,
-      created_at: new Date(),
-      value: Number(result?.average || 0),
-    };
+      created_at: new Date(date),
+      value: Number(count),
+    }));
   }
 
-  private async getAvgSessionsPerUser(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.sessionRepository, dto);
-    const result = await addDateFilters('session.createdAt')
-      .from(Session, 'session')
-      .innerJoin('session.chatUser', 'chatUser')
+  private async getAvgSessionsPerUser(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const users = await this.dataSource
+      .createQueryBuilder()
+      .select('chatUser.id', 'user_id')
+      .addSelect('COUNT(session.id)', 'count')
+      .addSelect('MAX(session.created_at)', 'date')
+      .from(ChatUser, 'chatUser')
+      .innerJoin('chatUser.sessions', 'session')
       .innerJoin('chatUser.conversations', 'conv')
-      .where('conv.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .select('AVG(session_count)', 'average')
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere(dto.startDate ? 'session.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'session.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
       .groupBy('chatUser.id')
-      .getRawOne();
+      .getRawMany();
 
-    return {
+    return users.map(({ date, count }) => ({
       type: AnalyticType.AVG_SESSIONS_PER_USER,
-      created_at: new Date(),
-      value: Number(result?.average || 0),
-    };
+      created_at: new Date(date),
+      value: Number(count),
+    }));
   }
 
-  private async getFunctionsPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.functionRepository, dto);
-    const result = await addDateFilters('function.createdAt')
-      .from(Funcion, 'function')
-      .innerJoin('function.session', 'session')
+  private async getFunctionsPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const sessions = await this.dataSource
+      .createQueryBuilder()
+      .select('session.id', 'session_id')
+      .addSelect('COUNT(function.id)', 'count')
+      .addSelect('MAX(function.created_at)', 'date')
+      .from(Session, 'session')
+      .innerJoin('session.functions', 'function')
       .innerJoin('session.chatUser', 'chatUser')
       .innerJoin('chatUser.conversations', 'conv')
-      .where('conv.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .select('AVG(function_count)', 'average')
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere(dto.startDate ? 'function.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'function.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
       .groupBy('session.id')
-      .getRawOne();
+      .getRawMany();
 
-    return {
+    return sessions.map(({ date, count }) => ({
       type: AnalyticType.FUNCTIONS_PER_SESSION,
-      created_at: new Date(),
-      value: Number(result?.average || 0),
-    };
+      created_at: new Date(date),
+      value: Number(count),
+    }));
   }
 
-  private async getSessions(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.sessionRepository, dto);
-    const count = await addDateFilters('session.createdAt')
+  private async getSessions(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const sessions = await this.dataSource
+      .createQueryBuilder()
+      .select('session.id', 'id')
+      .addSelect('session.created_at', 'date')
       .from(Session, 'session')
       .innerJoin('session.chatUser', 'chatUser')
       .innerJoin('chatUser.conversations', 'conv')
-      .where('conv.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .getCount();
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere(dto.startDate ? 'session.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'session.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('session.id')
+      .addGroupBy('session.created_at')
+      .getRawMany();
 
-    return {
+    return sessions.map(({ date }) => ({
       type: AnalyticType.SESSIONS,
-      created_at: new Date(),
-      value: count,
-    };
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 
-  private async getFunctionCalls(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { addDateFilters } = this.createBaseQuery(this.functionRepository, dto);
-    const count = await addDateFilters('function.createdAt')
+  private async getFunctionCalls(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    const functions = await this.dataSource
+      .createQueryBuilder()
+      .select('function.id', 'id')
+      .addSelect('function.created_at', 'date')
       .from(Funcion, 'function')
       .innerJoin('function.session', 'session')
       .innerJoin('session.chatUser', 'chatUser')
       .innerJoin('chatUser.conversations', 'conv')
-      .where('conv.organizationId = :organizationId', { organizationId: dto.organizationId })
-      .getCount();
+      .innerJoin('conv.departamento', 'departamento')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere(dto.startDate ? 'function.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'function.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('function.id')
+      .addGroupBy('function.created_at')
+      .getRawMany();
 
-    return {
+    return functions.map(({ date }) => ({
       type: AnalyticType.FUNCTION_CALLS,
-      created_at: new Date(),
-      value: count,
-    };
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 }
