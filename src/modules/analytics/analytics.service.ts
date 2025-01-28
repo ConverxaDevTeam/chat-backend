@@ -7,20 +7,14 @@ import { ChatUser } from '../../models/ChatUser.entity';
 import { GetAnalyticsDto } from './dto/get-analytics.dto';
 import { AnalyticType } from '../../interfaces/analytics.enum';
 import { IntegrationType } from '@models/Integration.entity';
-import { Funcion } from '@models/agent/Function.entity';
 import { StatisticEntry } from '../../interfaces/statistic.interface';
+import { SystemEvent, EventType } from '@models/SystemEvent.entity';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
     @InjectRepository(ChatUser)
     private chatUserRepository: Repository<ChatUser>,
-    @InjectRepository(Message)
-    private messageRepository: Repository<Message>,
-    @InjectRepository(Session)
-    private sessionRepository: Repository<Session>,
-    @InjectRepository(Funcion)
-    private functionRepository: Repository<Funcion>,
     @InjectDataSource()
     private dataSource: DataSource,
   ) {}
@@ -355,23 +349,18 @@ export class AnalyticsService {
   }
 
   private async getFunctionCalls(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
-    const functions = await this.dataSource
+    const events = await this.dataSource
       .createQueryBuilder()
-      .select('function.id', 'id')
-      .addSelect('function.created_at', 'date')
-      .from(Funcion, 'function')
-      .innerJoin('function.session', 'session')
-      .innerJoin('session.chatUser', 'chatUser')
-      .innerJoin('chatUser.conversations', 'conv')
-      .innerJoin('conv.departamento', 'departamento')
-      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
-      .andWhere(dto.startDate ? 'function.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
-      .andWhere(dto.endDate ? 'function.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
-      .groupBy('function.id')
-      .addGroupBy('function.created_at')
+      .select('event.created_at', 'date')
+      .from(SystemEvent, 'event')
+      .where('event.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere('event.type = :type', { type: EventType.FUNCTION_CALL })
+      .andWhere(dto.startDate ? 'event.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'event.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .orderBy('event.created_at', 'DESC')
       .getRawMany();
 
-    return functions.map(({ date }) => ({
+    return events.map(({ date }) => ({
       type: AnalyticType.FUNCTION_CALLS,
       created_at: new Date(date),
       value: 1,
