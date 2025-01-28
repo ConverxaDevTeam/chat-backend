@@ -71,28 +71,40 @@ export class AnalyticsService {
     return results.flat();
   }
 
-  private async getTotalUsers(dto: GetAnalyticsDto): Promise<StatisticEntry> {
+  private async getTotalUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
     const result = await this.dataSource
       .createQueryBuilder()
-      .select('COUNT(DISTINCT ChatUsers.id)', 'count')
+      .select('ChatUsers.id', 'user')
+      .addSelect('MAX(messages.created_at)', 'date')
       .from(ChatUser, 'ChatUsers')
       .innerJoin('ChatUsers.conversations', 'conv')
+      .innerJoin('conv.messages', 'messages')
       .innerJoin('conv.departamento', 'departamento')
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
-      .getRawOne();
+      .andWhere(dto.startDate ? 'messages.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'messages.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('ChatUsers.id')
+      .getRawMany();
 
-    return { type: AnalyticType.TOTAL_USERS, created_at: new Date(), value: Number(result?.count || 0) };
+    return result.map(({ date }) => ({
+      type: AnalyticType.TOTAL_USERS,
+      created_at: new Date(date),
+      value: 1,
+    }));
   }
 
   private async getNewUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
     const users = await this.chatUserRepository
       .createQueryBuilder('chatusers')
-      .select('chatusers.created_at', 'date')
+      .select('chatusers.id', 'user')
+      .addSelect('chatusers.created_at', 'date')
       .innerJoin('chatusers.conversations', 'conv')
       .innerJoin('conv.departamento', 'departamento')
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
       .andWhere(dto.startDate ? 'chatusers.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
       .andWhere(dto.endDate ? 'chatusers.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .groupBy('chatusers.id')
+      .addGroupBy('chatusers.created_at')
       .getRawMany();
 
     return users.map(({ date }) => ({
@@ -176,7 +188,7 @@ export class AnalyticsService {
   }
 
   private async getHITLMessages(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { baseQuery, addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
+    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
     const count = await addDateFilters('message.createdAt')
       .from(Message, 'message')
       .innerJoin('message.conversation', 'conv')
@@ -192,7 +204,7 @@ export class AnalyticsService {
   }
 
   private async getAvgIAMessagesPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { baseQuery, addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
+    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
     const result = await addDateFilters('message.createdAt')
       .from(Message, 'message')
       .innerJoin('message.conversation', 'conv')
@@ -213,7 +225,7 @@ export class AnalyticsService {
   }
 
   private async getAvgHITLMessagesPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { baseQuery, addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
+    const { addDateFilters } = this.createBaseQuery(this.messageRepository, dto);
     const result = await addDateFilters('message.createdAt')
       .from(Message, 'message')
       .innerJoin('message.conversation', 'conv')
@@ -234,7 +246,7 @@ export class AnalyticsService {
   }
 
   private async getAvgSessionsPerUser(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { baseQuery, addDateFilters } = this.createBaseQuery(this.sessionRepository, dto);
+    const { addDateFilters } = this.createBaseQuery(this.sessionRepository, dto);
     const result = await addDateFilters('session.createdAt')
       .from(Session, 'session')
       .innerJoin('session.chatUser', 'chatUser')
@@ -252,7 +264,7 @@ export class AnalyticsService {
   }
 
   private async getFunctionsPerSession(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { baseQuery, addDateFilters } = this.createBaseQuery(this.functionRepository, dto);
+    const { addDateFilters } = this.createBaseQuery(this.functionRepository, dto);
     const result = await addDateFilters('function.createdAt')
       .from(Funcion, 'function')
       .innerJoin('function.session', 'session')
@@ -271,7 +283,7 @@ export class AnalyticsService {
   }
 
   private async getSessions(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { baseQuery, addDateFilters } = this.createBaseQuery(this.sessionRepository, dto);
+    const { addDateFilters } = this.createBaseQuery(this.sessionRepository, dto);
     const count = await addDateFilters('session.createdAt')
       .from(Session, 'session')
       .innerJoin('session.chatUser', 'chatUser')
@@ -287,7 +299,7 @@ export class AnalyticsService {
   }
 
   private async getFunctionCalls(dto: GetAnalyticsDto): Promise<StatisticEntry> {
-    const { baseQuery, addDateFilters } = this.createBaseQuery(this.functionRepository, dto);
+    const { addDateFilters } = this.createBaseQuery(this.functionRepository, dto);
     const count = await addDateFilters('function.createdAt')
       .from(Funcion, 'function')
       .innerJoin('function.session', 'session')
