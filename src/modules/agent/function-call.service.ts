@@ -68,18 +68,21 @@ export class FunctionCallService {
 
       const result = await this.makeApiCall(finalConfig.url, finalConfig.method, params, functionConfig.autenticador);
 
-      await this.systemEventsService.logFunctionCall({
-        functionId: functionConfig.id,
-        params,
-        result,
-        organizationId: functionConfig.agente.departamento.organizacion.id,
-        functionName: functionConfig.name,
-        conversationId,
-      });
+      if (conversationId !== -1) {
+        await this.systemEventsService.logFunctionCall({
+          functionId: functionConfig.id,
+          params,
+          result,
+          organizationId: functionConfig.agente.departamento.organizacion.id,
+          functionName: functionConfig.name,
+          conversationId,
+        });
+      }
 
       return result;
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
+      if (conversationId !== -1) throw error;
 
       const functionConfig = await this.functionRepository.findOne({
         where: { normalizedName: functionName.replace(UserFunctionPrefix, ''), agente: { id: agentId } },
