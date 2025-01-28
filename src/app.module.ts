@@ -25,6 +25,7 @@ import { AutenticadorModule } from '@modules/Autenticador/autenticador.module';
 import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-knowledgebase.module';
 import { NodeModule } from './modules/node/node.module';
 import { DashboardCardModule } from './modules/dashboard/dashboard-card.module';
+import { AnalyticsModule } from '@modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { DashboardCardModule } from './modules/dashboard/dashboard-card.module';
     AgentKnowledgebaseModule,
     NodeModule,
     DashboardCardModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
