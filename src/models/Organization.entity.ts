@@ -13,6 +13,7 @@ export class Organization extends BaseEntity {
 
   @OneToMany(() => UserOrganization, (userOrganization) => userOrganization.organization)
   userOrganizations: UserOrganization[];
+
   @OneToMany(() => Departamento, (departamento) => departamento.organizacion)
   departamentos: Departamento[];
 

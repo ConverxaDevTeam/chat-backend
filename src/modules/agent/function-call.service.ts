@@ -8,6 +8,7 @@ import { HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
 import { Conversation } from '@models/Conversation.entity';
 import { NotificationType } from 'src/interfaces/notifications.interface';
 import { SocketService } from '@modules/socket/socket.service';
+import { SystemEventsService } from '@modules/system-events/system-events.service';
 
 @Injectable()
 export class FunctionCallService {
@@ -18,58 +19,86 @@ export class FunctionCallService {
     private readonly conversationRepository: Repository<Conversation>,
     @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
+    private readonly systemEventsService: SystemEventsService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
-    if (functionName === HitlName) {
-      console.log('conversacion enviada a agente humano', conversationId);
-      const conversation = await this.conversationRepository.findOne({
-        where: { id: conversationId },
-        relations: ['departamento.organizacion'],
-      });
+    try {
+      if (functionName === HitlName) {
+        console.log('conversacion enviada a agente humano', conversationId);
+        const conversation = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['departamento.organizacion'],
+        });
 
-      await this.conversationRepository.update(conversationId, {
-        need_human: true,
-      });
-      if (!conversation) {
-        throw new NotFoundException(`Conversation with id ${conversationId} not found`);
+        await this.conversationRepository.update(conversationId, {
+          need_human: true,
+        });
+        if (!conversation) {
+          throw new NotFoundException(`Conversation with id ${conversationId} not found`);
+        }
+        this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
+          type: NotificationType.MESSAGE_RECEIVED,
+          message: 'Usuario necesita ayuda de un agente humano',
+          data: {
+            conversationId: conversationId,
+          },
+        });
+        if (!conversation.need_human) {
+          return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
+        }
+        return { message: 'conversacion enviada a agente humano' };
       }
-      this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
-        type: NotificationType.MESSAGE_RECEIVED,
-        message: 'Usuario necesita ayuda de un agente humano',
-        data: {
-          conversationId: conversationId,
-        },
+
+      const functionConfig = await this.functionRepository.findOne({
+        where: { normalizedName: functionName.replace(UserFunctionPrefix, ''), agente: { id: agentId } },
+        relations: ['autenticador', 'agente.departamento.organizacion'],
       });
-      if (!conversation.need_human) {
-        return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
+
+      if (!functionConfig) {
+        throw new NotFoundException(`Function with name ${functionName} not found`);
       }
-      return { message: 'conversacion enviada a agente humano' };
+
+      const httpConfig = functionConfig.config as HttpRequestConfig;
+      const finalConfig = { ...httpConfig };
+
+      if (!finalConfig.url) {
+        throw new Error('No se pudo obtener la URL de la función');
+      }
+
+      const result = await this.makeApiCall(finalConfig.url, finalConfig.method, params, functionConfig.autenticador);
+
+      await this.systemEventsService.logFunctionCall({
+        functionId: functionConfig.id,
+        params,
+        result,
+        organizationId: functionConfig.agente.departamento.organizacion.id,
+        functionName: functionConfig.name,
+        conversationId,
+      });
+
+      return result;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+
+      const functionConfig = await this.functionRepository.findOne({
+        where: { normalizedName: functionName.replace(UserFunctionPrefix, ''), agente: { id: agentId } },
+        relations: ['agente.departamento.organizacion'],
+      });
+
+      if (functionConfig) {
+        await this.systemEventsService.logFunctionCall({
+          functionId: functionConfig.id,
+          params,
+          error,
+          organizationId: functionConfig.agente.departamento.organizacion.id,
+          functionName: functionConfig.name,
+          conversationId,
+        });
+      }
+
+      throw error;
     }
-    // Buscar la función en la base de datos
-    const functionConfig = await this.functionRepository.findOne({
-      where: { normalizedName: functionName.replace(UserFunctionPrefix, ''), agente: { id: agentId } },
-      relations: ['autenticador'],
-    });
-
-    if (!functionConfig) {
-      throw new NotFoundException(`Function with name ${functionName} not found`);
-    }
-
-    // Obtener la configuración HTTP
-    const httpConfig = functionConfig.config as HttpRequestConfig;
-
-    // Combinar la configuración extra si existe
-    const finalConfig = {
-      ...httpConfig,
-    };
-
-    if (!finalConfig.url) {
-      throw new Error('No se pudo obtener la URL de la función');
-    }
-
-    // Realizar la llamada API
-    return this.makeApiCall(finalConfig.url, finalConfig.method, params, functionConfig.autenticador);
   }
 
   private async getAuthToken(authenticator: Autenticador): Promise<Record<string, string>> {

@@ -40,26 +40,20 @@ async function bootstrap() {
   }
 
   // Configuración detallada de CORS
-  app.use((req, res, next) => {
-    if (req.path.startsWith('/files')) {
-      return next(); // Excluir esta ruta del middleware global
-    }
-
-    cors({
-      origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io', 'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io'],
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
-      allowedHeaders: [
-        'Authorization',
-        'Content-Type',
-        'Accept',
-        'Origin',
-        'X-Requested-With',
-        'Access-Control-Allow-Origin',
-        ...(process.env.NGROK_DEV === '1' ? ['ngrok-skip-browser-warning'] : []),
-      ],
-      exposedHeaders: ['Content-Disposition'],
-      credentials: true,
-    })(req, res, next);
+  app.enableCors({
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH', 'HEAD'],
+    allowedHeaders,
+    exposedHeaders: ['Content-Disposition'],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
+    origin: [
+      /http\:\/\/localhost\:\d{1,5}$/,
+      'https://chat-v2.sofiacall.com',
+      'https://drlntz6nkra23p6khm9h89.webrelay.io',
+      'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
+      'https://5d1c-190-143-186-23.ngrok-free.app',
+    ],
   });
 
   // Configuración de CORS específica para '/sofia-chat'

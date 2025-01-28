@@ -21,4 +21,34 @@ export class ChatUser extends BaseEntity {
 
   @OneToMany(() => Conversation, (conversation) => conversation.chat_user)
   conversations: Conversation[];
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  phone: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  web: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  name: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  last_login?: Date;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  address: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  avatar: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  email: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  browser: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  operating_system: string;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  ip: string;
 }

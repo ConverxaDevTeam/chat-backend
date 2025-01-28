@@ -10,7 +10,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
-import { FunctionCallModule } from '@modules/function-call/function-call.module';
 import { OrganizationModule } from '@modules/organization/organization.module';
 import { DepartmentModule } from '@modules/department/department.module';
 import { Organization } from '@models/Organization.entity';
@@ -20,12 +19,14 @@ import { DepartmentService } from '@modules/department/department.service';
 import { SocketModule } from '@modules/socket/socket.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 import { MessagerService } from './messager.service';
+import { Integration } from '@models/Integration.entity';
+import { WhatsAppService } from './whatsapp.service';
 
 @Module({
-  providers: [FacebookService, DepartmentService, MessagerService],
+  providers: [FacebookService, DepartmentService, MessagerService, WhatsAppService],
   controllers: [FacebookController],
   imports: [
-    TypeOrmModule.forFeature([Agente, Funcion, Conversation, Organization, Departamento]),
+    TypeOrmModule.forFeature([Agente, Funcion, Conversation, Organization, Departamento, Integration]),
     forwardRef(() => LlmAgentModule),
     forwardRef(() => AuthModule),
     forwardRef(() => UserModule),
@@ -38,6 +39,6 @@ import { MessagerService } from './messager.service';
     forwardRef(() => MessageModule),
     IntegrationRouterModule,
   ],
-  exports: [FacebookService, MessagerService],
+  exports: [FacebookService, MessagerService, WhatsAppService],
 })
 export class FacebookModule {}
