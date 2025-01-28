@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatSession, ChatSessionStatus } from '@models/ChatSession.entity';
 import { Message } from '@models/Message.entity';
-import { ChatUser } from '@models/ChatUser.entity';
 
 const SESSION_TIMEOUT_MINUTES = process.env.SESSION_TIMEOUT_MINUTES ? parseInt(process.env.SESSION_TIMEOUT_MINUTES) : 12 * 60;
 
@@ -16,17 +15,18 @@ export class SessionService {
     private readonly messageRepository: Repository<Message>,
   ) {}
 
-  async attachMessageToSession(message: Message, chatUser: ChatUser): Promise<Message> {
-    const session = await this.getOrCreateSession(chatUser);
+  async attachMessageToSession(message: Message, conversationId: number): Promise<Message> {
+    const session = await this.getOrCreateSession(conversationId);
     message.chatSession = session;
     return this.messageRepository.save(message);
   }
 
-  private async getOrCreateSession(chatUser: ChatUser): Promise<ChatSession> {
+  private async getOrCreateSession(conversationId: number): Promise<ChatSession> {
     const lastSession = await this.chatSessionRepository.findOne({
-      where: { chatUser, status: ChatSessionStatus.ACTIVE },
+      where: { conversationId, status: ChatSessionStatus.ACTIVE },
       order: { lastInteractionAt: 'DESC' },
     });
+    console.log('lastSession', lastSession);
 
     if (lastSession) {
       const timeDiff = Math.abs(new Date().getTime() - lastSession.lastInteractionAt.getTime()) / 1000 / 60;
@@ -34,7 +34,7 @@ export class SessionService {
         lastSession.lastInteractionAt = new Date();
         return this.chatSessionRepository.save(lastSession);
       }
-
+      console.log('closing session', lastSession);
       // Close old session if timeout exceeded
       lastSession.status = ChatSessionStatus.CLOSED;
       lastSession.closedAt = new Date();
@@ -42,7 +42,7 @@ export class SessionService {
     }
 
     const newSession = new ChatSession();
-    newSession.chatUser = chatUser;
+    newSession.conversationId = conversationId;
     newSession.status = ChatSessionStatus.ACTIVE;
     return this.chatSessionRepository.save(newSession);
   }

@@ -1,7 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { BaseEntity } from './Base.entity';
-import { ChatUser } from './ChatUser.entity';
 import { Message } from './Message.entity';
+import { Conversation } from './Conversation.entity';
 
 export enum ChatSessionStatus {
   ACTIVE = 'active',
@@ -22,9 +22,12 @@ export class ChatSession extends BaseEntity {
   @Column({ type: 'json', nullable: true })
   metadata: Record<string, any>;
 
-  @ManyToOne(() => ChatUser, { eager: true })
-  @JoinColumn({ name: 'chatUserId' })
-  chatUser: ChatUser;
+  @ManyToOne(() => Conversation)
+  @JoinColumn({ name: 'conversationId' })
+  conversation: Conversation;
+
+  @Column()
+  conversationId: number;
 
   @OneToMany(() => Message, (message) => message.chatSession)
   messages: Message[];

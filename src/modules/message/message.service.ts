@@ -90,8 +90,7 @@ export class MessageService {
     }
     message.type = type;
     message.conversation = conversation;
-    await this.messageRepository.save(message);
-    return this.sessionService.attachMessageToSession(message, conversation.chat_user);
+    return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }
 
   async createMessageAudio(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
@@ -109,8 +108,7 @@ export class MessageService {
     message.format = MessageFormatType.AUDIO;
     message.conversation = conversation;
     message.audio = audio;
-    await this.messageRepository.save(message);
-    return message;
+    return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }
 
   async getAudioDuration(filePath: string): Promise<number> {
@@ -126,8 +124,7 @@ export class MessageService {
       message.type = MessageType.USER;
       message.text = webhookWhatsAppDto.entry[0].changes[0].value.messages[0].text?.body || '';
       message.format = MessageFormatType.TEXT;
-      await this.messageRepository.save(message);
-      return message;
+      return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
     } else if (webhookWhatsAppDto.entry[0].changes[0].value.messages[0].type === 'audio') {
       const message = new Message();
       message.type = MessageType.USER;
@@ -167,8 +164,7 @@ export class MessageService {
       } catch (error) {
         console.error('Error downloading image:', error.message);
       }
-      await this.messageRepository.save(message);
-      return message;
+      return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
     } else {
       return null;
     }
