@@ -38,7 +38,7 @@ const defaultDashboardCards = [
   },
   {
     title: 'Avg. Mensajes IA por sesión',
-    analyticTypes: [AnalyticType.AVG_IA_MESSAGES_PER_SESSION],
+    analyticTypes: [AnalyticType.IA_MESSAGES_PER_SESSION],
     displayType: StatisticsDisplayType.METRIC,
     timeRange: TimeRange.LAST_30_DAYS,
     layout: {
@@ -50,7 +50,7 @@ const defaultDashboardCards = [
   },
   {
     title: 'Avg. Mensajes HITL por sesión',
-    analyticTypes: [AnalyticType.AVG_HITL_MESSAGES_PER_SESSION],
+    analyticTypes: [AnalyticType.HITL_MESSAGES_PER_SESSION],
     displayType: StatisticsDisplayType.METRIC,
     timeRange: TimeRange.LAST_30_DAYS,
     layout: {
@@ -62,7 +62,7 @@ const defaultDashboardCards = [
   },
   {
     title: 'Avg. Sesiones por usuario',
-    analyticTypes: [AnalyticType.AVG_SESSIONS_PER_USER],
+    analyticTypes: [AnalyticType.SESSIONS_PER_USER],
     displayType: StatisticsDisplayType.METRIC,
     timeRange: TimeRange.LAST_30_DAYS,
     layout: {
