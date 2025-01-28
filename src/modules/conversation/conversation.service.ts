@@ -11,6 +11,7 @@ import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { DepartmentService } from '@modules/department/department.service';
 import { MessageType } from '@models/Message.entity';
 import { SearchConversationDto } from './dto/search-conversation.dto';
+import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 
 @Injectable()
 export class ConversationService {
@@ -186,6 +187,8 @@ export class ConversationService {
       .createQueryBuilder('conversation')
       .leftJoinAndSelect('conversation.chat_user', 'chat_user')
       .leftJoinAndSelect('conversation.integration', 'integration')
+      .addSelect('integration.token')
+      .addSelect('integration.waba_id')
       .where('integration.id = :integrationId', { integrationId })
       .andWhere('integration.type = :type', { type })
       .andWhere('chat_user.identified = :identified', { identified })
@@ -215,6 +218,29 @@ export class ConversationService {
     return conversation;
   }
 
+  async createConversationAndChatUserWhatsApp(integration: Integration, identified: string, webhookFacebookDto: WebhookFacebookDto): Promise<Conversation> {
+    const departamento = await this.departmentService.getDepartmentById(integration.departamento.id);
+
+    if (!departamento) {
+      throw new Error('Departamento no encontrado');
+    }
+
+    const chatUser = await this.chatUserService.createChatUserWhatsApp(identified, webhookFacebookDto);
+
+    if (!chatUser) {
+      throw new Error('ChatUser no creado');
+    }
+
+    const conversation = new Conversation();
+    conversation.type = ConversationType.WHATSAPP;
+    conversation.chat_user = chatUser;
+    conversation.messages = [];
+    conversation.departamento = departamento;
+    conversation.integration = integration;
+    await this.conversationRepository.save(conversation);
+    return conversation;
+  }
+
   async getConversationByOrganizationIdAndById(organizationId: number, conversationId: number, user: User): Promise<Conversation | null> {
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
 
@@ -235,10 +261,22 @@ export class ConversationService {
           type: true,
           images: true,
           audio: true,
+          time: true,
         },
         chat_user: {
           secret: true,
+          phone: true,
+          web: true,
+          last_login: true,
+          address: true,
+          avatar: true,
+          email: true,
+          browser: true,
+          operating_system: true,
+          ip: true,
+          name: true,
         },
+        created_at: true,
       },
       relations: ['messages', 'chat_user', 'user'],
       where: {

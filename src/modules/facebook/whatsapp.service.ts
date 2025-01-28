@@ -8,19 +8,19 @@ export class WhatsAppService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async sendMessage(phone: string, message: string, facebookIdentity: string, previewUrl = false): Promise<any> {
-    const data = {
-      messaging_product: 'whatsapp',
-      recipient_type: 'individual',
-      to: phone,
-      type: 'text',
-      text: { preview_url: previewUrl, body: message },
-    };
+  async sendMessage(phone: string, text: string, waba_id: string, token: string, previewUrl = false): Promise<any> {
     try {
-      const response = await axios.post(`${this.configService.get<string>('keys.facebookGraphApi')}/${facebookIdentity}/messages`, data, {
+      const data = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'text',
+        text: { preview_url: previewUrl, body: text },
+      };
+      const response = await axios.post(`${this.configService.get<string>('facebook.facebookGraphApi')}/${waba_id}/messages`, data, {
         headers: {
           'Content-type': 'application/json',
-          Authorization: `Bearer ${this.configService.get<string>('keys.facebookToken')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (response.status === 200) {

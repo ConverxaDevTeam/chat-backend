@@ -19,12 +19,14 @@ import { DepartmentService } from '@modules/department/department.service';
 import { SocketModule } from '@modules/socket/socket.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 import { MessagerService } from './messager.service';
+import { Integration } from '@models/Integration.entity';
+import { WhatsAppService } from './whatsapp.service';
 
 @Module({
-  providers: [FacebookService, DepartmentService, MessagerService],
+  providers: [FacebookService, DepartmentService, MessagerService, WhatsAppService],
   controllers: [FacebookController],
   imports: [
-    TypeOrmModule.forFeature([Agente, Funcion, Conversation, Organization, Departamento]),
+    TypeOrmModule.forFeature([Agente, Funcion, Conversation, Organization, Departamento, Integration]),
     forwardRef(() => LlmAgentModule),
     forwardRef(() => AuthModule),
     forwardRef(() => UserModule),
@@ -37,6 +39,6 @@ import { MessagerService } from './messager.service';
     forwardRef(() => MessageModule),
     IntegrationRouterModule,
   ],
-  exports: [FacebookService, MessagerService],
+  exports: [FacebookService, MessagerService, WhatsAppService],
 })
 export class FacebookModule {}

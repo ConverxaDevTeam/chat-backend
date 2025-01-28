@@ -8,11 +8,16 @@ import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
 import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
+import { IntegrationType } from '@models/Integration.entity';
 
 interface DepartmentWithAgents {
   id: number;
   name: string;
   organizacion: { id: number };
+  integrations: {
+    id: number;
+    type: IntegrationType;
+  }[];
   agente?: {
     id: number;
     funciones: { id: number; name: string; autenticador?: { id: number } }[];
@@ -145,6 +150,7 @@ export class DepartmentService {
       id: department.id,
       name: department.name,
       organizacion: { id: department.organizacion.id },
+      integrations: department.integrations,
       agente: department.agente
         ? {
             id: department.agente.id,

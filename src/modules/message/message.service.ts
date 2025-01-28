@@ -6,10 +6,11 @@ import { Conversation } from '../../models/Conversation.entity';
 import { WebhookWhatsAppDto } from '@modules/facebook/dto/webhook.dto';
 import axios from 'axios';
 import * as uuid from 'uuid';
-import { join } from 'path';
 import * as fs from 'fs';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { IntegrationType } from '@models/Integration.entity';
+import { join } from 'path';
+import * as getMP3Duration from 'get-mp3-duration';
 import { SessionService } from './session.service';
 
 @Injectable()
@@ -52,12 +53,36 @@ export class MessageService {
           writer.on('error', reject);
         });
         message.audio = uniqueName;
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
         const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
         message.text = transcription.text;
       } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.CHAT_WEB && options.audio_url) {
         message.audio = options.audio_url;
         const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', options.audio_url);
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
         message.text = transcription.text;
+      } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.WHATSAPP && options.audio_url) {
+        message.audio = options.audio_url;
+        const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        message.text = transcription.text;
+        const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', options.audio_url);
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
       }
     }
     if (options?.images) {
@@ -72,6 +97,13 @@ export class MessageService {
   async createMessageAudio(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
     const audio = await this.sofiaLLMService.textToAudio(text);
     const message = new Message();
+    const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audio);
+    try {
+      const audioDuration = await this.getAudioDuration(audioPath);
+      message.time = audioDuration;
+    } catch (error) {
+      console.error('Error obteniendo la duración del audio:', error.message);
+    }
     message.type = type;
     message.text = text;
     message.format = MessageFormatType.AUDIO;
@@ -79,6 +111,13 @@ export class MessageService {
     message.audio = audio;
     await this.messageRepository.save(message);
     return message;
+  }
+
+  async getAudioDuration(filePath: string): Promise<number> {
+    const buffer = fs.readFileSync(filePath);
+
+    const duration = getMP3Duration(buffer);
+    return duration;
   }
 
   async createMessageUserWhatsApp(conversation: Conversation, webhookWhatsAppDto: WebhookWhatsAppDto): Promise<Message | null> {
@@ -116,6 +155,13 @@ export class MessageService {
           writer.on('error', reject);
         });
         message.audio = uniqueName;
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+          console.log('Duración del audio:', audioDuration);
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
         const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
         message.text = transcription.text;
       } catch (error) {
