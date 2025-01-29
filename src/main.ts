@@ -9,6 +9,7 @@ import { IoAdapter } from '@nestjs/platform-socket.io';
 import { winstonLogger } from '@infrastructure/loggers/winston.logger';
 import { HttpExceptionFilter } from '@infrastructure/filters/global-exception.filter';
 import { WebChatSocketGateway } from '@modules/socket/socket.gateway';
+import * as cors from 'cors';
 
 export const logger = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production' ? winstonLogger : new Logger('backend-chat');
 
@@ -46,8 +47,17 @@ async function bootstrap() {
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
-    origin: [/http\:\/\/localhost\:\d{1,5}$/, 'https://chat-v2.sofiacall.com', 'https://drlntz6nkra23p6khm9h89.webrelay.io', 'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io'],
+    origin: [
+      /http\:\/\/localhost\:\d{1,5}$/,
+      'https://chat-v2.sofiacall.com',
+      'https://drlntz6nkra23p6khm9h89.webrelay.io',
+      'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
+      'https://5d1c-190-143-186-23.ngrok-free.app',
+    ],
   });
+
+  // Configuración de CORS específica para '/sofia-chat'
+  app.use('/files', cors());
 
   app.setGlobalPrefix('api');
 

@@ -129,7 +129,7 @@ export class WebChatSocketGateway implements OnModuleInit {
           }
           init = true;
           if (!dataJson.user || !dataJson.user_secret) {
-            const chatUser = await this.chatUserService.createChatUser();
+            const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
             this.socketService.registerWebChatClient(chatUser.id, socket);
             socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
             socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
@@ -138,7 +138,7 @@ export class WebChatSocketGateway implements OnModuleInit {
           }
           const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
           if (secretUser !== dataJson.user_secret || secretUser === null) {
-            const chatUser = await this.chatUserService.createChatUser();
+            const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
             this.socketService.registerWebChatClient(chatUser.id, socket);
             socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
             socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
@@ -148,6 +148,7 @@ export class WebChatSocketGateway implements OnModuleInit {
           const chatUser = await this.chatUserService.findById(Number(dataJson.user));
           if (chatUser) {
             this.socketService.registerWebChatClient(chatUser.id, socket);
+            await this.chatUserService.updateLastLogin(chatUser);
             socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
             chatUserActual = chatUser;
           } else {
@@ -179,7 +180,7 @@ export class WebChatSocketGateway implements OnModuleInit {
               const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
               const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, {
                 platform: IntegrationType.CHAT_WEB,
-                format: MessageFormatType.IMAGE,
+                format: MessageFormatType.TEXT,
                 images: imageUrls,
               });
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));

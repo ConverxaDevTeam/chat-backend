@@ -6,10 +6,12 @@ import { Conversation } from '../../models/Conversation.entity';
 import { WebhookWhatsAppDto } from '@modules/facebook/dto/webhook.dto';
 import axios from 'axios';
 import * as uuid from 'uuid';
-import { join } from 'path';
 import * as fs from 'fs';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { IntegrationType } from '@models/Integration.entity';
+import { join } from 'path';
+import * as getMP3Duration from 'get-mp3-duration';
+import { SessionService } from './session.service';
 
 @Injectable()
 export class MessageService {
@@ -19,6 +21,7 @@ export class MessageService {
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
     private readonly sofiaLLMService: SofiaLLMService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async createMessage(
@@ -50,12 +53,36 @@ export class MessageService {
           writer.on('error', reject);
         });
         message.audio = uniqueName;
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
         const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
         message.text = transcription.text;
       } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.CHAT_WEB && options.audio_url) {
         message.audio = options.audio_url;
         const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', options.audio_url);
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
         message.text = transcription.text;
+      } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.WHATSAPP && options.audio_url) {
+        message.audio = options.audio_url;
+        const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        message.text = transcription.text;
+        const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', options.audio_url);
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
       }
     }
     if (options?.images) {
@@ -63,20 +90,32 @@ export class MessageService {
     }
     message.type = type;
     message.conversation = conversation;
-    await this.messageRepository.save(message);
-    return message;
+    return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }
 
   async createMessageAudio(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
     const audio = await this.sofiaLLMService.textToAudio(text);
     const message = new Message();
+    const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audio);
+    try {
+      const audioDuration = await this.getAudioDuration(audioPath);
+      message.time = audioDuration;
+    } catch (error) {
+      console.error('Error obteniendo la duración del audio:', error.message);
+    }
     message.type = type;
     message.text = text;
     message.format = MessageFormatType.AUDIO;
     message.conversation = conversation;
     message.audio = audio;
-    await this.messageRepository.save(message);
-    return message;
+    return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
+  }
+
+  async getAudioDuration(filePath: string): Promise<number> {
+    const buffer = fs.readFileSync(filePath);
+
+    const duration = getMP3Duration(buffer);
+    return duration;
   }
 
   async createMessageUserWhatsApp(conversation: Conversation, webhookWhatsAppDto: WebhookWhatsAppDto): Promise<Message | null> {
@@ -85,8 +124,7 @@ export class MessageService {
       message.type = MessageType.USER;
       message.text = webhookWhatsAppDto.entry[0].changes[0].value.messages[0].text?.body || '';
       message.format = MessageFormatType.TEXT;
-      await this.messageRepository.save(message);
-      return message;
+      return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
     } else if (webhookWhatsAppDto.entry[0].changes[0].value.messages[0].type === 'audio') {
       const message = new Message();
       message.type = MessageType.USER;
@@ -114,13 +152,19 @@ export class MessageService {
           writer.on('error', reject);
         });
         message.audio = uniqueName;
+        try {
+          const audioDuration = await this.getAudioDuration(audioPath);
+          message.time = audioDuration;
+          console.log('Duración del audio:', audioDuration);
+        } catch (error) {
+          console.error('Error obteniendo la duración del audio:', error.message);
+        }
         const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
         message.text = transcription.text;
       } catch (error) {
         console.error('Error downloading image:', error.message);
       }
-      await this.messageRepository.save(message);
-      return message;
+      return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
     } else {
       return null;
     }

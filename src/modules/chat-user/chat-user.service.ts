@@ -2,6 +2,7 @@ import { Repository } from 'typeorm';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ChatUser, ChatUserType } from '@models/ChatUser.entity';
+import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 
 @Injectable()
 export class ChatUserService {
@@ -25,6 +26,23 @@ export class ChatUserService {
     return chatUser;
   }
 
+  async createChatUserWeb(origin: string, operatingSystem: string): Promise<ChatUser> {
+    const chatUser = new ChatUser();
+    chatUser.secret = Math.random().toString(36).substring(2);
+    chatUser.type = ChatUserType.CHAT_WEB;
+    chatUser.web = origin;
+    chatUser.last_login = new Date();
+    chatUser.operating_system = operatingSystem;
+    await this.chatUserRepository.save(chatUser);
+    return chatUser;
+  }
+
+  async updateLastLogin(chatUser: ChatUser): Promise<ChatUser> {
+    chatUser.last_login = new Date();
+    await this.chatUserRepository.save(chatUser);
+    return chatUser;
+  }
+
   async findById(id: number): Promise<ChatUser | null> {
     const chatUser = await this.chatUserRepository
       .createQueryBuilder('chatUser')
@@ -42,6 +60,18 @@ export class ChatUserService {
     const chatUser = new ChatUser();
     chatUser.identified = identified;
     chatUser.type = type;
+    await this.chatUserRepository.save(chatUser);
+    return chatUser;
+  }
+
+  async createChatUserWhatsApp(identified: string, webhookFacebookDto: WebhookFacebookDto): Promise<ChatUser> {
+    const chatUser = new ChatUser();
+    chatUser.identified = identified;
+    chatUser.phone = identified;
+    chatUser.type = ChatUserType.WHATSAPP;
+    if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name) {
+      chatUser.name = webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name;
+    }
     await this.chatUserRepository.save(chatUser);
     return chatUser;
   }

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Funcion } from '../../models/agent/Function.entity';
-import { CreateFunctionDto, UpdateFunctionDto, FunctionType } from '../../interfaces/function.interface';
+import { CreateFunctionDto, UpdateFunctionDto, FunctionType, HttpRequestConfig } from '../../interfaces/function.interface';
 import { FunctionUtilsService } from './functionUtils.service';
 
 @Injectable()
@@ -55,11 +55,32 @@ export class FunctionService {
 
   async update(id: number, updateFunctionDto: UpdateFunctionDto<FunctionType>): Promise<Funcion> {
     const function_ = await this.findOne(id);
-    const { agentId, ...rest } = updateFunctionDto;
-    Object.assign(function_, {
-      ...rest,
-      agente: agentId ? { id: agentId } : function_.agente,
-    });
+    const { agentId, config, ...rest } = updateFunctionDto;
+
+    // Mantener los parámetros existentes si es una función API_ENDPOINT
+    if (function_.type === FunctionType.API_ENDPOINT) {
+      const existingConfig = function_.config as HttpRequestConfig;
+      const newConfig = config as HttpRequestConfig;
+
+      Object.assign(function_, {
+        ...rest,
+        agente: agentId ? { id: agentId } : function_.agente,
+        config: {
+          ...existingConfig,
+          ...newConfig,
+        },
+      });
+    } else {
+      Object.assign(function_, {
+        ...rest,
+        agente: agentId ? { id: agentId } : function_.agente,
+        config: {
+          ...function_.config,
+          ...config,
+        },
+      });
+    }
+
     const updatedFunction = await this.functionRepository.save(function_);
 
     if (agentId) {
