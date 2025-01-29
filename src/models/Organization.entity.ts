@@ -3,6 +3,11 @@ import { BaseEntity } from './Base.entity';
 import { UserOrganization } from './UserOrganization.entity';
 import { Departamento } from './Departamento.entity';
 
+enum OrganizationType {
+  PRODUCTION = 'production',
+  MVP = 'mvp',
+}
+
 @Entity({ name: 'Organizations' })
 export class Organization extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: false })
@@ -15,6 +20,9 @@ export class Organization extends BaseEntity {
   userOrganizations: UserOrganization[];
   @OneToMany(() => Departamento, (departamento) => departamento.organizacion)
   departamentos: Departamento[];
+
+  @Column({ type: 'enum', enum: OrganizationType, default: OrganizationType.PRODUCTION })
+  type: OrganizationType;
 
   @DeleteDateColumn()
   deletedAt: Date;
