@@ -52,7 +52,7 @@ async function bootstrap() {
       'https://chat-v2.sofiacall.com',
       'https://drlntz6nkra23p6khm9h89.webrelay.io',
       'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
-      'https://5d1c-190-143-186-23.ngrok-free.app',
+      'https://331f-190-143-186-23.ngrok-free.app',
     ],
   });
 
