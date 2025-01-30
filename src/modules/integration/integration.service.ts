@@ -54,7 +54,7 @@ export class IntegrationService {
         url: this.configService.get<string>('url.wss'),
         url_assets: this.configService.get<string>('url.files'),
         name: 'Sofia',
-        title: 'Sofia Chat',
+        title: 'SOF.IA LLM',
         cors: ['http://localhost:4000', 'http://localhost:3000'],
         sub_title: 'Prueba Aqui Sofia Chat',
         description: '¡Hola! Bienvenido a Sofia. Estoy aquí para ayudarte a encontrar respuestas y soluciones rápidamente.',
