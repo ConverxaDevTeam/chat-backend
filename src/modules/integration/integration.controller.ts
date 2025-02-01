@@ -1,19 +1,21 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
 import { IntegrationService } from './integration.service';
 import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-chat.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadedFile } from '@nestjs/common';
 
 @Controller('integration')
 @ApiTags('integration')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class IntegrationController {
   constructor(private readonly integrationService: IntegrationService) {}
 
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtiene la integración de web chat' })
-  @ApiBearerAuth()
   @Get('web-chat/:organizationId/:departamentoId')
   async getIntegrationWebChat(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('departamentoId') departamentoId: number) {
     const integration = await this.integrationService.getIntegrationWebChat(user, organizationId, departamentoId);
@@ -30,9 +32,7 @@ export class IntegrationController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Obtiene todas las integraciones' })
-  @ApiBearerAuth()
   @Get('all/:departamentoId')
   async getAllIntegrations(@GetUser() user: User, @Param('departamentoId') departamentoId: number) {
     const integrations = await this.integrationService.getAllIntegrations(user, departamentoId);
@@ -53,9 +53,7 @@ export class IntegrationController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'actualizar integracion web' })
-  @ApiBearerAuth()
   @Post('web-chat/:integrationId')
   async updateIntegrationWebChat(@GetUser() user: User, @Body() updateIntegrationWebChatDataDto: UpdateIntegrationWebChatDataDto, @Param('integrationId') integrationId: number) {
     const integration = await this.integrationService.updateIntegrationWebChatByUserIdAndbyIntegrationId(user, integrationId, updateIntegrationWebChatDataDto);
@@ -69,6 +67,35 @@ export class IntegrationController {
     return {
       ok: true,
       integration: integrationFormatted,
+    };
+  }
+
+  @Post(':integrationId/logo')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Actualizar logo de la integración' })
+  @UseInterceptors(
+    FileInterceptor('logo', {
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+      fileFilter: (req, file, callback) => {
+        if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
+          return callback(new Error('Only image files are allowed!'), false);
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async updateIntegrationLogo(@GetUser() user: User, @Param('integrationId', ParseIntPipe) integrationId: number, @UploadedFile() file: Express.Multer.File) {
+    const integration = await this.integrationService.updateIntegrationLogo(user, integrationId, file);
+    const integrationConfig = JSON.parse(integration.config);
+
+    return {
+      ok: true,
+      integration: {
+        ...integration,
+        config: integrationConfig,
+      },
     };
   }
 }
