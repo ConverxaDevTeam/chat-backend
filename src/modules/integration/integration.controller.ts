@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
@@ -88,6 +88,21 @@ export class IntegrationController {
   )
   async updateIntegrationLogo(@GetUser() user: User, @Param('integrationId', ParseIntPipe) integrationId: number, @UploadedFile() file: Express.Multer.File) {
     const integration = await this.integrationService.updateIntegrationLogo(user, integrationId, file);
+    const integrationConfig = JSON.parse(integration.config);
+
+    return {
+      ok: true,
+      integration: {
+        ...integration,
+        config: integrationConfig,
+      },
+    };
+  }
+
+  @Delete(':integrationId/logo')
+  @ApiOperation({ summary: 'Eliminar logo de la integración' })
+  async deleteIntegrationLogo(@GetUser() user: User, @Param('integrationId', ParseIntPipe) integrationId: number) {
+    const integration = await this.integrationService.deleteIntegrationLogo(user, integrationId);
     const integrationConfig = JSON.parse(integration.config);
 
     return {

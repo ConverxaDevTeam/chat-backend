@@ -17,6 +17,7 @@ import { BadRequestException, InternalServerErrorException, NotFoundException } 
 @Injectable()
 export class IntegrationService {
   private readonly logger = new Logger(IntegrationService.name);
+  private readonly DEFAULT_LOGO = '/mvp/avatar.svg';
 
   constructor(
     @InjectRepository(Integration)
@@ -59,7 +60,7 @@ export class IntegrationService {
         cors: ['http://localhost:4000', 'http://localhost:3000'],
         sub_title: 'Descubre todo lo que SOFIA puede hacer por ti.',
         description: '¡Hola y bienvenido a SOFIA! Estoy aquí para ayudarte a encontrar respuestas y soluciones de manera rápida y sencilla. ¿En qué puedo asistirte hoy?',
-        logo: 'logo.png',
+        logo: this.DEFAULT_LOGO,
         horizontal_logo: 'horizontal-logo.png',
         edge_radius: '10',
         message_radius: '20',
@@ -285,6 +286,26 @@ export class IntegrationService {
     } catch (error) {
       throw new InternalServerErrorException('Failed to save the file');
     }
+  }
+
+  async deleteIntegrationLogo(user: User, integrationId: number): Promise<Integration> {
+    const integration = await this.integrationRepository.findOne({
+      where: { id: integrationId },
+    });
+
+    if (!integration) {
+      throw new NotFoundException('Integration not found');
+    }
+
+    const config = JSON.parse(integration.config);
+    config.logo = this.DEFAULT_LOGO;
+
+    integration.config = JSON.stringify(config);
+    await this.integrationRepository.save(integration);
+
+    this.generateAndSaveScript(integration, config);
+
+    return integration;
   }
 
   private async generateAndSaveScript(integration: Integration, config: any) {
