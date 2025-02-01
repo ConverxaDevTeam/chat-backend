@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigService } from '@nestjs/config';
 import { ConfigModuleOptions } from './config/options';
@@ -12,7 +13,6 @@ import { OrganizationModule } from '@modules/organization/organization.module';
 import { SocketModule } from '@modules/socket/socket.module';
 import { EmailModule } from '@modules/email/email.module';
 import { LlmAgentModule } from './modules/llm-agent/llm-agent.module';
-import { ServeStaticModule } from '@nestjs/serve-static';
 import { DepartmentModule } from './modules/department/department.module';
 import { IntegrationModule } from '@modules/integration/integration.module';
 import { FunctionModule } from '@modules/Function/function.module';
@@ -53,6 +53,10 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'images'),
       serveRoot: '/images',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'uploads', 'users'),
+      serveRoot: '/users',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
