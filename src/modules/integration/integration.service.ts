@@ -55,7 +55,7 @@ export class IntegrationService {
       const config = {
         url: this.configService.get<string>('url.wss'),
         url_assets: this.configService.get<string>('url.files'),
-        name: 'Sofia',
+        name: 'SOF.IA',
         title: 'SOF.IA LLM',
         cors: ['http://localhost:4000', 'http://localhost:3000'],
         sub_title: 'Descubre todo lo que SOFIA puede hacer por ti.',
