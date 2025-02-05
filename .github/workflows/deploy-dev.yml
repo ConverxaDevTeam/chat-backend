@@ -1,0 +1,63 @@
+name: Auto deploy sofia-chat-backend-v2 development in VPS
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - '.github/workflows/**'
+      - 'index.html'
+      - 'package.json'
+      - 'public/**'
+      - 'scripts/**'
+      - 'src/**'
+      - 'vite.config.js'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deploy using ssh
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USERNAME }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /root/repos/sofia-chat-backend-v2
+            git pull origin develop
+            cat <<EOF > .env
+            NODE_ENV=development
+            LOG_LEVEL=debug
+            TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }}
+            TYPEORM_PORT=${{ secrets.DEV_TYPEORM_PORT }}
+            TYPEORM_USERNAME=${{ secrets.DEV_TYPEORM_USERNAME }}
+            TYPEORM_PASSWORD=${{ secrets.DEV_TYPEORM_PASSWORD }}
+            TYPEORM_DB_NAME=${{ secrets.DEV_TYPEORM_DB_NAME }}
+            JWT_SECRET_KEY=${{ secrets.DEV_JWT_SECRET_KEY }}
+            JWT_SECRET_KEY_REFRESH=${{ secrets.DEV_JWT_SECRET_KEY_REFRESH }}
+            NODEMAILER_HOST=${{ secrets.DEV_NODEMAILER_HOST }}
+            NODEMAILER_PORT=${{ secrets.DEV_NODEMAILER_PORT }}
+            NODEMAILER_USER=${{ secrets.DEV_NODEMAILER_USER }}
+            NODEMAILER_PASS=${{ secrets.DEV_NODEMAILER_PASS }}
+            NODEMAILER_FROM=${{ secrets.DEV_NODEMAILER_FROM }}
+            URL_FILES=${{ secrets.DEV_URL_FILES }}
+            URL_WSS=${{ secrets.DEV_URL_WSS }}
+            URL_WEBHOOK_WA=${{ secrets.DEV_URL_WEBHOOK_WA }}
+            OPENAI_API_KEY=${{ secrets.DEV_OPENAI_API_KEY }}
+            FACEBOOK_APP_ID=${{ secrets.DEV_FACEBOOK_APP_ID }}
+            FACEBOOK_APP_SECRET=${{ secrets.DEV_FACEBOOK_APP_SECRET }}
+            FACEBOOK_WEBHOOK_SECRET=${{ secrets.DEV_FACEBOOK_WEBHOOK_SECRET }}
+            FACEBOOK_GRAPH_API=${{ secrets.DEV_FACEBOOK_GRAPH_API }}
+            APP_URL=${{ secrets.DEV_APP_URL }}
+            EOF
+            docker-compose build
+            docker-compose down -v
+            docker-compose up -d
