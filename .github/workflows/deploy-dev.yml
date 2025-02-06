@@ -33,11 +33,10 @@ jobs:
           script: |
             cd /root/repos/sofia-chat-backend-v2
             git pull origin develop
-            TYPEORM_HOST=$(ip route | grep default | awk '{print $3}')
             cat <<EOF > .env
             NODE_ENV=development
             LOG_LEVEL=debug
-            TYPEORM_HOST=$TYPEORM_HOST
+            TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }}
             TYPEORM_PORT=${{ secrets.DEV_TYPEORM_PORT }}
             TYPEORM_USERNAME=${{ secrets.DEV_TYPEORM_USERNAME }}
             TYPEORM_PASSWORD=${{ secrets.DEV_TYPEORM_PASSWORD }}
