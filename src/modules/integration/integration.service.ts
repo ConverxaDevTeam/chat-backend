@@ -12,10 +12,12 @@ import { ConfigService } from '@nestjs/config';
 import { Departamento } from '@models/Departamento.entity';
 import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-chat.dto';
 import { CreateIntegrationWhatsAppDto } from '@modules/facebook/dto/create-integration-whats-app.dto';
+import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class IntegrationService {
   private readonly logger = new Logger(IntegrationService.name);
+  private readonly DEFAULT_LOGO = '/mvp/avatar.svg';
 
   constructor(
     @InjectRepository(Integration)
@@ -53,12 +55,12 @@ export class IntegrationService {
       const config = {
         url: this.configService.get<string>('url.wss'),
         url_assets: this.configService.get<string>('url.files'),
-        name: 'Sofia',
-        title: 'Sofia Chat',
+        name: 'SOF.IA',
+        title: 'SOF.IA LLM',
         cors: ['http://localhost:4000', 'http://localhost:3000'],
-        sub_title: 'Prueba Aqui Sofia Chat',
-        description: '¡Hola! Bienvenido a Sofia. Estoy aquí para ayudarte a encontrar respuestas y soluciones rápidamente.',
-        logo: 'logo.png',
+        sub_title: 'Descubre todo lo que SOFIA puede hacer por ti.',
+        description: '¡Hola y bienvenido a SOFIA! Estoy aquí para ayudarte a encontrar respuestas y soluciones de manera rápida y sencilla. ¿En qué puedo asistirte hoy?',
+        logo: this.DEFAULT_LOGO,
         horizontal_logo: 'horizontal-logo.png',
         edge_radius: '10',
         message_radius: '20',
@@ -76,37 +78,7 @@ export class IntegrationService {
       newIntegration.departamento = departamento;
       await this.integrationRepository.save(newIntegration);
 
-      const script = `(async () => {
-  await import('${this.configService.get<string>('url.files')}/files/sofia-chat.min.js');
-  const config = {
-    id: '${newIntegration.id}',
-    url: '${this.configService.get<string>('url.wss')}',
-    url_assets: '${this.configService.get<string>('url.files')}',
-    name: '${config.name}',
-    title: '${config.title}',
-    sub_title: '${config.sub_title}',
-    description: '${config.description}',
-    logo: '${config.logo}',
-    horizontal_logo: '${config.horizontal_logo}',
-    edge_radius: '${config.edge_radius}',
-    message_radius: '${config.message_radius}',
-    bg_color: '${config.bg_color}',
-    bg_chat: '${config.bg_chat}',
-    bg_user: '${config.bg_user}',
-    bg_assistant: '${config.bg_assistant}',
-    text_color: '${config.text_color}',
-    text_title: '${config.text_title}',
-    text_date: '${config.text_date}',
-    button_color: '${config.button_color}',
-    button_text: '${config.button_text}',
-  };
-  SofiaChat.default.init(config);
-})();
-`;
-
-      const scriptPath = join(process.cwd(), 'uploads', 'chats', `CI${newIntegration.id}.js`);
-
-      fs.writeFileSync(scriptPath, script);
+      this.generateAndSaveScript(newIntegration, config);
 
       return newIntegration;
     }
@@ -164,37 +136,7 @@ export class IntegrationService {
     integration.config = JSON.stringify(newConfig);
     await this.integrationRepository.save(integration);
 
-    const script = `(async () => {
-      await import('${this.configService.get<string>('url.files')}/files/sofia-chat.min.js');
-      const config = {
-        id: '${integration.id}',
-        url: '${this.configService.get<string>('url.wss')}',
-        url_assets: '${this.configService.get<string>('url.files')}',
-        name: '${newConfig.name}',
-        title: '${newConfig.title}',
-        sub_title: '${newConfig.sub_title}',
-        description: '${newConfig.description}',
-        logo: '${newConfig.logo}',
-        horizontal_logo: '${newConfig.horizontal_logo}',
-        edge_radius: '${newConfig.edge_radius}',
-        message_radius: '${newConfig.message_radius}',
-        bg_color: '${newConfig.bg_color}',
-        bg_chat: '${newConfig.bg_chat}',
-        bg_user: '${newConfig.bg_user}',
-        bg_assistant: '${newConfig.bg_assistant}',
-        text_color: '${newConfig.text_color}',
-        text_title: '${newConfig.text_title}',
-        text_date: '${newConfig.text_date}',
-        button_color: '${newConfig.button_color}',
-        button_text: '${newConfig.button_text}',
-      };
-      SofiaChat.default.init(config);
-    })();
-    `;
-
-    const scriptPath = join(process.cwd(), 'uploads', 'chats', `CI${integration.id}.js`);
-
-    fs.writeFileSync(scriptPath, script);
+    this.generateAndSaveScript(integration, newConfig);
 
     return integration;
   }
@@ -293,5 +235,110 @@ export class IntegrationService {
       .getOne();
 
     return integration;
+  }
+
+  async updateIntegrationLogo(user: User, integrationId: number, file: Express.Multer.File): Promise<Integration> {
+    // Validate file
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException('Invalid file type. Only JPEG, PNG and GIF are allowed');
+    }
+
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxFileSize) {
+      throw new BadRequestException('File size exceeds 5MB limit');
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: { id: integrationId },
+    });
+
+    if (!integration) {
+      throw new NotFoundException('Integration not found');
+    }
+
+    const config = JSON.parse(integration.config);
+    const uploadDir = join(process.cwd(), 'uploads', 'users', user.id.toString());
+
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    const extension = file.originalname.split('.').pop();
+    const fileName = `integration_${integrationId}_avatar.${extension}`;
+    const filePath = join(uploadDir, fileName);
+
+    try {
+      await fs.promises.writeFile(filePath, file.buffer);
+      const baseUrl = this.configService.get<string>('URL_FILES') || 'http://localhost:3001';
+      config.logo = `${baseUrl}/users/${user.id}/${fileName}`;
+
+      integration.config = JSON.stringify(config);
+      await this.integrationRepository.save(integration);
+
+      this.generateAndSaveScript(integration, config);
+
+      return integration;
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to save the file');
+    }
+  }
+
+  async deleteIntegrationLogo(user: User, integrationId: number): Promise<Integration> {
+    const integration = await this.integrationRepository.findOne({
+      where: { id: integrationId },
+    });
+
+    if (!integration) {
+      throw new NotFoundException('Integration not found');
+    }
+
+    const config = JSON.parse(integration.config);
+    config.logo = this.DEFAULT_LOGO;
+
+    integration.config = JSON.stringify(config);
+    await this.integrationRepository.save(integration);
+
+    this.generateAndSaveScript(integration, config);
+
+    return integration;
+  }
+
+  private async generateAndSaveScript(integration: Integration, config: any) {
+    const script = `(async () => {
+      await import('${this.configService.get<string>('url.files')}/files/sofia-chat.min.js');
+      const config = {
+        id: '${integration.id}',
+        url: '${this.configService.get<string>('url.wss')}',
+        url_assets: '${this.configService.get<string>('url.files')}',
+        name: '${config.name}',
+        title: '${config.title}',
+        sub_title: '${config.sub_title}',
+        description: '${config.description}',
+        logo: '${config.logo}',
+        horizontal_logo: '${config.horizontal_logo}',
+        edge_radius: '${config.edge_radius}',
+        message_radius: '${config.message_radius}',
+        bg_color: '${config.bg_color}',
+        bg_chat: '${config.bg_chat}',
+        bg_user: '${config.bg_user}',
+        bg_assistant: '${config.bg_assistant}',
+        text_color: '${config.text_color}',
+        text_title: '${config.text_title}',
+        text_date: '${config.text_date}',
+        button_color: '${config.button_color}',
+        button_text: '${config.button_text}',
+      };
+      SofiaChat.default.init(config);
+    })();
+`;
+
+    const scriptPath = join(process.cwd(), 'uploads', 'chats', `CI${integration.id}.js`);
+
+    fs.writeFileSync(scriptPath, script);
   }
 }

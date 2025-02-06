@@ -52,6 +52,8 @@ uploads/logos/*
 !uploads/logos/horizontal-logo.png
 !uploads/logos/index.html
 
+uploads/users/*
+
 uploads/chats/*
 !uploads/chats/index.html
 uploads/images/*

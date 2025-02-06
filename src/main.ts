@@ -50,6 +50,7 @@ async function bootstrap() {
     origin: [
       /http\:\/\/localhost\:\d{1,5}$/,
       'https://chat-v2.sofiacall.com',
+      'https://dev-sofia-chat-frontend.sofiacall.com',
       'https://drlntz6nkra23p6khm9h89.webrelay.io',
       'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
       'https://331f-190-143-186-23.ngrok-free.app',
