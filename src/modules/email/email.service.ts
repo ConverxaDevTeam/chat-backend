@@ -6,6 +6,7 @@ import * as fs from 'fs/promises';
 import { ConfigService } from '@nestjs/config';
 import { join } from 'path';
 
+
 @Injectable()
 export class EmailService {
   private transporter;
@@ -32,6 +33,7 @@ export class EmailService {
       email,
       password,
       link: 'https://sofiacall.com',
+      baseUrl: this.configService.get<string>('URL.FILES'),
     });
 
     const mailOptions = {
