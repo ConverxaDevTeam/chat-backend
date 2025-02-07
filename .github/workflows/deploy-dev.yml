@@ -57,6 +57,7 @@ jobs:
             FACEBOOK_WEBHOOK_SECRET=${{ secrets.DEV_FACEBOOK_WEBHOOK_SECRET }}
             FACEBOOK_GRAPH_API=${{ secrets.DEV_FACEBOOK_GRAPH_API }}
             APP_URL=${{ secrets.DEV_APP_URL }}
+            URL_FRONTEND=${{ secrets.DEV_URL_FRONTEND }}
             EOF
             docker-compose build
             docker-compose down -v
