@@ -35,11 +35,13 @@ export class EmailService {
     const template = await this.loadTemplate('user-welcome');
     const compiledTemplate = handlebars.compile(template);
 
+    console.log('url email', this.configService.get<string>('url.frontend'));
+
     const html = compiledTemplate({
       email,
       password,
-      link: this.configService.get<string>('url.files'),
-      baseUrl: this.configService.get<string>('url.files'),
+      link: this.configService.get<string>('url.frontend'),
+      baseUrl: this.configService.get<string>('url.frontend'),
     });
 
     const messageData = {
