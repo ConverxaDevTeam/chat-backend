@@ -60,8 +60,8 @@ export class EmailService {
       email,
       password,
       organization_name: organizationName,
-      link: this.configService.get<string>('url.files'),
-      baseUrl: this.configService.get<string>('url.files'),
+      link: this.configService.get<string>('url.frontend'),
+      baseUrl: this.configService.get<string>('url.frontend'),
     });
 
     const messageData = {

@@ -23,6 +23,7 @@ export default (): any => ({
     files: process.env.URL_FILES,
     wss: process.env.URL_WSS,
     web_hook_whatsapp: process.env.URL_WEBHOOK_WA,
+    frontend: process.env.URL_FRONTEND,
   },
   facebook: {
     appId: process.env.FACEBOOK_APP_ID,
