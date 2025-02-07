@@ -58,6 +58,9 @@ jobs:
             FACEBOOK_GRAPH_API=${{ secrets.DEV_FACEBOOK_GRAPH_API }}
             APP_URL=${{ secrets.DEV_APP_URL }}
             URL_FRONTEND=${{ secrets.DEV_URL_FRONTEND }}
+            MAILGUN_API_KEY=${{ secrets.DEV_MAILGUN_API_KEY }}
+            MAILGUN_DOMAIN=${{ secrets.DEV_MAILGUN_DOMAIN }}
+            MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
             EOF
             docker-compose build
             docker-compose down -v
