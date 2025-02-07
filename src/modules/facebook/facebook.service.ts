@@ -138,8 +138,6 @@ export class FacebookService {
       try {
         const accessToken = await this.getAccessToken(createIntegrationWhatsAppDto.code);
         const pin = await this.registerPhoneNumber(createIntegrationWhatsAppDto.phone_number_id, accessToken);
-        console.log('accessToken', accessToken);
-        console.log('pin', pin);
 
         // Validate all external services before saving
         // await this.sendTestMessage(createIntegrationWhatsAppDto.phone_number_id, accessToken);
@@ -333,7 +331,6 @@ export class FacebookService {
         const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
         if (!messageAi) return;
       } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'image' && webhookFacebookDto.entry[0].changes[0].value.messages[0].image) {
-        console.log('message image');
       } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'audio') {
         const mediaResponse = await axios({
           method: 'get',
