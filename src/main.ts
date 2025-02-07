@@ -60,6 +60,7 @@ async function bootstrap() {
 
   // Configuración de CORS específica para '/sofia-chat'
   app.use('/files', cors());
+  app.use('/assets', cors());
 
   app.setGlobalPrefix('api');
 
