@@ -30,4 +30,9 @@ export default (): any => ({
     webhookSecret: process.env.FACEBOOK_WEBHOOK_SECRET,
     facebookGraphApi: process.env.FACEBOOK_GRAPH_API,
   },
+  mailgun: {
+    apiKey: process.env.MAILGUN_API_KEY,
+    domain: process.env.MAILGUN_DOMAIN,
+    from: process.env.MAILGUN_FROM,
+  },
 });
