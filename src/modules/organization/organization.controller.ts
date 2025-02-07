@@ -24,7 +24,6 @@ export class OrganizationController {
   @Get('')
   async getAll() {
     const organizations = await this.organizationService.getAll();
-    console.log(organizations);
     const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => ({
       ...organization,
       users: userOrganizations.length,
