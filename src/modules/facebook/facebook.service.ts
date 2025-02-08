@@ -195,8 +195,8 @@ export class FacebookService {
       params: { access_token: accessToken },
     });
 
-    const pageOneId = pagesResponse.data.data[0].id;
-    const pageOneToken = pagesResponse.data.data[0].access_token;
+    const pageOneId = pagesResponse.data.data[0]?.id;
+    const pageOneToken = pagesResponse.data.data[0]?.access_token;
 
     if (!pageOneId || !pageOneToken) {
       throw new BadRequestException('Failed to get page id or token');
