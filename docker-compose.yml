@@ -17,4 +17,3 @@ services:
 
 networks:
   sofia_chat_network:
-    external: true
