@@ -200,14 +200,16 @@ export class IntegrationService {
   }
 
   async getIntegrationMessagerByPageId(pageId: string): Promise<Integration | null> {
-    const integration = await this.integrationRepository.findOne({
-      where: {
-        page_id: pageId,
-        type: IntegrationType.MESSENGER,
-      },
-      relations: ['departamento.organizacion'],
-      select: ['id', 'type', 'config', 'page_id', 'token'],
-    });
+    const integration = await this.integrationRepository
+      .createQueryBuilder('integration')
+      .addSelect('integration.token')
+      .addSelect('integration.page_id')
+      .addSelect('integration.config')
+      .leftJoinAndSelect('integration.departamento', 'departamento')
+      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
+      .where('integration.page_id = :pageId', { pageId })
+      .andWhere('integration.type = :type', { type: IntegrationType.MESSENGER })
+      .getOne();
 
     return integration;
   }

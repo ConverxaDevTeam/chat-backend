@@ -69,7 +69,7 @@ export class FacebookController {
   @Post('webhook')
   async postWebhook(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
     if (webhookFacebookDto.object === FacebookType.PAGE) {
-      console.log('Received page event');
+      console.log('Received Messenger event');
       this.facebookService.analyzefacebookmessage(webhookFacebookDto);
     } else if (webhookFacebookDto.object === FacebookType.WHATSAPP_BUSINESS_ACCOUNT) {
       console.log('Received page event');

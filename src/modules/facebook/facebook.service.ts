@@ -233,7 +233,6 @@ export class FacebookService {
     try {
       const pageId = webhookFacebookDto.entry[0].id;
       const integration = await this.integrationService.getIntegrationMessagerByPageId(pageId);
-
       if (!integration) {
         console.log(`Integration not found - pageId: ${pageId}`);
         return;
@@ -277,6 +276,8 @@ export class FacebookService {
         console.log('Invalid object', webhookFacebookDto);
         return;
       }
+
+      console.log(integration?.departamento?.organizacion?.id, '///', actualConversation.id);
 
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
 
