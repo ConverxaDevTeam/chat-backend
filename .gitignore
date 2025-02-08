@@ -37,13 +37,6 @@ postgresdb
 !.vscode/extensions.json
 
 # Uploader files
-uploads/assets/*
-!uploads/assets/icon-chat.png
-!uploads/assets/icon-close.png
-!uploads/assets/icon-arrow.png
-!uploads/assets/index.html
-
-# Uploader files
 uploads/audio/*
 !uploads/audio/index.html
 
@@ -51,6 +44,8 @@ uploads/logos/*
 !uploads/logos/logo.png
 !uploads/logos/horizontal-logo.png
 !uploads/logos/index.html
+
+uploads/users/*
 
 uploads/chats/*
 !uploads/chats/index.html
