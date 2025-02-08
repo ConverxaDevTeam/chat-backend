@@ -199,6 +199,7 @@ export class FacebookService {
     const pageOneToken = pagesResponse.data.data[0]?.access_token;
 
     if (!pageOneId || !pageOneToken) {
+      console.log(pagesResponse.data);
       throw new BadRequestException('Failed to get page id or token');
     }
     const searchIntegration = await this.integrationService.getIntegrationMessagerByPageId(pageOneId);
