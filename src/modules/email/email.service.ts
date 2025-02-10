@@ -29,6 +29,10 @@ export class EmailService {
       username: 'api',
       key: mailgunApiKey,
     });
+
+    handlebars.registerHelper('reset', function (text) {
+      return text;
+    });
   }
 
   async sendUserWellcome(email: string, password: string): Promise<void> {
@@ -71,6 +75,30 @@ export class EmailService {
       from: this.configService.get<string>('mailgun.from'),
       to: email,
       subject: `Bienvenido a ${organizationName} en SofiaChat`,
+      html,
+    });
+  }
+
+  async sendResetPasswordCode(email: string, code: string): Promise<void> {
+    const template = await this.loadTemplate('reset-password');
+    const compiledTemplate = handlebars.compile(template);
+    const frontendUrl = this.configService.get<string>('url.frontend');
+
+    const html = compiledTemplate({
+      email,
+      code,
+      frontendBaseUrl: frontendUrl,
+      resetPasswordLink: `${frontendUrl}/reset-password?code=${code}&email=${encodeURIComponent(email)}`,
+      linkedinLink: 'https://linkedin.com/company/sofiachat',
+      whatsappLink: 'https://whatsapp.com/sofiachat',
+      instagramLink: 'https://instagram.com/sofiachat',
+      facebookLink: 'https://facebook.com/sofiachat',
+    });
+
+    await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), {
+      from: this.configService.get<string>('mailgun.from'),
+      to: email,
+      subject: 'Código para resetear password',
       html,
     });
   }

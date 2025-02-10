@@ -141,4 +141,12 @@ export class UserController {
     const updatedUser = await this.userService.deleteRole(roleId);
     return { ok: true, user: updatedUser };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Cambiar password del usuario' })
+  @ApiBearerAuth()
+  @Post('change-password')
+  async changePassword(@GetUser() user: User, @Body() changePasswordDto: { currentPassword: string; newPassword: string }) {
+    return this.userService.changePassword(user.id, changePasswordDto);
+  }
 }

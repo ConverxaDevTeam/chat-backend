@@ -1,14 +1,14 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '../../models/User.entity';
-import { Logger } from '@nestjs/common';
 import { Session } from '@models/Session.entity';
 import { SessionService } from './session.service';
 import { ConfigService } from '@nestjs/config';
 import { LogInDto } from './dto/log-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { EmailService } from '../email/email.service';
 
 export class validatedSession {
   user: User;
@@ -36,6 +36,8 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly configService: ConfigService,
     private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => EmailService))
+    private readonly emailService: EmailService,
   ) {}
 
   async logIn(req, logInDto: LogInDto) {
@@ -193,5 +195,61 @@ export class AuthService {
         throw new UnauthorizedException('El refresh token ha caducado');
       }
     }
+  }
+
+  async requestResetPassword(email: string) {
+    try {
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new BadRequestException('Email inválido');
+      }
+      const user = await this.userService.findByEmail(email);
+      if (!user) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expirationMinutes = parseInt(this.configService.get('RESET_PASSWORD_CODE_EXPIRATION') || '5');
+      const expires = new Date();
+      expires.setMinutes(expires.getMinutes() + expirationMinutes);
+      await this.userService.updateResetPasswordCode(user.id, code, expires);
+      await this.emailService.sendResetPasswordCode(email, code);
+      return { ok: true, message: 'Código enviado al email' };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async verifyResetCode(email: string, code: string) {
+    const user = await this.userService.findByEmailWithResetCode(email);
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (!user.reset_password_code || !user.reset_password_expires) {
+      throw new UnauthorizedException('No hay código de reset activo');
+    }
+
+    if (user.reset_password_code !== code) {
+      throw new UnauthorizedException('Código inválido');
+    }
+
+    if (new Date() > user.reset_password_expires) {
+      throw new UnauthorizedException('Código expirado');
+    }
+
+    return { ok: true, message: 'Código válido' };
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    await this.verifyResetCode(email, code);
+    const user = await this.userService.findByEmailWithResetCode(email);
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.userService.updatePassword(user.id, hashedPassword);
+
+    return { ok: true, message: 'Password actualizado exitosamente' };
   }
 }
