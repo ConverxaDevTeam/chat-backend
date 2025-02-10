@@ -31,7 +31,7 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 6, nullable: true })
   reset_password_code: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   reset_password_expires: Date;
 
   @DeleteDateColumn()

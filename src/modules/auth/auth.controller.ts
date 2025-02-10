@@ -10,6 +10,7 @@ import { GetSessionId } from '@infrastructure/decorators/get-session-id.decorato
 import { LogInDto } from './dto/log-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestResetPasswordDto } from './dto/request-reset-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -40,19 +41,16 @@ export class AuthController {
 
   @Public()
   @Post('/request-reset-password')
-  @ApiOperation({
-    summary: 'Solicita código para resetear password',
-    description: 'Envía un código de verificación al email proporcionado para resetear la contraseña',
-  })
+  @ApiOperation({ summary: 'Solicita reset de password' })
   async requestResetPassword(@Body() { email }: RequestResetPasswordDto) {
     return this.authService.requestResetPassword(email);
   }
 
   @Public()
-  @Post('/verify-reset-code')
-  @ApiOperation({ summary: 'Verifica código de reset password' })
-  async verifyResetCode(@Body() { email, code }: { email: string; code: string }) {
-    return this.authService.verifyResetCode(email, code);
+  @Post('/reset-password')
+  @ApiOperation({ summary: 'Resetea password con código' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto.email, resetPasswordDto.code, resetPasswordDto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)

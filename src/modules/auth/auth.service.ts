@@ -198,28 +198,24 @@ export class AuthService {
   }
 
   async requestResetPassword(email: string) {
-    try {
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        throw new BadRequestException('Email inválido');
-      }
-      const user = await this.userService.findByEmail(email);
-      if (!user) {
-        throw new NotFoundException('Usuario no encontrado');
-      }
-
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expirationMinutes = parseInt(this.configService.get('RESET_PASSWORD_CODE_EXPIRATION') || '5');
-      const expires = new Date();
-      expires.setMinutes(expires.getMinutes() + expirationMinutes);
-      await this.userService.updateResetPasswordCode(user.id, code, expires);
-      await this.emailService.sendResetPasswordCode(email, code);
-      return { ok: true, message: 'Código enviado al email' };
-    } catch (error) {
-      throw error;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('Email inválido');
     }
+    const user = await this.userService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expirationMinutes = parseInt(this.configService.get('RESET_PASSWORD_CODE_EXPIRATION') || '15');
+    const expires = new Date();
+    expires.setMinutes(expires.getMinutes() + expirationMinutes);
+    await this.userService.updateResetPasswordCode(user.id, code, expires);
+    await this.emailService.sendResetPasswordCode(email, code);
+    return { ok: true, message: 'Código enviado al email' };
   }
 
-  async verifyResetCode(email: string, code: string) {
+  private async validateResetCode(email: string, code: string): Promise<User> {
     const user = await this.userService.findByEmailWithResetCode(email);
     if (!user) {
       throw new NotFoundException('Usuario no encontrado');
@@ -233,23 +229,18 @@ export class AuthService {
       throw new UnauthorizedException('Código inválido');
     }
 
-    if (new Date() > user.reset_password_expires) {
-      throw new UnauthorizedException('Código expirado');
+    const now = new Date();
+    if (now.getTime() > user.reset_password_expires.getTime()) {
+      throw new BadRequestException('El código de reset password ha expirado');
     }
 
-    return { ok: true, message: 'Código válido' };
+    return user;
   }
 
   async resetPassword(email: string, code: string, newPassword: string) {
-    await this.verifyResetCode(email, code);
-    const user = await this.userService.findByEmailWithResetCode(email);
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
+    const user = await this.validateResetCode(email, code);
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.userService.updatePassword(user.id, hashedPassword);
-
     return { ok: true, message: 'Password actualizado exitosamente' };
   }
 }

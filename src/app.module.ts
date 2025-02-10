@@ -71,6 +71,8 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
         entities: [join(__dirname, '**', '*.entity.{ts,js}')],
         synchronize: true,
         force: true,
+        useUTC: true,
+        timezone: 'UTC',
       }),
     }),
     UserModule,
