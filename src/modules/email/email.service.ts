@@ -88,7 +88,7 @@ export class EmailService {
       email,
       code,
       frontendBaseUrl: frontendUrl,
-      resetPasswordLink: `${frontendUrl}/reset-password?code=${code}&email=${encodeURIComponent(email)}`,
+      resetPasswordLink: `${frontendUrl}/reset-password/change?code=${code}&email=${encodeURIComponent(email)}`,
       linkedinLink: 'https://linkedin.com/company/sofiachat',
       whatsappLink: 'https://whatsapp.com/sofiachat',
       instagramLink: 'https://instagram.com/sofiachat',
