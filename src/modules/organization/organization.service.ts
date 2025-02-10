@@ -7,6 +7,7 @@ import { UserService } from '@modules/user/user.service';
 import { UserOrganizationService } from './UserOrganization.service';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { User } from '@models/User.entity';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class OrganizationService {
@@ -17,6 +18,7 @@ export class OrganizationService {
     private readonly userOrganizationRepository: Repository<UserOrganization>,
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
+    private readonly emailService: EmailService,
   ) {}
 
   async getAll(): Promise<Organization[]> {
@@ -55,6 +57,7 @@ export class OrganizationService {
       user: responseCreateUser.user,
       role: OrganizationRoleType.OWNER,
     });
+    await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, responseCreateUser.user.password, organization.name);
 
     return organization;
   }
@@ -84,6 +87,10 @@ export class OrganizationService {
       user: responseCreateUser.user,
       role: OrganizationRoleType.USER,
     });
+
+    if (responseCreateUser.password) {
+      await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, responseCreateUser.password, organization.name);
+    }
 
     return responseCreateUser.user;
   }
