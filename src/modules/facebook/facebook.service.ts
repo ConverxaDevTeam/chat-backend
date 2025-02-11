@@ -82,6 +82,7 @@ export class FacebookService {
 
   private async registerPhoneNumber(phoneNumberId: string, accessToken: string): Promise<string> {
     const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(pin);
 
     const response = await axios.post<{ success: boolean }>(
       `https://graph.facebook.com/v21.0/${phoneNumberId}/register`,
@@ -98,9 +99,9 @@ export class FacebookService {
     );
 
     if (!response.data.success) {
+      console.log('on pin error', response.data);
       throw new BadRequestException('Failed to register phone number');
     }
-
     return pin;
   }
 
@@ -141,12 +142,13 @@ export class FacebookService {
 
         // Validate all external services before saving
         // await this.sendTestMessage(createIntegrationWhatsAppDto.phone_number_id, accessToken);
-
+        console.log('saving integration', departamentoId);
         // Only save if all validations pass
         const integration = await entityManager.getRepository(Integration).save({
           user,
-          organizationId,
-          departamentoId,
+          departamento: {
+            id: departamentoId,
+          },
           ...createIntegrationWhatsAppDto,
           config: JSON.stringify({ pin }),
           token: accessToken,
@@ -157,6 +159,7 @@ export class FacebookService {
 
         return integration;
       } catch (error) {
+        console.log(error.response.data);
         if (axios.isAxiosError(error)) {
           this.logger.error(`Facebook API error: ${error.response?.data?.message || error.message}`);
           throw new BadRequestException(error.response?.data?.message || 'Facebook API error');
@@ -313,19 +316,20 @@ export class FacebookService {
       }
 
       let actualConversation: Conversation;
-
       const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, phone, IntegrationType.WHATSAPP);
-
       if (!conversation) {
+        console.log('create conversation', integration, phone, IntegrationType.WHATSAPP);
         actualConversation = await this.conversationService.createConversationAndChatUserWhatsApp(integration, phone, webhookFacebookDto);
+        console.log('actualConversation', actualConversation);
       } else {
         actualConversation = conversation;
       }
-
+      console.log('actualConversation', webhookFacebookDto);
       if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'text' && webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body) {
         const text = webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body;
 
         const message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
+        console.log('message', message);
         this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
         const response = await this.integrationRouterService.processMessage(text, actualConversation.id);
         if (!response) return;

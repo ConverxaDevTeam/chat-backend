@@ -226,16 +226,18 @@ export class IntegrationService {
   }
 
   async getIntegrationByphoneNumberId(waba_id: string): Promise<Integration | null> {
-    const integration = await this.integrationRepository
-      .createQueryBuilder('integration')
-      .addSelect('integration.token')
-      .addSelect('integration.waba_id')
-      .leftJoinAndSelect('integration.departamento', 'departamento')
-      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
-      .where('integration.waba_id = :waba_id', { waba_id })
-      .andWhere('integration.type = :type', { type: IntegrationType.WHATSAPP })
-      .getOne();
-
+    const integration = await this.integrationRepository.findOne({
+      select: ['id', 'token', 'waba_id'],
+      relations: {
+        departamento: {
+          organizacion: true,
+        },
+      },
+      where: {
+        waba_id,
+        type: IntegrationType.WHATSAPP,
+      },
+    });
     return integration;
   }
 
