@@ -252,7 +252,6 @@ export class FacebookService {
       let actualConversation: Conversation;
 
       const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, senderId, IntegrationType.MESSENGER);
-
       if (!conversation) {
         actualConversation = await this.conversationService.createConversationAndChatUser(integration, senderId, ConversationType.MESSENGER, ChatUserType.MESSENGER);
       } else {
@@ -278,8 +277,6 @@ export class FacebookService {
         console.log('Invalid object', webhookFacebookDto);
         return;
       }
-
-      console.log(integration?.departamento?.organizacion?.id, '///', actualConversation.id);
 
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
 
@@ -310,7 +307,6 @@ export class FacebookService {
         throw new BadRequestException('WabaId not found');
       }
       const integration = await this.integrationService.getIntegrationByphoneNumberId(wabaId);
-
       if (!integration) {
         throw new BadRequestException('Integration not found');
       }
@@ -318,23 +314,22 @@ export class FacebookService {
       let actualConversation: Conversation;
       const conversation = await this.conversationService.getConversationByIntegrationIdAndByIdentified(integration.id, phone, IntegrationType.WHATSAPP);
       if (!conversation) {
-        console.log('create conversation', integration, phone, IntegrationType.WHATSAPP);
         actualConversation = await this.conversationService.createConversationAndChatUserWhatsApp(integration, phone, webhookFacebookDto);
-        console.log('actualConversation', actualConversation);
       } else {
         actualConversation = conversation;
       }
-      console.log('actualConversation', webhookFacebookDto);
       if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'text' && webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body) {
         const text = webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body;
+        const phoneNumberId = webhookFacebookDto.entry[0].changes[0].value.metadata.phone_number_id;
 
         const message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
-        console.log('message', message);
         this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
         const response = await this.integrationRouterService.processMessage(text, actualConversation.id);
         if (!response) return;
         const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
         if (!messageAi) return;
+        await this.sendWhatsAppMessage(phoneNumberId, phone, response.message, integration.token);
+        this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
       } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'image' && webhookFacebookDto.entry[0].changes[0].value.messages[0].image) {
       } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'audio') {
         const mediaResponse = await axios({
@@ -384,5 +379,32 @@ export class FacebookService {
     }
 
     return phoneNumber;
+  }
+
+  private async sendWhatsAppMessage(phoneNumberId: string, phone: string, message: string, token: string): Promise<void> {
+    console.log('Sending WhatsApp message:', { phoneNumberId, phone, token: token.substring(0, 20) + '...' });
+    const response = await axios.post(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
+      {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: phone,
+        type: 'text',
+        text: {
+          body: message,
+          preview_url: false,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+
+    if (!response.data?.messages?.[0]?.id) {
+      throw new BadRequestException('Failed to send message');
+    }
   }
 }

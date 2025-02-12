@@ -220,7 +220,6 @@ export class ConversationService {
 
   async createConversationAndChatUserWhatsApp(integration: Integration, identified: string, webhookFacebookDto: WebhookFacebookDto): Promise<Conversation> {
     const departamento = await this.departmentService.getDepartmentById(integration.departamento.id);
-
     if (!departamento) {
       throw new Error('Departamento no encontrado');
     }
