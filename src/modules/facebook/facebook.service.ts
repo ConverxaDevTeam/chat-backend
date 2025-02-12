@@ -24,6 +24,7 @@ import { Integration } from '@models/Integration.entity';
 import { join } from 'path';
 import * as fs from 'fs';
 import * as uuid from 'uuid';
+import { WhatsAppService } from './whatsapp.service';
 
 @Injectable()
 export class FacebookService {
@@ -40,6 +41,7 @@ export class FacebookService {
     private readonly socketService: SocketService,
     private readonly integrationRouterService: IntegrationRouterService,
     private readonly messagerService: MessagerService,
+    private readonly whatsAppService: WhatsAppService,
     @InjectConnection()
     private readonly connection: Connection,
   ) {}
@@ -320,7 +322,6 @@ export class FacebookService {
       }
       if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'text' && webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body) {
         const text = webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body;
-        const phoneNumberId = webhookFacebookDto.entry[0].changes[0].value.metadata.phone_number_id;
 
         const message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
         this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
@@ -328,7 +329,6 @@ export class FacebookService {
         if (!response) return;
         const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
         if (!messageAi) return;
-        await this.sendWhatsAppMessage(phoneNumberId, phone, response.message, integration.token);
         this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
       } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'image' && webhookFacebookDto.entry[0].changes[0].value.messages[0].image) {
       } else if (webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.type === 'audio') {
@@ -353,6 +353,7 @@ export class FacebookService {
           writer.on('finish', () => resolve());
           writer.on('error', reject);
         });
+
         const message = await this.messageService.createMessage(actualConversation, '', MessageType.USER, {
           platform: IntegrationType.WHATSAPP,
           format: MessageFormatType.AUDIO,
@@ -379,32 +380,5 @@ export class FacebookService {
     }
 
     return phoneNumber;
-  }
-
-  private async sendWhatsAppMessage(phoneNumberId: string, phone: string, message: string, token: string): Promise<void> {
-    console.log('Sending WhatsApp message:', { phoneNumberId, phone, token: token.substring(0, 20) + '...' });
-    const response = await axios.post(
-      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phone,
-        type: 'text',
-        text: {
-          body: message,
-          preview_url: false,
-        },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    if (!response.data?.messages?.[0]?.id) {
-      throw new BadRequestException('Failed to send message');
-    }
   }
 }

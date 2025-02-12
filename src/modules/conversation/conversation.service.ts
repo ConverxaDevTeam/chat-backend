@@ -189,6 +189,7 @@ export class ConversationService {
       .leftJoinAndSelect('conversation.integration', 'integration')
       .addSelect('integration.token')
       .addSelect('integration.waba_id')
+      .addSelect('integration.phone_number_id')
       .where('integration.id = :integrationId', { integrationId })
       .andWhere('integration.type = :type', { type })
       .andWhere('chat_user.identified = :identified', { identified })

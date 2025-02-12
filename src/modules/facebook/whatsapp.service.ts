@@ -8,7 +8,7 @@ export class WhatsAppService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async sendMessage(phone: string, text: string, waba_id: string, token: string, previewUrl = false): Promise<any> {
+  async sendMessage(phone: string, text: string, sender_id: string, token: string, previewUrl = false): Promise<any> {
     try {
       const data = {
         messaging_product: 'whatsapp',
@@ -17,17 +17,23 @@ export class WhatsAppService {
         type: 'text',
         text: { preview_url: previewUrl, body: text },
       };
-      const response = await axios.post(`${this.configService.get<string>('facebook.facebookGraphApi')}/${waba_id}/messages`, data, {
+
+      const url = `${this.configService.get<string>('facebook.facebookGraphApi')}/${sender_id}/messages`;
+      console.log('Sending WhatsApp message:', { url, data, tokenLength: token?.length });
+
+      const response = await axios.post(url, data, {
         headers: {
-          'Content-type': 'application/json',
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
       });
-      if (response.status === 200) {
-        return { ok: true };
-      }
+
+      console.log('WhatsApp response:', response.data);
+      return { ok: true, data: response.data };
     } catch (error) {
-      return { ok: false, message: error.response.data.error.message };
+      console.error('WhatsApp error:', error.response?.data || error.message);
+      const errorMessage = error.response?.data?.error?.message || error.message || 'Unknown error';
+      return { ok: false, message: errorMessage };
     }
   }
 

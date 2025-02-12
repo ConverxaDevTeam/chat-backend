@@ -150,7 +150,7 @@ export class SocketService {
         ? await this.messageService.createMessage(conversation, agentMessage, type, { images, format, platform: 'HITL' })
         : await this.messageService.createMessageAudio(conversation, agentMessage, type);
     // Enviamos al servidor de WebChat si existe el cliente
-    if (conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
+    if (conversation.type === ConversationType.CHAT_WEB && conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
       const clientSocket = this.webChatClients.get(conversation.chat_user.id);
       if (!clientSocket) return;
       clientSocket.send(
@@ -167,12 +167,10 @@ export class SocketService {
     }
 
     if (conversation.type === ConversationType.WHATSAPP) {
-      // console.log('Sending message to WhatsApp');
-      // console.log('identified', conversation.chat_user.identified);
-      // console.log('token', conversation.integration.token);
-      // console.log('waba_id', conversation.integration.waba_id);
-      // const res = await this.whatsAppService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.waba_id, conversation.integration.token);
-      // console.log('res', res);
+      if (!conversation.integration.phone_number_id) {
+        throw new Error('Phone number id is required');
+      }
+      await this.whatsAppService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.phone_number_id, conversation.integration.token);
     }
 
     if (!conversation.user?.id) return message;
