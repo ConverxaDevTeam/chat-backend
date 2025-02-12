@@ -170,7 +170,7 @@ export class SocketService {
       if (!conversation.integration.phone_number_id) {
         throw new Error('Phone number id is required');
       }
-      await this.whatsAppService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.phone_number_id, conversation.integration.token);
+      await this.whatsAppService.sendMessage(conversation.chat_user.identified, message, conversation.integration.phone_number_id, conversation.integration.token);
     }
 
     if (!conversation.user?.id) return message;
