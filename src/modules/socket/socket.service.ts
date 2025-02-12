@@ -146,7 +146,7 @@ export class SocketService {
 
   async sendMessageToUser(conversation: Conversation, agentMessage: string, format: MessageFormatType, type: MessageType = MessageType.AGENT, images?: string[]) {
     const message =
-      format === MessageFormatType.TEXT
+      format !== MessageFormatType.AUDIO
         ? await this.messageService.createMessage(conversation, agentMessage, type, { images, format, platform: 'HITL' })
         : await this.messageService.createMessageAudio(conversation, agentMessage, type);
     // Enviamos al servidor de WebChat si existe el cliente

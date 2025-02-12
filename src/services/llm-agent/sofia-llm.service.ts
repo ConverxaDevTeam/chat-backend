@@ -148,6 +148,7 @@ export class SofiaLLMService extends BaseAgent {
     // Wait for the run to complete
     let runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
     while (runStatus.status !== 'completed') {
+      console.log('runStatus', runStatus);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
 
