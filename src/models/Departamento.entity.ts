@@ -10,6 +10,9 @@ export class Departamento extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: false })
   name: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string;
+
   @ManyToOne(() => Organization, (organizacion) => organizacion.departamentos)
   @JoinColumn({ name: 'organization_id' })
   organizacion: Organization;
