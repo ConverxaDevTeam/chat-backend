@@ -13,6 +13,7 @@ import { Departamento } from '@models/Departamento.entity';
 import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-chat.dto';
 import { CreateIntegrationWhatsAppDto } from '@modules/facebook/dto/create-integration-whats-app.dto';
 import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { FileService } from '@modules/file/file.service';
 
 @Injectable()
 export class IntegrationService {
@@ -25,6 +26,7 @@ export class IntegrationService {
     private readonly organizationService: OrganizationService,
     private readonly departmentService: DepartmentService,
     private readonly configService: ConfigService,
+    private readonly fileService: FileService,
   ) {}
 
   async getIntegrationWebChat(user: User, organizationId: number, departamentoId: number): Promise<Integration> {
@@ -238,7 +240,6 @@ export class IntegrationService {
   }
 
   async updateIntegrationLogo(user: User, integrationId: number, file: Express.Multer.File): Promise<Integration> {
-    // Validate file
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
@@ -268,14 +269,9 @@ export class IntegrationService {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    const extension = file.originalname.split('.').pop();
-    const fileName = `integration_${integrationId}_avatar.${extension}`;
-    const filePath = join(uploadDir, fileName);
-
     try {
-      await fs.promises.writeFile(filePath, file.buffer);
-      const baseUrl = this.configService.get<string>('URL_FILES') || 'http://localhost:3001';
-      config.logo = `${baseUrl}/users/${user.id}/${fileName}`;
+      const logoUrl = await this.fileService.saveFile(file, `users/${user.id}`, `integration_${integrationId}_avatar`);
+      config.logo = logoUrl;
 
       integration.config = JSON.stringify(config);
       await this.integrationRepository.save(integration);

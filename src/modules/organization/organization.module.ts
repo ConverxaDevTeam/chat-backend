@@ -4,7 +4,7 @@ import { OrganizationController } from './organization.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '@modules/auth/auth.module';
 import { Organization } from '@models/Organization.entity';
-import { UserModule } from '@modules/user/user.module';
+import { UserModule } from '../user/user.module';
 import { UserOrganization } from '@models/UserOrganization.entity';
 import { UserOrganizationService } from './UserOrganization.service';
 import { OrganizationSubscriber } from 'src/subscribers/organization.subscriber';

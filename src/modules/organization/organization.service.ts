@@ -8,6 +8,7 @@ import { UserOrganizationService } from './UserOrganization.service';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { User } from '@models/User.entity';
 import { EmailService } from '../email/email.service';
+import { FileService } from '@modules/file/file.service';
 
 @Injectable()
 export class OrganizationService {
@@ -19,6 +20,7 @@ export class OrganizationService {
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
     private readonly emailService: EmailService,
+    private readonly fileService: FileService,
   ) {}
 
   async getAll(): Promise<Organization[]> {
@@ -123,5 +125,15 @@ export class OrganizationService {
       },
       { user: { id: userId } },
     );
+  }
+
+  async updateLogo(id: number, file: Express.Multer.File): Promise<Organization> {
+    const organization = await this.organizationRepository.findOne({ where: { id } });
+    if (!organization) throw new NotFoundException('Organization not found');
+
+    const logoUrl = await this.fileService.saveFile(file, `organizations/${id}`, 'logo');
+
+    organization.logo = logoUrl;
+    return this.organizationRepository.save(organization);
   }
 }
