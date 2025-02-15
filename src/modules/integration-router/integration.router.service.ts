@@ -104,6 +104,7 @@ export class IntegrationRouterService {
       .leftJoinAndSelect('conversation.chat_user', 'chat_user')
       .leftJoinAndSelect('conversation.integration', 'integration')
       .addSelect('integration.token')
+      .addSelect('integration.phone_number_id')
       .addSelect('chat_user.identified')
       .where('conversation.id = :conversationId', { conversationId })
       .getOne();

@@ -29,6 +29,10 @@ export class EmailService {
       username: 'api',
       key: mailgunApiKey,
     });
+
+    handlebars.registerHelper('reset', function (text) {
+      return text;
+    });
   }
 
   async sendUserWellcome(email: string, password: string): Promise<void> {
@@ -57,23 +61,46 @@ export class EmailService {
   async sendNewOrganizationEmail(email: string, password: string, organizationName: string): Promise<void> {
     const template = await this.loadTemplate('new-organization');
     const compiledTemplate = handlebars.compile(template);
+    const frontendUrl = this.configService.get<string>('url.frontend');
 
     const html = compiledTemplate({
       email,
       password,
       organization_name: organizationName,
-      link: this.configService.get<string>('url.frontend'),
-      baseUrl: this.configService.get<string>('url.frontend'),
+      link: frontendUrl,
+      baseUrl: frontendUrl,
     });
 
-    const messageData = {
+    await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), {
       from: this.configService.get<string>('mailgun.from'),
       to: email,
-      subject: `Bienvenido a ${organizationName} en SofiaCall`,
+      subject: `Bienvenido a ${organizationName} en SofiaChat`,
       html,
-    };
+    });
+  }
 
-    await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), messageData);
+  async sendResetPasswordCode(email: string, code: string): Promise<void> {
+    const template = await this.loadTemplate('reset-password');
+    const compiledTemplate = handlebars.compile(template);
+    const frontendUrl = this.configService.get<string>('url.frontend');
+
+    const html = compiledTemplate({
+      email,
+      code,
+      frontendBaseUrl: frontendUrl,
+      resetPasswordLink: `${frontendUrl}/reset-password/change?code=${code}&email=${encodeURIComponent(email)}`,
+      linkedinLink: 'https://linkedin.com/company/sofiachat',
+      whatsappLink: 'https://whatsapp.com/sofiachat',
+      instagramLink: 'https://instagram.com/sofiachat',
+      facebookLink: 'https://facebook.com/sofiachat',
+    });
+
+    await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), {
+      from: this.configService.get<string>('mailgun.from'),
+      to: email,
+      subject: 'Código para resetear password',
+      html,
+    });
   }
 
   private async loadTemplate(templateName: string): Promise<string> {

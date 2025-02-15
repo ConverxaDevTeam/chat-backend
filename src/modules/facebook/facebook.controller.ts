@@ -91,7 +91,8 @@ export class FacebookController {
       console.log('Received Messenger event');
       this.facebookService.analyzefacebookmessage(webhookFacebookDto);
     } else if (webhookFacebookDto.object === FacebookType.WHATSAPP_BUSINESS_ACCOUNT) {
-      console.log('Received page event');
+      if (!webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages) return;
+      console.log('Received whatsapp event', JSON.stringify(webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages));
       this.facebookService.analyzeWhatsAppMessage(webhookFacebookDto);
     } else {
       console.log('Invalid object');

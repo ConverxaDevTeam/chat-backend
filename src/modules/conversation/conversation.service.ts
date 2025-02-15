@@ -189,6 +189,7 @@ export class ConversationService {
       .leftJoinAndSelect('conversation.integration', 'integration')
       .addSelect('integration.token')
       .addSelect('integration.waba_id')
+      .addSelect('integration.phone_number_id')
       .where('integration.id = :integrationId', { integrationId })
       .andWhere('integration.type = :type', { type })
       .andWhere('chat_user.identified = :identified', { identified })
@@ -220,7 +221,6 @@ export class ConversationService {
 
   async createConversationAndChatUserWhatsApp(integration: Integration, identified: string, webhookFacebookDto: WebhookFacebookDto): Promise<Conversation> {
     const departamento = await this.departmentService.getDepartmentById(integration.departamento.id);
-
     if (!departamento) {
       throw new Error('Departamento no encontrado');
     }
