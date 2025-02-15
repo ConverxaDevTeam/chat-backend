@@ -24,6 +24,7 @@ import { Integration } from '@models/Integration.entity';
 import { join } from 'path';
 import * as fs from 'fs';
 import * as uuid from 'uuid';
+import { GetPagesDto } from './dto/get-pages.dto';
 
 @Injectable()
 export class FacebookService {
@@ -181,9 +182,55 @@ export class FacebookService {
     if (!departamento) {
       throw new BadRequestException(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
     }
+    // const debugResponse = await axios({
+    //   method: 'get',
+    //   url: `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${this.configService.get<string>('facebook.token')}`,
+    // });
+
+    // console.log('debugResponse', debugResponse.data);
+    const searchIntegration = await this.integrationService.getIntegrationMessagerByPageId(createIntegrationMessagerDto.id);
+
+    if (searchIntegration) {
+      throw new BadRequestException('Integration already exists');
+    }
+
+    const responseSucribed = await axios.post(
+      `https://graph.facebook.com/v21.0/${createIntegrationMessagerDto.id}/subscribed_apps`,
+      {
+        subscribed_fields: ['messages', 'messaging_postbacks'],
+      },
+      {
+        params: {
+          access_token: createIntegrationMessagerDto.access_token,
+        },
+      },
+    );
+
+    if (!responseSucribed.data.success) {
+      throw new BadRequestException('Failed to subscribe');
+    }
+
+    const integration = await this.integrationService.createIntegrationMessager(departamento, createIntegrationMessagerDto.id, createIntegrationMessagerDto.access_token);
+
+    return integration;
+  }
+
+  async getPagesFacebook(user: User, getPagesDto: GetPagesDto, organizationId: number, departamentoId: number) {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new BadRequestException('No tienes permisos para crear la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new BadRequestException(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
 
     const response = await axios.get(
-      `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${this.configService.get<string>('facebook.appId')}&client_secret=${this.configService.get<string>('facebook.appSecret')}&code=${createIntegrationMessagerDto.code}`,
+      `https://graph.facebook.com/v21.0/oauth/access_token?client_id=${this.configService.get<string>('facebook.appId')}&client_secret=${this.configService.get<string>('facebook.appSecret')}&code=${getPagesDto.code}`,
     );
     const accessToken = response.data.access_token;
 
@@ -195,37 +242,7 @@ export class FacebookService {
       params: { access_token: accessToken },
     });
 
-    const pageOneId = pagesResponse.data.data[0].id;
-    const pageOneToken = pagesResponse.data.data[0].access_token;
-
-    if (!pageOneId || !pageOneToken) {
-      throw new BadRequestException('Failed to get page id or token');
-    }
-    const searchIntegration = await this.integrationService.getIntegrationMessagerByPageId(pageOneId);
-
-    if (searchIntegration) {
-      throw new BadRequestException('Integration already exists');
-    }
-
-    const responseSucribed = await axios.post(
-      `https://graph.facebook.com/v21.0/${pageOneId}/subscribed_apps`,
-      {
-        subscribed_fields: ['messages', 'messaging_postbacks'],
-      },
-      {
-        params: {
-          access_token: pageOneToken,
-        },
-      },
-    );
-
-    if (!responseSucribed.data.success) {
-      throw new BadRequestException('Failed to subscribe');
-    }
-
-    const integration = await this.integrationService.createIntegrationMessager(departamento, pageOneId, pageOneToken);
-
-    return integration;
+    return pagesResponse.data.data;
   }
 
   async analyzefacebookmessage(webhookFacebookDto: WebhookFacebookDto) {
@@ -380,5 +397,51 @@ export class FacebookService {
     }
 
     return phoneNumber;
+  }
+
+  async testing(code: string) {
+    try {
+      const accessToken = await this.getAccessTokenTest(code);
+
+      console.log('accessToken', accessToken);
+
+      // if (!accessToken) {
+      //   return;
+      // }
+
+      // const debugResponse = await axios({
+      //   method: 'get',
+      //   url: `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${this.configService.get<string>('facebook.token')}`,
+      // });
+
+      // console.log('debugResponse', debugResponse.data);
+
+      // const pagesResponse = await axios.get(`https://graph.facebook.com/v21.0/me/accounts`, {
+      //   params: { access_token: accessToken },
+      // });
+
+      // console.log('pagesResponse', pagesResponse.data);
+    } catch (error) {
+      console.log('Error', error.response.data);
+    }
+  }
+
+  async getAccessTokenTest(code: string) {
+    const url = `https://graph.facebook.com/v22.0/oauth/access_token`;
+
+    const params = {
+      client_id: this.configService.get<string>('facebook.appId'),
+      client_secret: this.configService.get<string>('facebook.appSecret'),
+      redirect_uri: 'https://mxvlu5nnqui9pcvi1x9mxi.webrelay.io/api/facebook/test"', // ⚠️ Debe ser el mismo
+      code: code,
+    };
+
+    try {
+      const response = await axios.get(url, { params });
+      return response.data;
+    } catch (error) {
+      console.error('Error al obtener el access_token:', error.response?.data || error.message);
+      throw error;
+    }
   }
 }
