@@ -37,4 +37,5 @@ export default (): any => ({
     domain: process.env.MAILGUN_DOMAIN,
     from: process.env.MAILGUN_FROM,
   },
+  RESET_PASSWORD_CODE_EXPIRATION: process.env.RESET_PASSWORD_CODE_EXPIRATION || '15', // minutes
 });

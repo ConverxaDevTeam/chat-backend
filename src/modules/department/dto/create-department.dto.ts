@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+
 import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
 
 export class CreateDepartmentDto {
@@ -6,6 +7,10 @@ export class CreateDepartmentDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @ApiProperty({ description: 'Department description' })
+  @IsString()
+  description?: string;
 
   @ApiProperty({ description: 'Organization ID' })
   @IsNumber()

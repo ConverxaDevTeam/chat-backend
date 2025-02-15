@@ -28,6 +28,12 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 255, default: null, nullable: true })
   last_name: string;
 
+  @Column({ type: 'varchar', length: 6, nullable: true })
+  reset_password_code: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  reset_password_expires: Date;
+
   @DeleteDateColumn()
   deletedAt: Date;
 

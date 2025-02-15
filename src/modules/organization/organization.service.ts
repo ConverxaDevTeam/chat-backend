@@ -7,6 +7,8 @@ import { UserService } from '@modules/user/user.service';
 import { UserOrganizationService } from './UserOrganization.service';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { User } from '@models/User.entity';
+import { EmailService } from '../email/email.service';
+import { FileService } from '@modules/file/file.service';
 
 @Injectable()
 export class OrganizationService {
@@ -17,6 +19,8 @@ export class OrganizationService {
     private readonly userOrganizationRepository: Repository<UserOrganization>,
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
+    private readonly emailService: EmailService,
+    private readonly fileService: FileService,
   ) {}
 
   async getAll(): Promise<Organization[]> {
@@ -55,6 +59,7 @@ export class OrganizationService {
       user: responseCreateUser.user,
       role: OrganizationRoleType.OWNER,
     });
+    await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, responseCreateUser.user.password, organization.name);
 
     return organization;
   }
@@ -84,6 +89,10 @@ export class OrganizationService {
       user: responseCreateUser.user,
       role: OrganizationRoleType.USER,
     });
+
+    if (responseCreateUser.password) {
+      await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, responseCreateUser.password, organization.name);
+    }
 
     return responseCreateUser.user;
   }
@@ -116,5 +125,15 @@ export class OrganizationService {
       },
       { user: { id: userId } },
     );
+  }
+
+  async updateLogo(id: number, file: Express.Multer.File): Promise<Organization> {
+    const organization = await this.organizationRepository.findOne({ where: { id } });
+    if (!organization) throw new NotFoundException('Organization not found');
+
+    const logoUrl = await this.fileService.saveFile(file, `organizations/${id}`, 'logo');
+
+    organization.logo = logoUrl;
+    return this.organizationRepository.save(organization);
   }
 }

@@ -195,11 +195,15 @@ export class SofiaLLMService extends BaseAgent {
 
   async response(message: string, conversationId: number, images?: string[]): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
-    console.log('Sending message:', this.threadId);
-    await this.addMessageToThread(message, images);
-    await this.runAgent(this.threadId!, conversationId);
-    const response = await this.getResponse();
-    return this.validateResponse(response);
+    try {
+      await this.addMessageToThread(message, images);
+      await this.runAgent(this.threadId!, conversationId);
+      const response = await this.getResponse();
+      return this.validateResponse(response);
+    } catch (error) {
+      console.error('Error in response:', error);
+      throw error;
+    }
   }
 
   public getAgentId(): string {

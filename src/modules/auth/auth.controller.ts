@@ -9,6 +9,8 @@ import { User } from '@models/User.entity';
 import { GetSessionId } from '@infrastructure/decorators/get-session-id.decorator';
 import { LogInDto } from './dto/log-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { RequestResetPasswordDto } from './dto/request-reset-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -35,6 +37,20 @@ export class AuthController {
   async refreshToken(@Body() refreshTokenDto: RefreshTokenDto) {
     const token = await this.authService.refreshToken(refreshTokenDto);
     return { ok: true, token };
+  }
+
+  @Public()
+  @Post('/request-reset-password')
+  @ApiOperation({ summary: 'Solicita reset de password' })
+  async requestResetPassword(@Body() { email }: RequestResetPasswordDto) {
+    return this.authService.requestResetPassword(email);
+  }
+
+  @Public()
+  @Post('/reset-password')
+  @ApiOperation({ summary: 'Resetea password con código' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto.email, resetPasswordDto.code, resetPasswordDto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)
