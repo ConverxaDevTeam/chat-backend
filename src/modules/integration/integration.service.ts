@@ -14,6 +14,7 @@ import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-ch
 import { CreateIntegrationWhatsAppDto } from '@modules/facebook/dto/create-integration-whats-app.dto';
 import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { FileService } from '@modules/file/file.service';
+import { ConversationService } from '../conversation/conversation.service';
 
 @Injectable()
 export class IntegrationService {
@@ -26,6 +27,7 @@ export class IntegrationService {
     private readonly organizationService: OrganizationService,
     private readonly departmentService: DepartmentService,
     private readonly configService: ConfigService,
+    private readonly conversationService: ConversationService,
     private readonly fileService: FileService,
   ) {}
 
@@ -341,10 +343,15 @@ export class IntegrationService {
   async deleteIntegrationById(user: User, integrationId: number): Promise<Integration> {
     const integration = await this.integrationRepository.findOne({
       where: { id: integrationId },
+      relations: ['conversations'], // Cargar relaciones si es necesario
     });
 
     if (!integration) {
       throw new NotFoundException('Integration not found');
+    }
+
+    if (integration.conversations && integration.conversations.length > 0) {
+      await this.conversationService.removeIntegrationRelationships(integration.id);
     }
 
     await this.integrationRepository.remove(integration);

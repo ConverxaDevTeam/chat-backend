@@ -42,7 +42,10 @@ export class Conversation extends BaseEntity {
   @JoinColumn({ name: 'departamentoId' })
   departamento: Departamento;
 
-  @ManyToOne(() => Integration)
+  @ManyToOne(() => Integration, (integration) => integration.conversations, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
   @JoinColumn({ name: 'integrationId' })
-  integration: Integration;
+  integration: Integration | null;
 }
