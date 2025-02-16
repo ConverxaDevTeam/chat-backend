@@ -164,14 +164,14 @@ export class SocketService {
 
     if (conversation.type === ConversationType.MESSENGER) {
       if (format === MessageFormatType.AUDIO) {
-        this.messagerService.sendFacebookMessageAudio(conversation.chat_user.identified, message.audio, conversation.integration.token);
+        this.messagerService.sendFacebookMessageAudio(conversation.chat_user.identified, message.audio, conversation.integration?.token);
       } else {
-        this.messagerService.sendFacebookMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
+        this.messagerService.sendFacebookMessage(conversation.chat_user.identified, message.text, conversation.integration?.token);
       }
     }
 
     if (conversation.type === ConversationType.WHATSAPP) {
-      if (!conversation.integration.phone_number_id) {
+      if (!conversation?.integration?.phone_number_id) {
         throw new Error('Phone number id is required');
       }
       await this.whatsAppService.sendMessage(conversation.chat_user.identified, message, conversation.integration.phone_number_id, conversation.integration.token);

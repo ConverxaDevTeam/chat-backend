@@ -289,4 +289,13 @@ export class ConversationService {
       },
     });
   }
+
+  async removeIntegrationRelationships(integrationId: number) {
+    await this.conversationRepository
+      .createQueryBuilder()
+      .update(Conversation)
+      .set({ integration: null }) // Cambiar a NULL en la BD
+      .where('integrationId = :integrationId', { integrationId }) // Referenciar la clave foránea
+      .execute();
+  }
 }
