@@ -54,7 +54,7 @@ async function bootstrap() {
       'https://ci3.googleusercontent.com',
       'https://drlntz6nkra23p6khm9h89.webrelay.io',
       'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
-      'https://331f-190-143-186-23.ngrok-free.app',
+      'https://wki5y7wysxt8gqj0dw0yzh.webrelay.io',
     ],
   });
 

@@ -26,6 +26,7 @@ import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-kno
 import { NodeModule } from './modules/node/node.module';
 import { DashboardCardModule } from './modules/dashboard/dashboard-card.module';
 import { AnalyticsModule } from '@modules/analytics/analytics.module';
+import { FileModule } from './modules/file/file.module';
 
 @Module({
   imports: [
@@ -58,6 +59,10 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
       rootPath: join(__dirname, '..', '..', 'uploads', 'users'),
       serveRoot: '/users',
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'uploads', 'organizations'),
+      serveRoot: '/organizations',
+    }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -71,6 +76,8 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
         entities: [join(__dirname, '**', '*.entity.{ts,js}')],
         synchronize: true,
         force: true,
+        useUTC: true,
+        timezone: 'UTC',
       }),
     }),
     UserModule,
@@ -92,6 +99,7 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
     NodeModule,
     DashboardCardModule,
     AnalyticsModule,
+    FileModule,
   ],
   controllers: [AppController],
   providers: [AppService],
