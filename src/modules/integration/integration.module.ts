@@ -9,11 +9,18 @@ import { Integration } from '@models/Integration.entity';
 import { DepartmentService } from '@modules/department/department.service';
 import { Departamento } from '@models/Departamento.entity';
 import { Organization } from '@models/Organization.entity';
+import { ConversationModule } from '@modules/conversation/conversation.module';
 
 @Module({
   providers: [IntegrationService, DepartmentService],
   controllers: [IntegrationController],
-  imports: [TypeOrmModule.forFeature([Integration, Departamento, Organization]), forwardRef(() => AuthModule), forwardRef(() => UserModule), forwardRef(() => OrganizationModule)],
+  imports: [
+    TypeOrmModule.forFeature([Integration, Departamento, Organization]),
+    forwardRef(() => AuthModule),
+    forwardRef(() => UserModule),
+    forwardRef(() => OrganizationModule),
+    forwardRef(() => ConversationModule),
+  ],
   exports: [IntegrationService],
 })
 export class IntegrationModule {}
