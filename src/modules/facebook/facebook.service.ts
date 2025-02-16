@@ -196,7 +196,7 @@ export class FacebookService {
     const searchIntegration = await this.integrationService.getIntegrationMessagerByPageId(createIntegrationMessagerDto.id);
 
     if (searchIntegration) {
-      throw new BadRequestException('Integration already exists');
+      throw new BadRequestException('La integración ya existe');
     }
 
     const responseSucribed = await axios.post(
@@ -304,11 +304,6 @@ export class FacebookService {
       const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
       if (!messageAi) return;
 
-      if (messageAi.format === MessageFormatType.AUDIO) {
-        this.messagerService.sendFacebookMessageAudio(senderId, messageAi.audio, integration.token);
-      } else {
-        this.messagerService.sendFacebookMessage(senderId, messageAi.text, integration.token);
-      }
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
     } catch (error) {
       console.log('Error', error);

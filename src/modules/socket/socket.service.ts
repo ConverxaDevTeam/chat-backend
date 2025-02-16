@@ -163,7 +163,11 @@ export class SocketService {
     }
 
     if (conversation.type === ConversationType.MESSENGER) {
-      await this.messagerService.sendFacebookMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
+      if (format === MessageFormatType.AUDIO) {
+        this.messagerService.sendFacebookMessageAudio(conversation.chat_user.identified, message.audio, conversation.integration.token);
+      } else {
+        this.messagerService.sendFacebookMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
+      }
     }
 
     if (conversation.type === ConversationType.WHATSAPP) {
