@@ -113,4 +113,19 @@ export class IntegrationController {
       },
     };
   }
+
+  @Delete(':integrationId/remove')
+  @ApiOperation({ summary: 'Eliminar logo de la integración' })
+  async deleteIntegrationById(@GetUser() user: User, @Param('integrationId', ParseIntPipe) integrationId: number) {
+    const integration = await this.integrationService.deleteIntegrationById(user, integrationId);
+    const integrationConfig = JSON.parse(integration.config);
+
+    return {
+      ok: true,
+      integration: {
+        ...integration,
+        config: integrationConfig,
+      },
+    };
+  }
 }

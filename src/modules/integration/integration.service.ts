@@ -337,4 +337,18 @@ export class IntegrationService {
 
     fs.writeFileSync(scriptPath, script);
   }
+
+  async deleteIntegrationById(user: User, integrationId: number): Promise<Integration> {
+    const integration = await this.integrationRepository.findOne({
+      where: { id: integrationId },
+    });
+
+    if (!integration) {
+      throw new NotFoundException('Integration not found');
+    }
+
+    await this.integrationRepository.remove(integration);
+
+    return integration;
+  }
 }
