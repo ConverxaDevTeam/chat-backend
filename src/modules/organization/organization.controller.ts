@@ -74,10 +74,14 @@ export class OrganizationController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':organizationId/logo')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('logo'))
   @ApiOperation({ summary: 'Actualizar logo de la organización' })
-  async updateLogo(@Param('organizationId') organizationId: number, @UploadedFile() file: Express.Multer.File) {
-    const organization = await this.organizationService.updateLogo(organizationId, file);
+  async updateLogo(@Param('organizationId') organizationId: number, @UploadedFile() logo: Express.Multer.File) {
+    if (!logo) {
+      await this.organizationService.deleteLogo(organizationId);
+      return { ok: true };
+    }
+    const organization = await this.organizationService.updateLogo(organizationId, logo);
     return { ok: true, organization };
   }
 }

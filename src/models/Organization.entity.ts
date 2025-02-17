@@ -12,7 +12,7 @@ export class Organization extends BaseEntity {
   description: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  logo: string;
+  logo: string | null;
 
   @OneToMany(() => UserOrganization, (userOrganization) => userOrganization.organization)
   userOrganizations: UserOrganization[];

@@ -44,6 +44,9 @@ export class OrganizationService {
           },
         },
       },
+      order: {
+        id: 'ASC',
+      },
     });
   }
 
@@ -140,5 +143,9 @@ export class OrganizationService {
 
     organization.logo = logoUrl;
     return this.organizationRepository.save(organization);
+  }
+
+  async deleteLogo(organizationId: number): Promise<void> {
+    await this.organizationRepository.update(organizationId, { logo: null });
   }
 }
