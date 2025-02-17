@@ -27,12 +27,15 @@ export class OrganizationController {
   @Get('')
   async getAll() {
     const organizations = await this.organizationService.getAll();
-    const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => ({
-      ...organization,
-      logo: organization.logo,
-      users: userOrganizations.length,
-      owner: userOrganizations.find((userOrganization) => userOrganization.role === 'owner'),
-    }));
+    const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => {
+      const uniqueEmails = new Set(userOrganizations.map((uo) => uo.user.email));
+      return {
+        ...organization,
+        logo: organization.logo,
+        users: uniqueEmails.size,
+        owner: userOrganizations.find((userOrganization) => userOrganization.role === 'owner'),
+      };
+    });
     return { ok: true, organizations: formattedOrganization };
   }
 
