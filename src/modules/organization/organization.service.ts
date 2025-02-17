@@ -33,6 +33,7 @@ export class OrganizationService {
       select: {
         id: true,
         name: true,
+        logo: true,
         description: true,
         userOrganizations: {
           id: true,

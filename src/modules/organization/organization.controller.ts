@@ -28,6 +28,7 @@ export class OrganizationController {
     const organizations = await this.organizationService.getAll();
     const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => ({
       ...organization,
+      logo: organization.logo,
       users: userOrganizations.length,
       owner: userOrganizations.find((userOrganization) => userOrganization.role === 'owner'),
     }));
