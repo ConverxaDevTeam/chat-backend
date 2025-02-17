@@ -148,4 +148,9 @@ export class OrganizationService {
   async deleteLogo(organizationId: number): Promise<void> {
     await this.organizationRepository.update(organizationId, { logo: null });
   }
+
+  async updateOrganization(organizationId: number, updateData: Partial<Organization>): Promise<Organization> {
+    await this.organizationRepository.update(organizationId, updateData as any);
+    return this.organizationRepository.findOneOrFail({ where: { id: organizationId } });
+  }
 }

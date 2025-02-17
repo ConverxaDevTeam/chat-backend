@@ -9,6 +9,7 @@ import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
 import { UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Organization } from '@models/Organization.entity';
 
 @Controller('organization')
 @ApiTags('organization')
@@ -66,10 +67,28 @@ export class OrganizationController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'setear un usuario a una organización, solo super admin' })
-  @Patch(':organizationId')
+  @Patch(':organizationId/set-owner')
   async setUserInOrganizationById(@Param('organizationId') organizationId: number, @Body('owner_id') userId: number) {
     const user = await this.organizationService.setUserInOrganizationById(organizationId, userId);
     return { ok: true, user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Actualizar cualquier campo de la organización, solo super admin' })
+  @Patch(':organizationId')
+  async updateOrganization(@Param('organizationId') organizationId: number, @Body() { owner_id, name, description }: { owner_id?: number; name?: string; description?: string }) {
+    const updateData: Partial<Organization> = {};
+    if (owner_id !== undefined) {
+      await this.organizationService.setUserInOrganizationById(organizationId, owner_id);
+    }
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+    if (description !== undefined) {
+      updateData.description = description;
+    }
+    const organization = await this.organizationService.updateOrganization(organizationId, updateData);
+    return { ok: true, organization };
   }
 
   @UseGuards(JwtAuthGuard)
