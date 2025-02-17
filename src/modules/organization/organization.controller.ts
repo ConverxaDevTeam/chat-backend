@@ -49,8 +49,9 @@ export class OrganizationController {
   @UseGuards(JwtAuthRolesGuard)
   @ApiOperation({ summary: 'crear una organización, solo super admin' })
   @Post('')
-  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto) {
-    const organization = await this.organizationService.createOrganization(createOrganizationDto);
+  @UseInterceptors(FileInterceptor('logo'))
+  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File) {
+    const organization = await this.organizationService.createOrganization(createOrganizationDto, file);
     return { ok: true, organization };
   }
 
