@@ -3,7 +3,7 @@ import { BaseEntity } from './Base.entity';
 import { UserOrganization } from './UserOrganization.entity';
 import { Departamento } from './Departamento.entity';
 
-enum OrganizationType {
+export enum OrganizationType {
   PRODUCTION = 'production',
   MVP = 'mvp',
 }

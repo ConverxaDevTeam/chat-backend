@@ -8,7 +8,7 @@ import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
 import { UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Organization } from '@models/Organization.entity';
+import { Organization, OrganizationType } from '@models/Organization.entity';
 import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard';
@@ -80,7 +80,10 @@ export class OrganizationController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Actualizar cualquier campo de la organización, solo super admin' })
   @Patch(':organizationId')
-  async updateOrganization(@Param('organizationId') organizationId: number, @Body() { owner_id, name, description }: { owner_id?: number; name?: string; description?: string }) {
+  async updateOrganization(
+    @Param('organizationId') organizationId: number,
+    @Body() { owner_id, name, description, type }: { owner_id?: number; name?: string; description?: string; type?: OrganizationType },
+  ) {
     const updateData: Partial<Organization> = {};
     if (owner_id !== undefined) {
       await this.organizationService.setUserInOrganizationById(organizationId, owner_id);
@@ -91,6 +94,11 @@ export class OrganizationController {
     if (description !== undefined) {
       updateData.description = description;
     }
+
+    if (type !== undefined) {
+      updateData.type = type;
+    }
+
     const organization = await this.organizationService.updateOrganization(organizationId, updateData);
     return { ok: true, organization };
   }

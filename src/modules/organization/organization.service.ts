@@ -35,6 +35,7 @@ export class OrganizationService {
         name: true,
         logo: true,
         description: true,
+        type: true,
         userOrganizations: {
           id: true,
           role: true,
