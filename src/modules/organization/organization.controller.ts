@@ -54,6 +54,8 @@ export class OrganizationController {
     };
   }
 
+  @UseGuards(JwtAuthRolesGuard)
+  @Roles(OrganizationRoleType.USR_TECNICO)
   @ApiOperation({ summary: 'crear una organización, solo super admin' })
   @Post('')
   @UseInterceptors(FileInterceptor('logo'))
@@ -77,8 +79,9 @@ export class OrganizationController {
     return { ok: true, user };
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Actualizar cualquier campo de la organización, solo super admin' })
+  @UseGuards(JwtAuthRolesGuard)
+  @Roles(OrganizationRoleType.USR_TECNICO)
+  @ApiOperation({ summary: 'Actualizar cualquier campo de la organización' })
   @Patch(':organizationId')
   async updateOrganization(
     @Param('organizationId') organizationId: number,

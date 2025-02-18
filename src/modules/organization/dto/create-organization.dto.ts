@@ -1,5 +1,6 @@
 import { IsEmail, IsNotEmpty, IsString, Length } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { OrganizationType } from '@models/Organization.entity';
 
 export class CreateOrganizationDto {
   @ApiProperty({
@@ -12,6 +13,15 @@ export class CreateOrganizationDto {
   })
   @IsString({ message: 'El nombre de la organización debe ser un texto.' })
   name: string;
+
+  @ApiProperty({
+    example: 'production',
+    description: 'Tipo de organización',
+    enum: OrganizationType,
+    enumName: 'OrganizationType',
+  })
+  @IsNotEmpty({ message: 'Introduce un tipo de organización.' })
+  type?: OrganizationType;
 
   @ApiProperty({
     example: 'Escuela del valle al lado del rio',

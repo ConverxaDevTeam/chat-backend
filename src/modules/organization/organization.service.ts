@@ -52,9 +52,7 @@ export class OrganizationService {
   }
 
   async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File): Promise<Organization> {
-    const organization = new Organization();
-    organization.name = createOrganizationDto.name;
-    organization.description = createOrganizationDto.description;
+    const organization = this.organizationRepository.create(createOrganizationDto);
     await this.organizationRepository.save(organization);
 
     const logoUrl = await this.fileService.saveFile(file, `organizations/${organization.id}`, 'logo');
