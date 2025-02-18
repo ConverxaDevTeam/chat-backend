@@ -8,6 +8,7 @@ import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
 import { UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Organization } from '@models/Organization.entity';
 import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard';
@@ -30,11 +31,15 @@ export class OrganizationController {
   @Get('')
   async getAll() {
     const organizations = await this.organizationService.getAll();
-    const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => ({
-      ...organization,
-      users: userOrganizations.length,
-      owner: userOrganizations.find((userOrganization) => userOrganization.role === 'owner'),
-    }));
+    const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => {
+      const uniqueEmails = new Set(userOrganizations.map((uo) => uo.user.email));
+      return {
+        ...organization,
+        logo: organization.logo,
+        users: uniqueEmails.size,
+        owner: userOrganizations.find((userOrganization) => userOrganization.role === 'owner'),
+      };
+    });
     return { ok: true, organizations: formattedOrganization };
   }
 
@@ -51,8 +56,9 @@ export class OrganizationController {
 
   @ApiOperation({ summary: 'crear una organización, solo super admin' })
   @Post('')
-  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto) {
-    const organization = await this.organizationService.createOrganization(createOrganizationDto);
+  @UseInterceptors(FileInterceptor('logo'))
+  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File) {
+    const organization = await this.organizationService.createOrganization(createOrganizationDto, file);
     return { ok: true, organization };
   }
 
@@ -65,18 +71,40 @@ export class OrganizationController {
   }
 
   @ApiOperation({ summary: 'setear un usuario a una organización, solo super admin' })
-  @Patch(':organizationId')
+  @Patch(':organizationId/set-owner')
   async setUserInOrganizationById(@Param('organizationId') organizationId: number, @Body('owner_id') userId: number) {
     const user = await this.organizationService.setUserInOrganizationById(organizationId, userId);
     return { ok: true, user };
   }
 
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Actualizar cualquier campo de la organización, solo super admin' })
+  @Patch(':organizationId')
+  async updateOrganization(@Param('organizationId') organizationId: number, @Body() { owner_id, name, description }: { owner_id?: number; name?: string; description?: string }) {
+    const updateData: Partial<Organization> = {};
+    if (owner_id !== undefined) {
+      await this.organizationService.setUserInOrganizationById(organizationId, owner_id);
+    }
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+    if (description !== undefined) {
+      updateData.description = description;
+    }
+    const organization = await this.organizationService.updateOrganization(organizationId, updateData);
+    return { ok: true, organization };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post(':organizationId/logo')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('logo'))
   @ApiOperation({ summary: 'Actualizar logo de la organización' })
-  async updateLogo(@Param('organizationId') organizationId: number, @UploadedFile() file: Express.Multer.File) {
-    const organization = await this.organizationService.updateLogo(organizationId, file);
+  async updateLogo(@Param('organizationId') organizationId: number, @UploadedFile() logo: Express.Multer.File) {
+    if (!logo) {
+      await this.organizationService.deleteLogo(organizationId);
+      return { ok: true };
+    }
+    const organization = await this.organizationService.updateLogo(organizationId, logo);
     return { ok: true, organization };
   }
 }

@@ -33,6 +33,7 @@ export class OrganizationService {
       select: {
         id: true,
         name: true,
+        logo: true,
         description: true,
         userOrganizations: {
           id: true,
@@ -43,13 +44,20 @@ export class OrganizationService {
           },
         },
       },
+      order: {
+        id: 'ASC',
+      },
     });
   }
 
-  async createOrganization(createOrganizationDto: CreateOrganizationDto): Promise<Organization> {
+  async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File): Promise<Organization> {
     const organization = new Organization();
     organization.name = createOrganizationDto.name;
     organization.description = createOrganizationDto.description;
+    await this.organizationRepository.save(organization);
+
+    const logoUrl = await this.fileService.saveFile(file, `organizations/${organization.id}`, 'logo');
+    organization.logo = logoUrl;
     await this.organizationRepository.save(organization);
 
     const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
@@ -135,5 +143,14 @@ export class OrganizationService {
 
     organization.logo = logoUrl;
     return this.organizationRepository.save(organization);
+  }
+
+  async deleteLogo(organizationId: number): Promise<void> {
+    await this.organizationRepository.update(organizationId, { logo: null });
+  }
+
+  async updateOrganization(organizationId: number, updateData: Partial<Organization>): Promise<Organization> {
+    await this.organizationRepository.update(organizationId, updateData as any);
+    return this.organizationRepository.findOneOrFail({ where: { id: organizationId } });
   }
 }
