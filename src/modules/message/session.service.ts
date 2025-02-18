@@ -26,7 +26,6 @@ export class SessionService {
       where: { conversationId, status: ChatSessionStatus.ACTIVE },
       order: { lastInteractionAt: 'DESC' },
     });
-    console.log('lastSession', lastSession);
 
     if (lastSession) {
       const timeDiff = Math.abs(new Date().getTime() - lastSession.lastInteractionAt.getTime()) / 1000 / 60;
@@ -34,7 +33,6 @@ export class SessionService {
         lastSession.lastInteractionAt = new Date();
         return this.chatSessionRepository.save(lastSession);
       }
-      console.log('closing session', lastSession);
       // Close old session if timeout exceeded
       lastSession.status = ChatSessionStatus.CLOSED;
       lastSession.closedAt = new Date();

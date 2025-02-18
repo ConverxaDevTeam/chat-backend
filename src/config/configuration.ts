@@ -23,11 +23,19 @@ export default (): any => ({
     files: process.env.URL_FILES,
     wss: process.env.URL_WSS,
     web_hook_whatsapp: process.env.URL_WEBHOOK_WA,
+    frontend: process.env.URL_FRONTEND,
   },
   facebook: {
     appId: process.env.FACEBOOK_APP_ID,
     appSecret: process.env.FACEBOOK_APP_SECRET,
     webhookSecret: process.env.FACEBOOK_WEBHOOK_SECRET,
     facebookGraphApi: process.env.FACEBOOK_GRAPH_API,
+    token: process.env.FACEBOOK_TOKEN,
   },
+  mailgun: {
+    apiKey: process.env.MAILGUN_API_KEY,
+    domain: process.env.MAILGUN_DOMAIN,
+    from: process.env.MAILGUN_FROM,
+  },
+  RESET_PASSWORD_CODE_EXPIRATION: process.env.RESET_PASSWORD_CODE_EXPIRATION || '15', // minutes
 });

@@ -1,5 +1,5 @@
 import { In, Repository } from 'typeorm';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@models/User.entity';
 import * as bcrypt from 'bcrypt';
@@ -53,6 +53,13 @@ export class UserService {
     if (user) return user.user_password;
 
     return null;
+  }
+
+  async findByEmail(email: string) {
+    return this.userRepository.findOne({
+      where: { email },
+      select: ['id', 'email', 'reset_password_code', 'reset_password_expires'],
+    });
   }
 
   async updateLastLogin(user: User): Promise<User> {
@@ -209,5 +216,48 @@ export class UserService {
 
   async deleteRole(roleId: number): Promise<void> {
     await this.userOrganizationRepository.softRemove({ id: roleId });
+  }
+
+  async changePassword(userId: number, { currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id', 'password'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Password actual incorrecto');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.update(userId, { password: hashedPassword });
+
+    return { ok: true, message: 'Password actualizado exitosamente' };
+  }
+
+  async findByEmailWithResetCode(email: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { email },
+      select: ['id', 'email', 'reset_password_code', 'reset_password_expires'],
+    });
+  }
+
+  async updateResetPasswordCode(userId: number, code: string, expires: Date): Promise<void> {
+    await this.userRepository.update(userId, {
+      reset_password_code: code,
+      reset_password_expires: expires,
+    });
+  }
+
+  async updatePassword(userId: number, hashedPassword: string): Promise<void> {
+    await this.userRepository.update(userId, {
+      password: hashedPassword,
+      reset_password_code: () => 'NULL',
+      reset_password_expires: () => 'NULL',
+    });
   }
 }

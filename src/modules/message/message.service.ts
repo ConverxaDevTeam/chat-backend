@@ -155,7 +155,6 @@ export class MessageService {
         try {
           const audioDuration = await this.getAudioDuration(audioPath);
           message.time = audioDuration;
-          console.log('Duración del audio:', audioDuration);
         } catch (error) {
           console.error('Error obteniendo la duración del audio:', error.message);
         }

@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as uuid from 'uuid';
+import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
@@ -126,16 +127,18 @@ export class SofiaLLMService extends BaseAgent {
           url: image,
         },
       })) ?? [];
-    console.log('Adding message to thread:', imagesContent);
+    const content: MessageContentPartParam[] = [];
+    if (message) {
+      content.push({
+        type: 'text',
+        text: message,
+      });
+    }
+    content.push(...imagesContent);
+
     await this.openai.beta.threads.messages.create(this.threadId, {
       role: 'user',
-      content: [
-        {
-          type: 'text',
-          text: message,
-        },
-        ...imagesContent,
-      ],
+      content,
     });
   }
 
@@ -192,11 +195,15 @@ export class SofiaLLMService extends BaseAgent {
 
   async response(message: string, conversationId: number, images?: string[]): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
-    console.log('Sending message:', this.threadId);
-    await this.addMessageToThread(message, images);
-    await this.runAgent(this.threadId!, conversationId);
-    const response = await this.getResponse();
-    return this.validateResponse(response);
+    try {
+      await this.addMessageToThread(message, images);
+      await this.runAgent(this.threadId!, conversationId);
+      const response = await this.getResponse();
+      return this.validateResponse(response);
+    } catch (error) {
+      console.error('Error in response:', error);
+      throw error;
+    }
   }
 
   public getAgentId(): string {

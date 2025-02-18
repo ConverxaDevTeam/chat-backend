@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Logger, Body, Post, Delete, Param, Patch } from '@nestjs/common';
+import { Controller, Get, UseGuards, Logger, Body, Post, Delete, Param, Patch, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
@@ -6,9 +6,12 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
+import { UploadedFile } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard';
+import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 
 @Controller('organization')
 @ApiTags('organization')
@@ -66,5 +69,14 @@ export class OrganizationController {
   async setUserInOrganizationById(@Param('organizationId') organizationId: number, @Body('owner_id') userId: number) {
     const user = await this.organizationService.setUserInOrganizationById(organizationId, userId);
     return { ok: true, user };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':organizationId/logo')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'Actualizar logo de la organización' })
+  async updateLogo(@Param('organizationId') organizationId: number, @UploadedFile() file: Express.Multer.File) {
+    const organization = await this.organizationService.updateLogo(organizationId, file);
+    return { ok: true, organization };
   }
 }

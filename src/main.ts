@@ -50,14 +50,17 @@ async function bootstrap() {
     origin: [
       /http\:\/\/localhost\:\d{1,5}$/,
       'https://chat-v2.sofiacall.com',
+      'https://dev-sofia-chat-frontend.sofiacall.com',
+      'https://ci3.googleusercontent.com',
       'https://drlntz6nkra23p6khm9h89.webrelay.io',
       'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
-      'https://5d1c-190-143-186-23.ngrok-free.app',
+      'https://wki5y7wysxt8gqj0dw0yzh.webrelay.io',
     ],
   });
 
   // Configuración de CORS específica para '/sofia-chat'
   app.use('/files', cors());
+  app.use('/assets', cors());
 
   app.setGlobalPrefix('api');
 
