@@ -1,14 +1,9 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
-import { Reflector } from '@nestjs/core';
-import { META_ROLES } from '@infrastructure/constants';
 
 @Injectable()
-export class JwtAuthRolesGuard implements CanActivate {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly reflector: Reflector,
-  ) {}
+export class SuperAdminGuard implements CanActivate {
+  constructor(private readonly authService: AuthService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     try {
@@ -29,13 +24,8 @@ export class JwtAuthRolesGuard implements CanActivate {
       request.user = user;
       request.sessionId = sessionId;
 
-      if (user.is_super_admin) return true;
-
-      const allowedRoles = this.reflector.get<string[]>(META_ROLES, context.getHandler());
-      if (!allowedRoles) return true;
-      const hasRole = allowedRoles.some((role) => user.userOrganizations.some((userOrganization) => userOrganization.role?.includes(role)));
-      if (!hasRole) {
-        throw new ForbiddenException('No tienes el rol requerido para acceder a este recurso');
+      if (!user.is_super_admin) {
+        throw new ForbiddenException('Esta ruta requiere privilegios de super administrador');
       }
 
       return true;
