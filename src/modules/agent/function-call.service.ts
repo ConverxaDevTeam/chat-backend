@@ -6,9 +6,11 @@ import { Funcion } from '@models/agent/Function.entity';
 import { Autenticador } from '@models/agent/Autenticador.entity';
 import { HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
 import { Conversation } from '@models/Conversation.entity';
-import { NotificationType } from 'src/interfaces/notifications.interface';
 import { SocketService } from '@modules/socket/socket.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { NotificationService } from '@modules/notification/notification.service';
+import { NotificationType } from 'src/interfaces/notifications.interface';
+import { NotificationType as NotificationTypeSystemEvents } from '@models/notification.entity';
 
 @Injectable()
 export class FunctionCallService {
@@ -20,23 +22,30 @@ export class FunctionCallService {
     @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly systemEventsService: SystemEventsService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
     try {
       if (functionName === HitlName) {
-        console.log('conversacion enviada a agente humano', conversationId);
         const conversation = await this.conversationRepository.findOne({
           where: { id: conversationId },
-          relations: ['departamento.organizacion'],
+          relations: ['departamento', 'departamento.organizacion'],
         });
 
         await this.conversationRepository.update(conversationId, {
           need_human: true,
         });
         if (!conversation) {
-          throw new NotFoundException(`Conversation with id ${conversationId} not found`);
+          throw new NotFoundException('Conversation not found');
         }
+
+        await this.notificationService.createNotificationForOrganization(
+          conversation.departamento.organizacion.id,
+          NotificationTypeSystemEvents.SYSTEM,
+          'Usuario necesita ayuda de un agente humano',
+        );
+
         this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
           type: NotificationType.MESSAGE_RECEIVED,
           message: 'Usuario necesita ayuda de un agente humano',
