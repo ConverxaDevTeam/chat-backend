@@ -187,6 +187,8 @@ export class ConversationService {
       .createQueryBuilder('conversation')
       .leftJoinAndSelect('conversation.chat_user', 'chat_user')
       .leftJoinAndSelect('conversation.integration', 'integration')
+      .leftJoinAndSelect('conversation.user', 'user')
+      .addSelect('user.id')
       .addSelect('integration.token')
       .addSelect('integration.waba_id')
       .addSelect('integration.phone_number_id')

@@ -44,4 +44,15 @@ export class NotificationService {
     });
     return this.notificationRepository.save(notification);
   }
+
+  async createNotificationForUser(userId: number, type: NotificationType, title: string, organizationId: number): Promise<Notification> {
+    const notification = this.notificationRepository.create({
+      user: { id: userId },
+      type,
+      title,
+      organizationId,
+      status: NotificationStatus.UNREAD,
+    });
+    return this.notificationRepository.save(notification);
+  }
 }
