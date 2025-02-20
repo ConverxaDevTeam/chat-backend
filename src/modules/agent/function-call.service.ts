@@ -1,7 +1,7 @@
 import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HttpMethod, HttpRequestConfig, AutenticadorType, injectPlaces, HttpAutenticador, BearerConfig } from 'src/interfaces/function.interface';
+import { HttpMethod, HttpRequestConfig, AutenticadorType, injectPlaces, HttpAutenticador, BearerConfig, ApiKeyInjectPlaces } from 'src/interfaces/function.interface';
 import { Funcion } from '@models/agent/Function.entity';
 import { Autenticador } from '@models/agent/Autenticador.entity';
 import { HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
@@ -193,6 +193,11 @@ export class FunctionCallService {
     }
 
     let processedUrl = urlParams.reduce((acc, param) => acc.replace(`:${param}`, params[param].toString()), url);
+
+    if (authenticator?.config?.injectPlace === ApiKeyInjectPlaces.QUERY_PARAM) {
+      delete headers[authenticator.field_name];
+      processedUrl += `?${authenticator.field_name}=${authenticator.value}`;
+    }
 
     const nonUrlParams = Object.fromEntries(Object.entries(params).filter(([key]) => !urlParams.includes(key)));
 
