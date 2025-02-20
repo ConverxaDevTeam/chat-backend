@@ -9,6 +9,7 @@ import { Conversation } from '@models/Conversation.entity';
 import { NotificationType } from 'src/interfaces/notifications.interface';
 import { SocketService } from '@modules/socket/socket.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { ParamType } from 'src/interfaces/function-param.interface';
 
 @Injectable()
 export class FunctionCallService {
@@ -64,6 +65,20 @@ export class FunctionCallService {
 
       if (!finalConfig.url) {
         throw new Error('No se pudo obtener la URL de la función');
+      }
+
+      // Validate and transform params based on function configuration
+      if (httpConfig.requestBody) {
+        for (const param of httpConfig.requestBody) {
+          const value = params[param.name];
+          if (param.type === ParamType.OBJECT && typeof value === 'string') {
+            try {
+              params[param.name] = JSON.parse(value);
+            } catch (e) {
+              throw new Error(`El parámetro ${param.name} debe ser un JSON válido`);
+            }
+          }
+        }
       }
 
       const result = await this.makeApiCall(finalConfig.url, finalConfig.method, params, functionConfig.autenticador);
