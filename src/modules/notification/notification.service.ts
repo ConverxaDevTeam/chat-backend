@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationStatus, NotificationType } from '@models/notification.entity';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class NotificationService {
   constructor(
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
+    private readonly configService: ConfigService,
   ) {}
 
   async findAll(): Promise<Notification[]> {
@@ -41,6 +43,7 @@ export class NotificationService {
       organizationId,
       type,
       title,
+      link: `${this.configService.get('url.frontend')}/conversation/detail/${organizationId}`,
     });
     return this.notificationRepository.save(notification);
   }
@@ -52,6 +55,7 @@ export class NotificationService {
       title,
       organizationId,
       status: NotificationStatus.UNREAD,
+      link: `${this.configService.get('url.frontend')}/conversation/detail/${organizationId}`,
     });
     return this.notificationRepository.save(notification);
   }

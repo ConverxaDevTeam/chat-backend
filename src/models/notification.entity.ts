@@ -37,6 +37,9 @@ export class Notification extends BaseEntity {
   })
   status: NotificationStatus;
 
+  @Column({ nullable: true })
+  link: string;
+
   @ManyToOne(() => User, { nullable: true })
   user: User | null;
 }
