@@ -104,7 +104,7 @@ export class MessageService {
     return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }
 
-  async createMessageAudio(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
+  async createMessageAudio(conversation: Conversation, text: string, type: MessageType, organizationId: number, userId?: number): Promise<Message> {
     const audio = await this.sofiaLLMService.textToAudio(text);
     const message = new Message();
     const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audio);
@@ -119,6 +119,9 @@ export class MessageService {
     message.format = MessageFormatType.AUDIO;
     message.conversation = conversation;
     message.audio = audio;
+    if (userId) {
+      await this.notificationService.createNotificationForUser(userId, NotificationType.USER, `Tienes un nuevo mensaje: ${message.text}`, organizationId);
+    }
     return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }
 

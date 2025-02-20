@@ -281,13 +281,13 @@ export class FacebookService {
 
       let message: Message;
       if (text) {
-        message = await this.messageService.createMessageAudio(actualConversation, text, MessageType.USER);
+        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
       } else if (
         !text &&
         webhookFacebookDto.entry[0].messaging[0].message.attachments[0].type === 'audio' &&
         webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url
       ) {
-        message = await this.messageService.createMessageAudio(actualConversation, text, MessageType.USER);
+        message = await this.messageService.createMessageAudio(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
       } else {
         console.log('Invalid object', webhookFacebookDto);
         return;
@@ -315,7 +315,7 @@ export class FacebookService {
   private async createWhatsAppMessage(messageType: string, webhookFacebookDto: WebhookFacebookDto, actualConversation: Conversation, integration: Integration): Promise<Message> {
     if (messageType === 'text' && webhookFacebookDto.entry[0].changes?.[0].value.messages[0].text?.body) {
       const text = webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body;
-      return await this.messageService.createMessageAudio(actualConversation, text, MessageType.USER);
+      return await this.messageService.createMessage(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
     }
 
     if (messageType === 'image' && webhookFacebookDto.entry[0].changes?.[0].value.messages[0].image) {
@@ -385,7 +385,7 @@ export class FacebookService {
         writer.on('finish', () => resolve());
         writer.on('error', reject);
       });
-      return await this.messageService.createMessageAudio(actualConversation, '', MessageType.USER);
+      return await this.messageService.createMessageAudio(actualConversation, '', MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
     }
 
     throw new BadRequestException('Message type not found');
