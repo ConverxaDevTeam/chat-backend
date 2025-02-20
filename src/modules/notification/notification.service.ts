@@ -59,4 +59,13 @@ export class NotificationService {
     });
     return this.notificationRepository.save(notification);
   }
+
+  async findUnreadNotifications(userId: number): Promise<Notification[]> {
+    return this.notificationRepository
+      .createQueryBuilder('notification')
+      .where('(notification.userId = :userId OR notification.userId IS NULL)', { userId })
+      .andWhere('notification.status = :status', { status: NotificationStatus.UNREAD })
+      .orderBy('notification.created_at', 'DESC')
+      .getMany();
+  }
 }

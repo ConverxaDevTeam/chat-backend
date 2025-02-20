@@ -1,20 +1,22 @@
-import { Controller, Get, Post, Body, Param, Put, NotFoundException, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, NotFoundException, UseGuards, Req } from '@nestjs/common';
 import { NotificationService } from './notification.service';
 import { Notification } from '@models/notification.entity';
-import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 
 @ApiTags('notifications')
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
-  @ApiOperation({ summary: 'Get all notifications' })
-  @ApiResponse({ status: 200, description: 'List of notifications', type: [Notification] })
+  @ApiOperation({ summary: 'Get unread notifications for user and system' })
+  @ApiResponse({ status: 200, description: 'List of unread notifications', type: [Notification] })
   @Get()
-  findAll(): Promise<Notification[]> {
-    return this.notificationService.findAll();
+  findAll(@Req() req): Promise<Notification[]> {
+    const userId = req.user.id;
+    return this.notificationService.findUnreadNotifications(userId);
   }
 
   @ApiOperation({ summary: 'Get notification by id' })
