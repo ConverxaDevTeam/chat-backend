@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, ValidationPipe, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { Funcion } from '@models/agent/Function.entity';
 import { FunctionService } from 'src/services/function/function.service';
 import { CreateFunctionDto, UpdateFunctionDto, FunctionType } from 'src/interfaces/function.interface';
@@ -14,6 +14,7 @@ export class FunctionController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new function' })
+  @ApiConsumes('application/json')
   create(@Body(new ValidationPipe({ transform: true })) createFunctionDto: CreateFunctionDto<FunctionType>): Promise<Funcion> {
     return this.functionService.create(createFunctionDto);
   }
@@ -38,6 +39,7 @@ export class FunctionController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a function' })
+  @ApiConsumes('application/json')
   update(@Param('id', ParseIntPipe) id: number, @Body(new ValidationPipe({ transform: true })) updateFunctionDto: UpdateFunctionDto<FunctionType>): Promise<Funcion> {
     return this.functionService.update(id, updateFunctionDto);
   }
@@ -50,6 +52,7 @@ export class FunctionController {
 
   @Post('test/:functionId')
   @ApiOperation({ summary: 'Test a function execution' })
+  @ApiConsumes('application/json')
   async testFunction(@Param('functionId', ParseIntPipe) functionId: number, @Body() params: Record<string, any>): Promise<any> {
     return this.functionService.testFunction(functionId, params.params);
   }
