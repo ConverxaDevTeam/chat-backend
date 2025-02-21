@@ -47,4 +47,12 @@ export class NotificationController {
     if (!notification) throw new NotFoundException('Notification not found');
     return notification;
   }
+
+  @ApiOperation({ summary: 'Mark all notifications as read for the user' })
+  @ApiResponse({ status: 200, description: 'All notifications have been marked as read' })
+  @Put('read-all')
+  async markAllAsRead(@Req() req): Promise<void> {
+    const userId = req.user.id;
+    await this.notificationService.markAllAsRead(userId);
+  }
 }

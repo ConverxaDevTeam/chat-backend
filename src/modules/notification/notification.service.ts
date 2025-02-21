@@ -68,4 +68,8 @@ export class NotificationService {
       .orderBy('notification.created_at', 'DESC')
       .getMany();
   }
+
+  async markAllAsRead(userId: number): Promise<void> {
+    await this.notificationRepository.update({ user: { id: userId }, status: NotificationStatus.UNREAD }, { status: NotificationStatus.READ });
+  }
 }
