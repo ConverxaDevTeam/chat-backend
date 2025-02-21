@@ -11,12 +11,12 @@ import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
-  @ApiOperation({ summary: 'Get unread notifications for user and system' })
-  @ApiResponse({ status: 200, description: 'List of unread notifications', type: [Notification] })
-  @Get()
-  findAll(@Req() req): Promise<Notification[]> {
+  @ApiOperation({ summary: 'Get unread notifications for user and system by organization' })
+  @ApiResponse({ status: 200, description: 'List of unread notifications for the user and organization', type: [Notification] })
+  @Get('organization/:organizationId')
+  findAll(@Req() req, @Param('organizationId') organizationId: number): Promise<Notification[]> {
     const userId = req.user.id;
-    return this.notificationService.findUnreadNotifications(userId);
+    return this.notificationService.findUnreadNotifications(userId, organizationId);
   }
 
   @ApiOperation({ summary: 'Get notification by id' })
