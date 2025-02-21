@@ -37,5 +37,10 @@ export default (): any => ({
     domain: process.env.MAILGUN_DOMAIN,
     from: process.env.MAILGUN_FROM,
   },
+  slack: {
+    clientId: process.env.SLACK_CLIENT_ID,
+    clientSecret: process.env.SLACK_CLIENT_SECRET,
+    redirectUri: process.env.SLACK_REDIRECT_URI,
+  },
   RESET_PASSWORD_CODE_EXPIRATION: process.env.RESET_PASSWORD_CODE_EXPIRATION || '15', // minutes
 });
