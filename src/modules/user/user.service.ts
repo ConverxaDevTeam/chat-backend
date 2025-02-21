@@ -25,6 +25,14 @@ export class UserService {
 
   async findById(userId: number): Promise<User> {
     const user = await this.userRepository.findOne({
+      select: {
+        id: true,
+        is_super_admin: true,
+        userOrganizations: {
+          role: true,
+        },
+      },
+      relations: ['userOrganizations'],
       where: { id: userId },
     });
     if (!user) {
