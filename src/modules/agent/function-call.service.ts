@@ -1,7 +1,16 @@
 import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HttpMethod, HttpRequestConfig, AutenticadorType, injectPlaces, HttpAutenticador, BearerConfig, RequestBodyType } from 'src/interfaces/function.interface';
+import {
+  HttpMethod,
+  HttpRequestConfig,
+  AutenticadorType,
+  injectPlaces,
+  HttpAutenticador,
+  BearerConfig,
+  ApiKeyInjectPlaces,
+  RequestBodyType,
+} from 'src/interfaces/function.interface';
 import { Funcion } from '@models/agent/Function.entity';
 import { Autenticador } from '@models/agent/Autenticador.entity';
 import { HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
@@ -9,6 +18,7 @@ import { Conversation } from '@models/Conversation.entity';
 import { NotificationType } from 'src/interfaces/notifications.interface';
 import { SocketService } from '@modules/socket/socket.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { ParamType } from 'src/interfaces/function-param.interface';
 
 @Injectable()
 export class FunctionCallService {
@@ -64,6 +74,20 @@ export class FunctionCallService {
 
       if (!finalConfig.url) {
         throw new Error('No se pudo obtener la URL de la función');
+      }
+
+      // Validate and transform params based on function configuration
+      if (httpConfig.requestBody) {
+        for (const param of httpConfig.requestBody) {
+          const value = params[param.name];
+          if (param.type === ParamType.OBJECT && typeof value === 'string') {
+            try {
+              params[param.name] = JSON.parse(value);
+            } catch (e) {
+              throw new Error(`El parámetro ${param.name} debe ser un JSON válido`);
+            }
+          }
+        }
       }
 
       const result = await this.makeApiCall(finalConfig.url, finalConfig.method, params, functionConfig.autenticador, finalConfig.bodyType);
@@ -195,6 +219,11 @@ export class FunctionCallService {
     }
 
     let processedUrl = urlParams.reduce((acc, param) => acc.replace(`:${param}`, params[param].toString()), url);
+
+    if (authenticator?.config?.injectPlace === ApiKeyInjectPlaces.QUERY_PARAM) {
+      delete headers[authenticator.field_name];
+      processedUrl += `?${authenticator.field_name}=${authenticator.value}`;
+    }
 
     const nonUrlParams = Object.fromEntries(Object.entries(params).filter(([key]) => !urlParams.includes(key)));
 
