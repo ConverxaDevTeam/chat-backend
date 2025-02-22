@@ -3,7 +3,7 @@ import { User } from '@models/User.entity';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { DepartmentService } from '@modules/department/department.service';
 import { OrganizationService } from '@modules/organization/organization.service';
-import { Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as fs from 'fs';
@@ -15,6 +15,7 @@ import { CreateIntegrationWhatsAppDto } from '@modules/facebook/dto/create-integ
 import { BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { FileService } from '@modules/file/file.service';
 import { ConversationService } from '../conversation/conversation.service';
+import { SlackService } from '@modules/slack/slack.service';
 
 @Injectable()
 export class IntegrationService {
@@ -29,6 +30,8 @@ export class IntegrationService {
     private readonly configService: ConfigService,
     private readonly conversationService: ConversationService,
     private readonly fileService: FileService,
+    @Inject(forwardRef(() => SlackService))
+    private readonly slackService: SlackService,
   ) {}
 
   async getIntegrationWebChat(user: User, organizationId: number, departamentoId: number): Promise<Integration> {
@@ -344,6 +347,7 @@ export class IntegrationService {
     const integration = await this.integrationRepository.findOne({
       where: { id: integrationId },
       relations: ['conversations'], // Cargar relaciones si es necesario
+      select: ['id', 'type', 'slack_channel_id', 'token'],
     });
 
     if (!integration) {
@@ -354,7 +358,125 @@ export class IntegrationService {
       await this.conversationService.removeIntegrationRelationships(integration.id);
     }
 
+    if (integration.type === IntegrationType.SLACK) {
+      await this.slackService.archiveChannel(integration.slack_channel_id, integration.token);
+    }
+
     await this.integrationRepository.remove(integration);
+
+    return integration;
+  }
+
+  async createIntegrationSlack(
+    departamento: Departamento,
+    data: {
+      authed_user_id: string;
+      access_token: string;
+      team_id: string;
+      team_name: string;
+      refresh_token: string;
+      bot_user_id: string;
+      channel_id: string;
+      channel_name: string;
+    },
+  ): Promise<Integration> {
+    const newIntegration = new Integration();
+    newIntegration.type = IntegrationType.SLACK;
+    newIntegration.departamento = departamento;
+    newIntegration.authed_user_id = data.authed_user_id;
+    newIntegration.token = data.access_token;
+    newIntegration.team_id = data.team_id;
+    newIntegration.team_name = data.team_name;
+    newIntegration.refresh_token = data.refresh_token;
+    newIntegration.bot_user_id = data.bot_user_id;
+    newIntegration.slack_channel_id = data.channel_id;
+    newIntegration.slack_channel_name = data.channel_name;
+
+    await this.integrationRepository.save(newIntegration);
+
+    return newIntegration;
+  }
+
+  async getChannelNameByIntegrationId(user: User, organizationId: number, departamentoId: number, integrationId: number): Promise<string> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id: integrationId,
+        departamento: { id: departamentoId },
+        type: IntegrationType.SLACK,
+      },
+      select: ['id', 'slack_channel_name'],
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${integrationId} no existe en el departamento con ID ${departamentoId}`);
+    }
+    return integration.slack_channel_name;
+  }
+
+  async changeChannelNameSlack(user: User, organizationId: number, departamentoId: number, integrationId: number, channelName: string): Promise<Integration> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id: integrationId,
+        departamento: { id: departamentoId },
+        type: IntegrationType.SLACK,
+      },
+      select: ['id', 'slack_channel_name', 'slack_channel_id', 'token'],
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${integrationId} no existe en el departamento con ID ${departamentoId}`);
+    }
+    const response = await this.slackService.renameSlackChannel(integration.slack_channel_id, channelName, integration.token);
+
+    if (!response) {
+      throw new Error('Error al renombrar canal');
+    }
+
+    integration.slack_channel_name = channelName;
+    await this.integrationRepository.save(integration);
+
+    return integration;
+  }
+
+  async getIntegrationBychannelId(channelId: string): Promise<Integration | null> {
+    const integration = await this.integrationRepository
+      .createQueryBuilder('integration')
+      .addSelect('integration.token')
+      .addSelect('integration.page_id')
+      .addSelect('integration.config')
+      .addSelect('integration.slack_channel_id')
+      .addSelect('integration.token')
+      .leftJoinAndSelect('integration.departamento', 'departamento')
+      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
+      .where('integration.slack_channel_id = :channelId', { channelId })
+      .andWhere('integration.type = :type', { type: IntegrationType.SLACK })
+      .getOne();
 
     return integration;
   }

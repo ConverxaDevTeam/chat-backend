@@ -7,6 +7,7 @@ import { IntegrationService } from './integration.service';
 import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-chat.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile } from '@nestjs/common';
+import { ChangeChannelNameSlackDto } from './dto/change-channel-name.dto';
 
 @Controller('integration')
 @ApiTags('integration')
@@ -117,15 +118,41 @@ export class IntegrationController {
   @Delete(':integrationId/remove')
   @ApiOperation({ summary: 'Eliminar logo de la integración' })
   async deleteIntegrationById(@GetUser() user: User, @Param('integrationId', ParseIntPipe) integrationId: number) {
-    const integration = await this.integrationService.deleteIntegrationById(user, integrationId);
-    const integrationConfig = JSON.parse(integration.config);
+    await this.integrationService.deleteIntegrationById(user, integrationId);
 
     return {
       ok: true,
-      integration: {
-        ...integration,
-        config: integrationConfig,
-      },
+    };
+  }
+
+  @ApiOperation({ summary: 'Obtiene la integración de slack' })
+  @Get('get-channel-name/:organizationId/:departamentoId/:integrationId')
+  async getChannelNameByIntegrationId(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Param('integrationId') integrationId: number,
+  ) {
+    const name = await this.integrationService.getChannelNameByIntegrationId(user, organizationId, departamentoId, integrationId);
+
+    return {
+      ok: true,
+      name,
+    };
+  }
+
+  @ApiOperation({ summary: 'Obtiene la integración de web chat' })
+  @Post('change-channel-name/:organizationId/:departamentoId/:integrationId')
+  async changeChannelName(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Param('integrationId') integrationId: number,
+    @Body() changeChannelNameSlackDto: ChangeChannelNameSlackDto,
+  ) {
+    await this.integrationService.changeChannelNameSlack(user, organizationId, departamentoId, integrationId, changeChannelNameSlackDto.name);
+    return {
+      ok: true,
     };
   }
 }

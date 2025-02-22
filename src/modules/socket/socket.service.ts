@@ -16,6 +16,7 @@ import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
 import { WhatsAppService } from '../facebook/whatsapp.service';
+import { SlackService } from '@modules/slack/slack.service';
 
 @Injectable()
 export class SocketService {
@@ -33,6 +34,7 @@ export class SocketService {
     private readonly userOrganizationRepository: Repository<UserOrganization>,
     private readonly configService: ConfigService,
     private readonly whatsAppService: WhatsAppService,
+    private readonly slackService: SlackService,
   ) {}
 
   // Establecer el servidor de sockets
@@ -175,6 +177,10 @@ export class SocketService {
         throw new Error('Phone number id is required');
       }
       await this.whatsAppService.sendMessage(conversation.chat_user.identified, message, conversation.integration.phone_number_id, conversation.integration.token);
+    }
+
+    if (conversation.type === ConversationType.SLACK && conversation.integration?.token) {
+      this.slackService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
     }
 
     if (!conversation.user?.id) return message;

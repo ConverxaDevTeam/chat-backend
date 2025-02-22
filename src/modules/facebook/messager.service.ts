@@ -31,7 +31,7 @@ export class MessagerService {
         console.log('Message sent successfully');
       }
     } catch (error) {
-      console.log('Error sending message:', error);
+      console.log('Error sending message:', error.response.data.error);
     }
   }
 
@@ -63,7 +63,7 @@ export class MessagerService {
         console.log('Message sent successfully');
       }
     } catch (error) {
-      console.log('Error sending message:', error);
+      console.log('Error sending message:', error.response.data.error);
     }
   }
 }
