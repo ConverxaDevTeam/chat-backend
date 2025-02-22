@@ -22,10 +22,10 @@ export class SlackController {
   @Public()
   @ApiOperation({ summary: 'actions slack' })
   async handleSlackActions(@Body() body, @Res() res) {
+    if (body.type === 'url_verification') {
+      return res.json({ challenge: body.challenge });
+    }
     setImmediate(async () => {
-      if (body.type === 'url_verification') {
-        return res.json({ challenge: body.challenge });
-      }
       if (body.event.type === 'message' && body.event.channel && body.event.channel && body.event.type === 'message') {
         if (!body.event.subtype && body.event.text && !body.event.bot_id) {
           const text = body.event.text;
