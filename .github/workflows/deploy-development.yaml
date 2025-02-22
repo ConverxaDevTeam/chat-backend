@@ -61,6 +61,9 @@ jobs:
             MAILGUN_API_KEY=${{ secrets.MAILGUN_API_KEY }}
             MAILGUN_DOMAIN=${{ secrets.MAILGUN_DOMAIN }}
             MAILGUN_FROM=${{ secrets.MAILGUN_FROM }}
+            SLACK_CLIENT_ID=${{ secrets.SLACK_CLIENT_ID }}
+            SLACK_CLIENT_SECRET=${{ secrets.SLACK_CLIENT_SECRET }}
+            SLACK_REDIRECT_URI=${{ secrets.SLACK_REDIRECT_URI }}
             EOF
             docker-compose build
             docker-compose down -v

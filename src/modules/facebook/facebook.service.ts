@@ -60,7 +60,7 @@ export class FacebookService {
   }
 
   private async subscribeToWebhook(wabaId: string, integrationId: number, accessToken: string): Promise<void> {
-    await axios.delete(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, {
+    await axios.delete(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export class FacebookService {
     const webhookUrl = `${this.configService.get<string>('url.web_hook_whatsapp')}/api/facebook/webhook/${integrationId}/api`;
 
     await axios.post(
-      `https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`,
+      `https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`,
       {
         callback_url: webhookUrl,
         verify_token: accessToken,
@@ -88,7 +88,7 @@ export class FacebookService {
     console.log(pin);
 
     const response = await axios.post<{ success: boolean }>(
-      `https://graph.facebook.com/v21.0/${phoneNumberId}/register`,
+      `https://graph.facebook.com/v22.0/${phoneNumberId}/register`,
       {
         messaging_product: 'whatsapp',
         pin,
@@ -200,7 +200,7 @@ export class FacebookService {
     }
 
     const responseSucribed = await axios.post(
-      `https://graph.facebook.com/v21.0/${createIntegrationMessagerDto.id}/subscribed_apps`,
+      `https://graph.facebook.com/v22.0/${createIntegrationMessagerDto.id}/subscribed_apps`,
       {
         subscribed_fields: ['messages', 'messaging_postbacks'],
       },
