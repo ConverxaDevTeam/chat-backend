@@ -7,11 +7,12 @@ import { Message } from '../../models/Message.entity';
 import { ChatSession } from '@models/ChatSession.entity';
 import { SessionService } from './session.service';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   providers: [MessageService, SessionService, SofiaLLMService],
   controllers: [MessageController],
-  imports: [TypeOrmModule.forFeature([Conversation, Message, ChatSession])],
+  imports: [TypeOrmModule.forFeature([Conversation, Message, ChatSession]), NotificationModule],
   exports: [MessageService],
 })
 export class MessageModule {}

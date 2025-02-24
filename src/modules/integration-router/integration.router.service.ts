@@ -103,6 +103,9 @@ export class IntegrationRouterService {
       .leftJoinAndSelect('conversation.user', 'user')
       .leftJoinAndSelect('conversation.chat_user', 'chat_user')
       .leftJoinAndSelect('conversation.integration', 'integration')
+      .leftJoinAndSelect('conversation.departamento', 'departamento')
+      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
+      .addSelect('organizacion.id')
       .addSelect('integration.token')
       .addSelect('integration.phone_number_id')
       .addSelect('chat_user.identified')
@@ -117,11 +120,15 @@ export class IntegrationRouterService {
       throw new UnauthorizedException('No tienes permiso para enviar mensajes en esta conversación');
     }
 
+    if (!conversation.departamento?.organizacion?.id) {
+      throw new UnauthorizedException('No se encontro la organizacion de la conversacion');
+    }
+
     const savedImages = images?.length ? await this.saveImages(images) : [];
 
     // Notificar al usuario del chat
     if (conversation.chat_user?.id) {
-      this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL, savedImages);
+      this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL, conversation.departamento.organizacion.id, savedImages);
     }
     return { message, images: savedImages };
   }

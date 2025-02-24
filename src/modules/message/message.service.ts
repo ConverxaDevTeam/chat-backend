@@ -12,6 +12,8 @@ import { IntegrationType } from '@models/Integration.entity';
 import { join } from 'path';
 import * as getMP3Duration from 'get-mp3-duration';
 import { SessionService } from './session.service';
+import { NotificationService } from '@modules/notification/notification.service';
+import { NotificationType } from '@models/notification.entity';
 
 @Injectable()
 export class MessageService {
@@ -22,12 +24,15 @@ export class MessageService {
     private readonly messageRepository: Repository<Message>,
     private readonly sofiaLLMService: SofiaLLMService,
     private readonly sessionService: SessionService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async createMessage(
     conversation: Conversation,
     text: string,
     type: MessageType,
+    organizationId: number,
+    userId?: number,
     options?: {
       platform: IntegrationType | 'HITL';
       format: MessageFormatType;
@@ -90,10 +95,16 @@ export class MessageService {
     }
     message.type = type;
     message.conversation = conversation;
+
+    // Verificar si la conversación esta asignada a un agente
+    if (userId) {
+      await this.notificationService.createNotificationForUser(userId, NotificationType.USER, `Tienes un nuevo mensaje: ${message.text}`, organizationId);
+    }
+
     return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }
 
-  async createMessageAudio(conversation: Conversation, text: string, type: MessageType): Promise<Message> {
+  async createMessageAudio(conversation: Conversation, text: string, type: MessageType, organizationId: number, userId?: number): Promise<Message> {
     const audio = await this.sofiaLLMService.textToAudio(text);
     const message = new Message();
     const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audio);
@@ -108,6 +119,9 @@ export class MessageService {
     message.format = MessageFormatType.AUDIO;
     message.conversation = conversation;
     message.audio = audio;
+    if (userId) {
+      await this.notificationService.createNotificationForUser(userId, NotificationType.USER, `Tienes un nuevo mensaje: ${message.text}`, organizationId);
+    }
     return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }
 
