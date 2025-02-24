@@ -118,6 +118,16 @@ export class SofiaLLMService extends BaseAgent {
     return thread.id;
   }
 
+  private extractRunId(message: string): string | null {
+    console.log('Extracting run id from message:', message);
+    try {
+      const match = message.match(/run_([\w]+)/);
+      return match ? `run_${match[1]}` : null;
+    } catch {
+      return null;
+    }
+  }
+
   protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
     if (!this.threadId) throw new Error('Thread not initialized');
     const imagesContent =
@@ -135,11 +145,26 @@ export class SofiaLLMService extends BaseAgent {
       });
     }
     content.push(...imagesContent);
-
-    await this.openai.beta.threads.messages.create(this.threadId, {
-      role: 'user',
-      content,
-    });
+    try {
+      const response = await this.openai.beta.threads.messages.create(this.threadId, {
+        role: 'user',
+        content,
+      });
+      console.log('Response:', response);
+    } catch (error) {
+      console.error('Error in addMessageToThread', JSON.stringify(error.error.message));
+      const runId = this.extractRunId(error.error.message);
+      console.log('Run id:', runId);
+      if (runId) {
+        try {
+          await this.openai.beta.threads.runs.cancel(this.threadId!, runId);
+          return await this.addMessageToThread(message, images);
+        } catch (cancelError) {
+          console.error('Error canceling run:', cancelError);
+        }
+      }
+      throw error;
+    }
   }
 
   protected async runAgent(threadId: string, conversationId: number): Promise<any> {
