@@ -178,11 +178,18 @@ export class WebChatSocketGateway implements OnModuleInit {
             const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
             if (conversation) {
               const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
-              const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, {
-                platform: IntegrationType.CHAT_WEB,
-                format: MessageFormatType.TEXT,
-                images: imageUrls,
-              });
+              const message = await this.messageService.createMessage(
+                conversation,
+                dataJson.message.text,
+                MessageType.USER,
+                Number(departamentoActual.organizacion),
+                conversation?.user?.id,
+                {
+                  platform: IntegrationType.CHAT_WEB,
+                  format: MessageFormatType.TEXT,
+                  images: imageUrls,
+                },
+              );
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
 
               const organizationId = Number(departamentoActual.organizacion);
@@ -190,8 +197,8 @@ export class WebChatSocketGateway implements OnModuleInit {
               try {
                 const response = await this.integrationRouterService.processMessage(dataJson.message.text, conversation.id, imageUrls);
                 if (!response) return;
-                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format);
-                if (!messageAi) return; //te debo amigo back :'v
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format, MessageType.AGENT, organizationId);
+                if (!messageAi) return;
                 this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
               } catch (error) {
                 console.log('error:', error);
@@ -210,7 +217,7 @@ export class WebChatSocketGateway implements OnModuleInit {
 
               const filePath = join(audioDir, uniqueName);
               fs.writeFileSync(filePath, audioBuffer);
-              const message = await this.messageService.createMessage(conversation, '', MessageType.USER, {
+              const message = await this.messageService.createMessage(conversation, '', MessageType.USER, Number(departamentoActual.organizacion), conversation?.user?.id, {
                 platform: IntegrationType.CHAT_WEB,
                 format: MessageFormatType.AUDIO,
                 audio_url: uniqueName,
@@ -222,8 +229,8 @@ export class WebChatSocketGateway implements OnModuleInit {
               try {
                 const response = await this.integrationRouterService.processMessage(message.text, conversation.id);
                 if (!response) return;
-                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format);
-                if (!messageAi) return; //te debo amigo back :'v
+                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, MessageFormatType.TEXT, MessageType.AGENT, organizationId);
+                if (!messageAi) return;
                 this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
               } catch (error) {
                 console.log('error:', error);
