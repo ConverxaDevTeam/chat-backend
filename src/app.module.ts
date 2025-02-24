@@ -27,6 +27,8 @@ import { NodeModule } from './modules/node/node.module';
 import { DashboardCardModule } from './modules/dashboard/dashboard-card.module';
 import { AnalyticsModule } from '@modules/analytics/analytics.module';
 import { FileModule } from './modules/file/file.module';
+import { SlackModule } from '@modules/slack/slack.module';
+import { NotificationModule } from '@modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -100,6 +102,8 @@ import { FileModule } from './modules/file/file.module';
     DashboardCardModule,
     AnalyticsModule,
     FileModule,
+    SlackModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

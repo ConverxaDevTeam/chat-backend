@@ -60,7 +60,7 @@ export class FacebookService {
   }
 
   private async subscribeToWebhook(wabaId: string, integrationId: number, accessToken: string): Promise<void> {
-    await axios.delete(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, {
+    await axios.delete(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export class FacebookService {
     const webhookUrl = `${this.configService.get<string>('url.web_hook_whatsapp')}/api/facebook/webhook/${integrationId}/api`;
 
     await axios.post(
-      `https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`,
+      `https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`,
       {
         callback_url: webhookUrl,
         verify_token: accessToken,
@@ -88,7 +88,7 @@ export class FacebookService {
     console.log(pin);
 
     const response = await axios.post<{ success: boolean }>(
-      `https://graph.facebook.com/v21.0/${phoneNumberId}/register`,
+      `https://graph.facebook.com/v22.0/${phoneNumberId}/register`,
       {
         messaging_product: 'whatsapp',
         pin,
@@ -200,7 +200,7 @@ export class FacebookService {
     }
 
     const responseSucribed = await axios.post(
-      `https://graph.facebook.com/v21.0/${createIntegrationMessagerDto.id}/subscribed_apps`,
+      `https://graph.facebook.com/v22.0/${createIntegrationMessagerDto.id}/subscribed_apps`,
       {
         subscribed_fields: ['messages', 'messaging_postbacks'],
       },
@@ -281,17 +281,13 @@ export class FacebookService {
 
       let message: Message;
       if (text) {
-        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
+        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
       } else if (
         !text &&
         webhookFacebookDto.entry[0].messaging[0].message.attachments[0].type === 'audio' &&
         webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url
       ) {
-        message = await this.messageService.createMessage(actualConversation, text, MessageType.USER, {
-          platform: IntegrationType.MESSENGER,
-          format: MessageFormatType.AUDIO,
-          audio_url: webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url,
-        });
+        message = await this.messageService.createMessageAudio(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
       } else {
         console.log('Invalid object', webhookFacebookDto);
         return;
@@ -301,7 +297,13 @@ export class FacebookService {
 
       const response = await this.integrationRouterService.processMessage(message.text, actualConversation.id);
       if (!response) return;
-      const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
+      const messageAi = await this.socketService.sendMessageToUser(
+        actualConversation,
+        response.message,
+        message.format,
+        MessageType.AGENT,
+        integration.departamento.organizacion.id,
+      );
       if (!messageAi) return;
 
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
@@ -313,7 +315,7 @@ export class FacebookService {
   private async createWhatsAppMessage(messageType: string, webhookFacebookDto: WebhookFacebookDto, actualConversation: Conversation, integration: Integration): Promise<Message> {
     if (messageType === 'text' && webhookFacebookDto.entry[0].changes?.[0].value.messages[0].text?.body) {
       const text = webhookFacebookDto.entry[0].changes[0].value.messages[0].text?.body;
-      return await this.messageService.createMessage(actualConversation, text, MessageType.USER);
+      return await this.messageService.createMessage(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
     }
 
     if (messageType === 'image' && webhookFacebookDto.entry[0].changes?.[0].value.messages[0].image) {
@@ -343,11 +345,18 @@ export class FacebookService {
           } as Express.Multer.File,
         ]);
 
-        return await this.messageService.createMessage(actualConversation, image.caption || '', MessageType.USER, {
-          platform: IntegrationType.WHATSAPP,
-          format: MessageFormatType.IMAGE,
-          images: [savedImageUrl],
-        });
+        return await this.messageService.createMessage(
+          actualConversation,
+          image.caption || '',
+          MessageType.USER,
+          integration.departamento.organizacion.id,
+          actualConversation?.user?.id,
+          {
+            platform: IntegrationType.WHATSAPP,
+            format: MessageFormatType.IMAGE,
+            images: [savedImageUrl],
+          },
+        );
       } catch (error) {
         console.error('Error fetching image URL:', error.response?.data || error.message);
         throw new Error('Failed to fetch image URL');
@@ -376,11 +385,7 @@ export class FacebookService {
         writer.on('finish', () => resolve());
         writer.on('error', reject);
       });
-      return await this.messageService.createMessage(actualConversation, '', MessageType.USER, {
-        platform: IntegrationType.WHATSAPP,
-        format: MessageFormatType.AUDIO,
-        audio_url: uniqueName,
-      });
+      return await this.messageService.createMessageAudio(actualConversation, '', MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
     }
 
     throw new BadRequestException('Message type not found');
@@ -416,7 +421,13 @@ export class FacebookService {
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
       const response = await this.integrationRouterService.processMessage(message.text, actualConversation.id, message.images);
       if (!response) return;
-      const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
+      const messageAi = await this.socketService.sendMessageToUser(
+        actualConversation,
+        response.message,
+        message.format,
+        MessageType.AGENT,
+        integration.departamento.organizacion.id,
+      );
       if (!messageAi) return;
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
     } catch (error) {

@@ -12,6 +12,11 @@ export enum HttpMethod {
   DELETE = 'DELETE',
 }
 
+export enum RequestBodyType {
+  JSON = 'json',
+  FORM_DATA = 'form-data',
+}
+
 export class FunctionParam {
   @IsString()
   @IsNotEmpty()
@@ -36,6 +41,10 @@ export class HttpRequestConfig {
   @IsOptional()
   @IsEnum(HttpMethod)
   method?: HttpMethod;
+
+  @IsOptional()
+  @IsEnum(RequestBodyType)
+  bodyType?: RequestBodyType;
 
   @IsOptional()
   @IsArray()

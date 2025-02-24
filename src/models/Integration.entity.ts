@@ -7,6 +7,7 @@ export enum IntegrationType {
   CHAT_WEB = 'chat_web',
   WHATSAPP = 'whatsapp',
   MESSENGER = 'messenger',
+  SLACK = 'slack',
 }
 
 @Entity({ name: 'Integrations' })
@@ -25,6 +26,27 @@ export class Integration extends BaseEntity {
 
   @Column({ type: 'varchar', nullable: true, select: false })
   page_id: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  team_id: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  authed_user_id: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  bot_user_id: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  team_name: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  slack_channel_id: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  slack_channel_name: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  refresh_token: string;
 
   @Column({ type: 'enum', enum: IntegrationType })
   type: IntegrationType;

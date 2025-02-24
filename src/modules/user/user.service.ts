@@ -28,6 +28,7 @@ export class UserService {
       select: {
         id: true,
         is_super_admin: true,
+        email: true,
         userOrganizations: {
           role: true,
         },

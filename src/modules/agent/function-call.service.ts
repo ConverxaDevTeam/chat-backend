@@ -1,14 +1,26 @@
 import { Injectable, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { HttpMethod, HttpRequestConfig, AutenticadorType, injectPlaces, HttpAutenticador, BearerConfig } from 'src/interfaces/function.interface';
+import {
+  HttpMethod,
+  HttpRequestConfig,
+  AutenticadorType,
+  injectPlaces,
+  HttpAutenticador,
+  BearerConfig,
+  ApiKeyInjectPlaces,
+  RequestBodyType,
+} from 'src/interfaces/function.interface';
 import { Funcion } from '@models/agent/Function.entity';
 import { Autenticador } from '@models/agent/Autenticador.entity';
 import { HitlName, UserFunctionPrefix } from 'src/interfaces/agent';
 import { Conversation } from '@models/Conversation.entity';
-import { NotificationType } from 'src/interfaces/notifications.interface';
 import { SocketService } from '@modules/socket/socket.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { ParamType } from 'src/interfaces/function-param.interface';
+import { NotificationService } from '@modules/notification/notification.service';
+import { NotificationType } from 'src/interfaces/notifications.interface';
+import { NotificationType as NotificationTypeSystemEvents } from '@models/notification.entity';
 
 @Injectable()
 export class FunctionCallService {
@@ -20,23 +32,31 @@ export class FunctionCallService {
     @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly systemEventsService: SystemEventsService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
     try {
       if (functionName === HitlName) {
-        console.log('conversacion enviada a agente humano', conversationId);
         const conversation = await this.conversationRepository.findOne({
           where: { id: conversationId },
-          relations: ['departamento.organizacion'],
+          relations: ['departamento', 'departamento.organizacion'],
         });
 
         await this.conversationRepository.update(conversationId, {
           need_human: true,
         });
         if (!conversation) {
-          throw new NotFoundException(`Conversation with id ${conversationId} not found`);
+          throw new NotFoundException('Conversation not found');
         }
+
+        await this.notificationService.createNotificationForOrganization(
+          conversation.departamento.organizacion.id,
+          NotificationTypeSystemEvents.SYSTEM,
+          'Usuario necesita ayuda de un agente humano',
+          { metadata: { conversationId } },
+        );
+
         this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
           type: NotificationType.MESSAGE_RECEIVED,
           message: 'Usuario necesita ayuda de un agente humano',
@@ -66,7 +86,21 @@ export class FunctionCallService {
         throw new Error('No se pudo obtener la URL de la función');
       }
 
-      const result = await this.makeApiCall(finalConfig.url, finalConfig.method, params, functionConfig.autenticador);
+      // Validate and transform params based on function configuration
+      if (httpConfig.requestBody) {
+        for (const param of httpConfig.requestBody) {
+          const value = params[param.name];
+          if (param.type === ParamType.OBJECT && typeof value === 'string') {
+            try {
+              params[param.name] = JSON.parse(value);
+            } catch (e) {
+              throw new Error(`El parámetro ${param.name} debe ser un JSON válido`);
+            }
+          }
+        }
+      }
+
+      const result = await this.makeApiCall(finalConfig.url, finalConfig.method, params, functionConfig.autenticador, finalConfig.bodyType);
 
       if (conversationId !== -1) {
         await this.systemEventsService.logFunctionCall({
@@ -160,10 +194,12 @@ export class FunctionCallService {
     }
   }
 
-  private async makeApiCall(url: string, method: HttpMethod = HttpMethod.GET, params: Record<string, any>, authenticator?: Autenticador) {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+  private async makeApiCall(url: string, method: HttpMethod = HttpMethod.GET, params: Record<string, any>, authenticator?: Autenticador, bodyType?: RequestBodyType) {
+    const headers: Record<string, string> = {};
+
+    if (bodyType !== RequestBodyType.FORM_DATA) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // Si hay un autenticador, aplicar su configuración
     if (authenticator) {
@@ -179,7 +215,7 @@ export class FunctionCallService {
     const fetchData: {
       method: HttpMethod;
       headers: Record<string, string>;
-      body?: string;
+      body?: any;
     } = {
       method,
       headers,
@@ -194,9 +230,18 @@ export class FunctionCallService {
 
     let processedUrl = urlParams.reduce((acc, param) => acc.replace(`:${param}`, params[param].toString()), url);
 
+    if (authenticator?.config?.injectPlace === ApiKeyInjectPlaces.QUERY_PARAM) {
+      delete headers[authenticator.field_name];
+      processedUrl += `?${authenticator.field_name}=${authenticator.value}`;
+    }
+
     const nonUrlParams = Object.fromEntries(Object.entries(params).filter(([key]) => !urlParams.includes(key)));
 
-    if (method !== HttpMethod.GET) {
+    if (bodyType === RequestBodyType.FORM_DATA) {
+      const formData = new FormData();
+      Object.entries(nonUrlParams).forEach(([key, value]) => formData.append(key, value));
+      fetchData.body = formData;
+    } else if (method !== HttpMethod.GET) {
       fetchData.body = JSON.stringify(nonUrlParams);
     } else {
       processedUrl +=

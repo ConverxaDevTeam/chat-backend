@@ -16,6 +16,7 @@ import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
 import { WhatsAppService } from '../facebook/whatsapp.service';
+import { SlackService } from '@modules/slack/slack.service';
 
 @Injectable()
 export class SocketService {
@@ -33,6 +34,7 @@ export class SocketService {
     private readonly userOrganizationRepository: Repository<UserOrganization>,
     private readonly configService: ConfigService,
     private readonly whatsAppService: WhatsAppService,
+    private readonly slackService: SlackService,
   ) {}
 
   // Establecer el servidor de sockets
@@ -144,11 +146,18 @@ export class SocketService {
     this.webChatClients.delete(chatUserId);
   }
 
-  async sendMessageToUser(conversation: Conversation, agentMessage: string, format: MessageFormatType, type: MessageType = MessageType.AGENT, images?: string[]) {
+  async sendMessageToUser(
+    conversation: Conversation,
+    agentMessage: string,
+    format: MessageFormatType,
+    type: MessageType = MessageType.AGENT,
+    organizationId: number,
+    images?: string[],
+  ) {
     const message =
       format !== MessageFormatType.AUDIO
-        ? await this.messageService.createMessage(conversation, agentMessage, type, { images, format, platform: 'HITL' })
-        : await this.messageService.createMessageAudio(conversation, agentMessage, type);
+        ? await this.messageService.createMessage(conversation, agentMessage, type, organizationId, undefined, { images, format, platform: 'HITL' })
+        : await this.messageService.createMessageAudio(conversation, agentMessage, type, organizationId);
     // Enviamos al servidor de WebChat si existe el cliente
     if (conversation.type === ConversationType.CHAT_WEB && conversation.chat_user?.id && this.webChatClients.has(conversation.chat_user.id)) {
       const clientSocket = this.webChatClients.get(conversation.chat_user.id);
@@ -175,6 +184,10 @@ export class SocketService {
         throw new Error('Phone number id is required');
       }
       await this.whatsAppService.sendMessage(conversation.chat_user.identified, message, conversation.integration.phone_number_id, conversation.integration.token);
+    }
+
+    if (conversation.type === ConversationType.SLACK && conversation.integration?.token) {
+      this.slackService.sendMessage(conversation.chat_user.identified, message.text, conversation.integration.token);
     }
 
     if (!conversation.user?.id) return message;

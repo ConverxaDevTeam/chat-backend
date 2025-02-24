@@ -12,6 +12,8 @@ import { DepartmentService } from '@modules/department/department.service';
 import { MessageType } from '@models/Message.entity';
 import { SearchConversationDto } from './dto/search-conversation.dto';
 import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
+import { NotificationStatus } from '@models/notification.entity';
+import { Notification } from '@models/notification.entity';
 
 @Injectable()
 export class ConversationService {
@@ -23,6 +25,8 @@ export class ConversationService {
     private readonly userOrganizationService: UserOrganizationService,
     private readonly chatUserService: ChatUserService,
     private readonly departmentService: DepartmentService,
+    @InjectRepository(Notification)
+    private readonly notificationRepository: Repository<Notification>,
   ) {}
 
   async createConversation(chatUser: ChatUser, departamento: Departamento): Promise<Conversation> {
@@ -81,6 +85,16 @@ export class ConversationService {
     if (conversation.user) {
       throw new BadRequestException('Conversation is already assigned to a user');
     }
+    // Marcar notificación como leída
+    await this.notificationRepository
+      .createQueryBuilder()
+      .update()
+      .set({ status: NotificationStatus.READ })
+      .where('metadata IS NOT NULL AND CAST(metadata->:key AS TEXT) = :value', {
+        key: 'conversationId',
+        value: conversationId.toString(),
+      })
+      .execute();
 
     conversation.user = user;
     return await this.conversationRepository.save(conversation);
@@ -187,9 +201,12 @@ export class ConversationService {
       .createQueryBuilder('conversation')
       .leftJoinAndSelect('conversation.chat_user', 'chat_user')
       .leftJoinAndSelect('conversation.integration', 'integration')
+      .leftJoinAndSelect('conversation.user', 'user')
+      .addSelect('user.id')
       .addSelect('integration.token')
       .addSelect('integration.waba_id')
       .addSelect('integration.phone_number_id')
+      .addSelect('integration.token')
       .where('integration.id = :integrationId', { integrationId })
       .andWhere('integration.type = :type', { type })
       .andWhere('chat_user.identified = :identified', { identified })

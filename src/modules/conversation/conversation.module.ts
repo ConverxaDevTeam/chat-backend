@@ -12,16 +12,19 @@ import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 import { Organization } from '@models/Organization.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { DepartmentService } from '@modules/department/department.service';
+import { NotificationModule } from '@modules/notification/notification.module';
+import { Notification } from '@models/notification.entity';
 
 @Module({
   providers: [ConversationService, UserOrganizationService, DepartmentService],
   controllers: [ConversationController],
   imports: [
-    TypeOrmModule.forFeature([Conversation, UserOrganization, Organization, Departamento]),
+    TypeOrmModule.forFeature([Conversation, UserOrganization, Organization, Departamento, Notification]),
     forwardRef(() => AuthModule),
     forwardRef(() => OrganizationModule),
     forwardRef(() => DepartmentModule),
     forwardRef(() => ChatUserModule),
+    NotificationModule,
   ],
   exports: [ConversationService],
 })
