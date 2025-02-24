@@ -85,13 +85,15 @@ export class ConversationService {
     if (conversation.user) {
       throw new BadRequestException('Conversation is already assigned to a user');
     }
-
     // Marcar notificación como leída
     await this.notificationRepository
       .createQueryBuilder()
       .update()
       .set({ status: NotificationStatus.READ })
-      .where('metadata @> :metadata', { metadata: { conversationId } })
+      .where('metadata IS NOT NULL AND CAST(metadata->:key AS TEXT) = :value', {
+        key: 'conversationId',
+        value: conversationId.toString(),
+      })
       .execute();
 
     conversation.user = user;
