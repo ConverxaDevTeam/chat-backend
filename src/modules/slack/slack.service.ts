@@ -216,11 +216,11 @@ export class SlackService {
       } else {
         actualConversation = conversation;
       }
-      const message = await this.messageService.createMessage(actualConversation, text, MessageType.USER);
+      const message = await this.messageService.createMessage(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, message);
       const response = await this.integrationRouterService.processMessage(message.text, actualConversation.id, message.images);
       if (!response) return;
-      const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format);
+      const messageAi = await this.socketService.sendMessageToUser(actualConversation, response.message, message.format, undefined, integration.departamento.organizacion.id);
       if (!messageAi) return;
       this.socketService.sendMessageToChatByOrganizationId(integration.departamento.organizacion.id, actualConversation.id, messageAi);
     } catch (error) {

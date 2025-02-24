@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationStatus, NotificationType } from '@models/notification.entity';
@@ -38,12 +38,14 @@ export class NotificationService {
     return this.findOne(id);
   }
 
-  async createNotificationForOrganization(organizationId: number, type: NotificationType, title: string): Promise<Notification> {
+  async createNotificationForOrganization(organizationId: number, type: NotificationType, title: string, options?: { metadata?: Record<string, any> }): Promise<Notification> {
+    if (!options?.metadata) throw new BadRequestException('Metadata is required');
     const notification = this.notificationRepository.create({
       organizationId,
       type,
       title,
-      link: `${this.configService.get('url.frontend')}/conversation/detail/${organizationId}`,
+      link: `${this.configService.get('url.frontend')}/conversation/detail/${options.metadata.conversationId}`,
+      metadata: options?.metadata,
     });
     return this.notificationRepository.save(notification);
   }

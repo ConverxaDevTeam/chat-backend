@@ -54,6 +54,7 @@ export class FunctionCallService {
           conversation.departamento.organizacion.id,
           NotificationTypeSystemEvents.SYSTEM,
           'Usuario necesita ayuda de un agente humano',
+          { metadata: { conversationId } },
         );
 
         this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {

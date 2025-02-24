@@ -40,6 +40,9 @@ export class Notification extends BaseEntity {
   @Column({ nullable: true })
   link: string;
 
+  @Column({ type: 'json', nullable: true })
+  metadata: Record<string, any>;
+
   @ManyToOne(() => User, { nullable: true })
   user: User | null;
 }
