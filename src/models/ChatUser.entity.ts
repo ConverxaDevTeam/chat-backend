@@ -6,6 +6,7 @@ export enum ChatUserType {
   CHAT_WEB = 'chat_web',
   WHATSAPP = 'whatsapp',
   MESSENGER = 'messenger',
+  SLACK = 'slack',
 }
 
 @Entity({ name: 'ChatUsers' })

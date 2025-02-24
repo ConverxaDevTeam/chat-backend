@@ -10,6 +10,7 @@ import { DepartmentService } from '@modules/department/department.service';
 import { Departamento } from '@models/Departamento.entity';
 import { Organization } from '@models/Organization.entity';
 import { ConversationModule } from '@modules/conversation/conversation.module';
+import { SlackModule } from '@modules/slack/slack.module';
 
 @Module({
   providers: [IntegrationService, DepartmentService],
@@ -20,6 +21,7 @@ import { ConversationModule } from '@modules/conversation/conversation.module';
     forwardRef(() => UserModule),
     forwardRef(() => OrganizationModule),
     forwardRef(() => ConversationModule),
+    forwardRef(() => SlackModule),
   ],
   exports: [IntegrationService],
 })
