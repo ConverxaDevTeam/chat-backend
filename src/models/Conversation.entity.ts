@@ -32,9 +32,6 @@ export class Conversation extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   need_human: boolean;
 
-  @Column({ type: 'timestamp', nullable: true })
-  last_call: Date;
-
   @ManyToOne(() => ChatUser)
   @JoinColumn({ name: 'chatUserId' })
   chat_user: ChatUser;
