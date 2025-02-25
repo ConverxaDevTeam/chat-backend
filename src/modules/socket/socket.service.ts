@@ -18,6 +18,8 @@ import * as fs from 'fs';
 import { WhatsAppService } from '../facebook/whatsapp.service';
 import { SlackService } from '@modules/slack/slack.service';
 
+const tempMemory = new Map();
+
 @Injectable()
 export class SocketService {
   private socketServer: Server;
@@ -112,14 +114,29 @@ export class SocketService {
     );
   }
 
-  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number, images: string[] = []) {
+  async sendToChatBot(message: string, room: string, identifier: agentIdentifier | TestAgentIdentifier, conversationId: number, images: string[] = []) {
     this.socketServer.to(room).emit('typing', { message, images });
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
     const imageUrls = images?.length ? await this.saveImages(images) : [];
-    const { message: response, ...conf } = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
+    const stateDate = new Date();
+    if (identifier.type === AgentIdentifierType.TEST) {
+      tempMemory.set(identifier.threatId, stateDate);
+      console.log('sss', tempMemory.get(identifier.threatId));
+    }
+    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
+    if (!agentResponse) return;
+    if (identifier.type === AgentIdentifierType.TEST && stateDate !== tempMemory.get(identifier.threatId)) {
+      console.log('past execution');
+      console.log(tempMemory.get(identifier.threatId));
+      console.log(stateDate);
+      console.log('response', agentResponse?.message);
+      return;
+    }
+    console.log('new execution');
+    const { message: response, ...conf } = agentResponse;
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
 

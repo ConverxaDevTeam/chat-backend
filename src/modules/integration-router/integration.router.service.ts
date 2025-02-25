@@ -62,6 +62,7 @@ export class IntegrationRouterService {
   }
 
   async processMessage(message: string, conversationId: number, images: string[] = []) {
+    const currentCall = new Date();
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
       relations: ['user', 'departamento.agente'],
@@ -70,6 +71,8 @@ export class IntegrationRouterService {
     if (!conversation) {
       throw new Error('Conversation not found');
     }
+
+    await this.conversationRepository.update(conversation.id, { last_call: currentCall });
 
     if (conversation.user?.id) {
       if (conversation.need_human) {
@@ -89,6 +92,17 @@ export class IntegrationRouterService {
     }
 
     const response = await this.agentService.processMessageWithConversation(message, conversation, images);
+    if (!response) return;
+
+    const updatedConversation = await this.conversationRepository.findOne({
+      where: { id: conversationId },
+      select: ['last_call'],
+    });
+    console.log('checking last_call', updatedConversation?.last_call?.getTime() !== currentCall.getTime());
+    if (updatedConversation?.last_call?.getTime() !== currentCall.getTime()) {
+      console.log('not sending message');
+      return null;
+    }
 
     return {
       ...response,

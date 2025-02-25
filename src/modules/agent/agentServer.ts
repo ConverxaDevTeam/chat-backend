@@ -63,7 +63,7 @@ export class AgentService {
    * @param props mensaje a enviar al agente
    * @returns respuesta del agente
    */
-  async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse> {
+  async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse | null> {
     const { message, identifier, agentId, conversationId, images } = props;
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
@@ -97,6 +97,7 @@ export class AgentService {
     }
     const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
     const response = await llmService.response(message, conversationId, images);
+    if (response === '') return null;
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }
 
@@ -106,7 +107,7 @@ export class AgentService {
    * @param conversationId id de la conversación
    * @returns respuesta del agente
    */
-  async processMessageWithConversation(message: string, conversation: Conversation, images: string[]): Promise<AgentResponse> {
+  async processMessageWithConversation(message: string, conversation: Conversation, images: string[]): Promise<AgentResponse | null> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
     const isConfigured = !!config;
@@ -132,6 +133,7 @@ export class AgentService {
     }
 
     const response = await this.getAgentResponse({ message, identifier, agentId: conversation.departamento.agente?.id, conversationId: conversation.id, images });
+    if (!response) return null;
     if (!isConfigured) {
       config.agentIdentifier.agentId = response.agentId;
       config.agentIdentifier.threatId = response.threadId;
