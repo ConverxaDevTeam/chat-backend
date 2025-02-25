@@ -135,6 +135,7 @@ export class SofiaLLMService extends BaseAgent {
       try {
         await this.openai.beta.threads.runs.cancel(this.threadId!, runId);
       } catch (error) {
+        if (error.error.message === "Cannot cancel run with status 'completed'.") return;
         console.log('error on cancel run', error);
         throw error;
       }
@@ -167,7 +168,11 @@ export class SofiaLLMService extends BaseAgent {
       console.log('on add message to thread error');
       await this.cancelRun(error.error.message);
       try {
-        return await this.addMessageToThread(message, images);
+        await this.openai.beta.threads.messages.create(this.threadId, {
+          role: 'user',
+          content,
+        });
+        return;
       } catch (cancelError) {
         console.error('Error adding extra thread', cancelError);
         throw cancelError;
@@ -182,10 +187,6 @@ export class SofiaLLMService extends BaseAgent {
     try {
       run = await this.openai.beta.threads.runs.create(threadId, { assistant_id: this.assistantId! });
     } catch (error) {
-      const runId = this.extractRunId(error.error.message);
-      console.log('Run id on run agent:', runId);
-      if (runId) return false;
-      console.log('Error creating run:', error.error.message);
       await this.cancelRun(error.error.message);
       try {
         run = await this.openai.beta.threads.runs.create(threadId, { assistant_id: this.assistantId! });
@@ -198,7 +199,7 @@ export class SofiaLLMService extends BaseAgent {
 
     // Wait for the run to complete
     let runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
-    while (runStatus.status !== 'completed') {
+    while (runStatus.status !== 'completed' && runStatus.status !== 'cancelling') {
       console.time('status-check');
       await new Promise((resolve) => setTimeout(resolve, 200));
       runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
@@ -255,16 +256,24 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number, images?: string[]): Promise<string> {
+  async response(message: string, conversationId: number, images?: string[], tempMemory?: Map<string, Date>, stateDate?: Date): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
     try {
       const start = performance.now();
       console.log('Sending message to thread:', message);
+      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before add message');
+        return '';
+      }
       await this.addMessageToThread(message, images);
       console.log(`Adding message took: ${((performance.now() - start) / 1000).toFixed(2)}s`);
 
       const runStart = performance.now();
       console.log('Running agent...');
+      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before run agent');
+        return '';
+      }
       const hadRun = await this.runAgent(this.threadId!, conversationId);
       if (!hadRun) {
         return '';
@@ -272,8 +281,16 @@ export class SofiaLLMService extends BaseAgent {
       console.log(`Running agent took: ${((performance.now() - runStart) / 1000).toFixed(2)}s`);
 
       const responseStart = performance.now();
+      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before get response');
+        return '';
+      }
       console.log('Getting response...');
       const response = await this.getResponse();
+      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before validate response');
+        return '';
+      }
       console.log(`Getting response took: ${((performance.now() - responseStart) / 1000).toFixed(2)}s`);
       console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
       return this.validateResponse(response);

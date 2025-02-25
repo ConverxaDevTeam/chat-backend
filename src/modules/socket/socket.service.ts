@@ -124,9 +124,8 @@ export class SocketService {
     const stateDate = new Date();
     if (identifier.type === AgentIdentifierType.TEST) {
       tempMemory.set(identifier.threatId, stateDate);
-      console.log('sss', tempMemory.get(identifier.threatId));
     }
-    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
+    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls, tempMemory, stateDate });
     if (!agentResponse) return;
     if (identifier.type === AgentIdentifierType.TEST && stateDate !== tempMemory.get(identifier.threatId)) {
       console.log('past execution');
