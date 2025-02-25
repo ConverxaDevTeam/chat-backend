@@ -22,8 +22,6 @@ interface getAgentResponseProps {
   agentId: number;
   conversationId: number;
   images: string[];
-  tempMemory?: Map<string, Date>;
-  stateDate?: Date;
 }
 /**
  * Funcion que setea la configuracion del agente
@@ -66,7 +64,7 @@ export class AgentService {
    * @returns respuesta del agente
    */
   async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse | null> {
-    const { message, identifier, agentId, conversationId, images, tempMemory, stateDate } = props;
+    const { message, identifier, agentId, conversationId, images } = props;
     console.time('configure-agent');
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
@@ -100,8 +98,7 @@ export class AgentService {
     }
     const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
     console.timeEnd('configure-agent');
-    const tempMemorySent = identifier.type === AgentIdentifierType.TEST ? tempMemory : undefined;
-    const response = await llmService.response(message, conversationId, images, tempMemorySent, stateDate);
+    const response = await llmService.response(message, conversationId, images);
     if (response === '') return null;
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }

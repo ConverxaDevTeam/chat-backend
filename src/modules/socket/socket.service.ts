@@ -18,8 +18,6 @@ import * as fs from 'fs';
 import { WhatsAppService } from '../facebook/whatsapp.service';
 import { SlackService } from '@modules/slack/slack.service';
 
-const tempMemory = new Map();
-
 @Injectable()
 export class SocketService {
   private socketServer: Server;
@@ -121,20 +119,10 @@ export class SocketService {
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
     const imageUrls = images?.length ? await this.saveImages(images) : [];
-    const stateDate = new Date();
-    if (identifier.type === AgentIdentifierType.TEST) {
-      tempMemory.set(identifier.threatId, stateDate);
-    }
-    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls, tempMemory, stateDate });
+
+    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
     if (!agentResponse) return;
-    if (identifier.type === AgentIdentifierType.TEST && stateDate !== tempMemory.get(identifier.threatId)) {
-      console.log('past execution');
-      console.log(tempMemory.get(identifier.threatId));
-      console.log(stateDate);
-      console.log('response', agentResponse?.message);
-      return;
-    }
-    console.log('new execution');
+    console.log('new execution', message);
     const { message: response, ...conf } = agentResponse;
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }

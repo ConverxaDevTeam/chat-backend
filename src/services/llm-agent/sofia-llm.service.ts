@@ -12,6 +12,8 @@ import * as os from 'os';
 import * as uuid from 'uuid';
 import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
 
+const tempMemory = new Map();
+
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
   type: 'function' as const,
@@ -133,10 +135,30 @@ export class SofiaLLMService extends BaseAgent {
     console.log('Run id:', runId);
     if (runId) {
       try {
+        let runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        console.log('actual Run status:', runStatus.status);
         await this.openai.beta.threads.runs.cancel(this.threadId!, runId);
+        console.log('Run canceled:');
+        runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        while (runStatus.status !== 'cancelled') {
+          console.log(`on canceling Run status: ${runStatus.status}`);
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        }
       } catch (error) {
+        console.log('error on cancel run before completed', error);
         if (error.error.message === "Cannot cancel run with status 'completed'.") return;
-        console.log('error on cancel run', error);
+        if (error.error.message === "Cannot cancel run with status 'cancelled'.") return;
+        if (error.error.message === "Cannot cancel run with status 'cancelling'.") {
+          let runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+          while (runStatus.status !== 'cancelled') {
+            console.log(`on canceling Run status: ${runStatus.status}`);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+          }
+          return;
+        }
+        console.log('final error on cancel run', error);
         throw error;
       }
     }
@@ -256,8 +278,11 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number, images?: string[], tempMemory?: Map<string, Date>, stateDate?: Date): Promise<string> {
+  async response(message: string, conversationId: number, images?: string[]): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
+    const stateDate = new Date();
+    tempMemory.set(this.threadId, stateDate);
+
     try {
       const start = performance.now();
       console.log('Sending message to thread:', message);
