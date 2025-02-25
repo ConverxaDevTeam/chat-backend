@@ -32,7 +32,7 @@ export class OrganizationController {
   async getAll() {
     const organizations = await this.organizationService.getAll();
     const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => {
-      const uniqueEmails = new Set(userOrganizations.map((uo) => uo.user.email));
+      const uniqueEmails = new Set(userOrganizations.filter((uo) => uo.user).map((uo) => uo.user.email));
       return {
         ...organization,
         logo: organization.logo,
