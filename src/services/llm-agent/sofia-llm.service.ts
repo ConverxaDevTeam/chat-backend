@@ -136,11 +136,17 @@ export class SofiaLLMService extends BaseAgent {
     if (runId) {
       try {
         let runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        while (runStatus.status === 'queued') {
+          console.log(`before canceling Run status: ${runStatus.status}`);
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        }
         console.log('actual Run status:', runStatus.status);
         await this.openai.beta.threads.runs.cancel(this.threadId!, runId);
         console.log('Run canceled:');
         runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
-        while (runStatus.status !== 'cancelled') {
+        const INCOMPLETE_STATUS = ['completed', 'cancelling', 'cancelled'];
+        while (!INCOMPLETE_STATUS.includes(runStatus.status)) {
           console.log(`on canceling Run status: ${runStatus.status}`);
           await new Promise((resolve) => setTimeout(resolve, 200));
           runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
@@ -152,7 +158,7 @@ export class SofiaLLMService extends BaseAgent {
         if (error.error.message === "Cannot cancel run with status 'cancelling'.") {
           let runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
           while (runStatus.status !== 'cancelled') {
-            console.log(`on canceling Run status: ${runStatus.status}`);
+            console.log(`on canceling after error Run status: ${runStatus.status}`);
             await new Promise((resolve) => setTimeout(resolve, 200));
             runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
           }
@@ -221,7 +227,8 @@ export class SofiaLLMService extends BaseAgent {
 
     // Wait for the run to complete
     let runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
-    while (runStatus.status !== 'completed' && runStatus.status !== 'cancelling') {
+    const INCOMPLETE_STATUS = ['completed', 'cancelling', 'cancelled'];
+    while (!INCOMPLETE_STATUS.includes(runStatus.status)) {
       console.time('status-check');
       await new Promise((resolve) => setTimeout(resolve, 200));
       runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
@@ -248,7 +255,12 @@ export class SofiaLLMService extends BaseAgent {
         if (toolOutputs.length > 0) {
           console.time('submit-outputs');
           console.log('Submitting tool outputs:', toolOutputs);
-          await this.openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: toolOutputs });
+          try {
+            await this.openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: toolOutputs });
+          } catch (error) {
+            console.error('Error submitting tool outputs', error);
+            throw error;
+          }
           console.timeEnd('submit-outputs');
           console.log('Tool outputs submitted successfully');
         } else {
