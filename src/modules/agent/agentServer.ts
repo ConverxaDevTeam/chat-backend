@@ -22,6 +22,7 @@ interface getAgentResponseProps {
   agentId: number;
   conversationId: number;
   images: string[];
+  userId?: number;
 }
 /**
  * Funcion que setea la configuracion del agente
@@ -64,10 +65,10 @@ export class AgentService {
    * @returns respuesta del agente
    */
   async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse | null> {
-    const { message, identifier, agentId, conversationId, images } = props;
+    const { message, identifier, agentId, conversationId, images, userId } = props;
     console.time('configure-agent');
     let agenteConfig: AgentConfig | null = null;
-    if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
+    if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
       const queryBuilder = this.agenteRepository
         .createQueryBuilder('agente')
         .select(['agente.config'])
@@ -83,7 +84,7 @@ export class AgentService {
       const functions = await this.funcionRepository.createQueryBuilder('funcion').where('funcion.agent_id = :agentId', { agentId }).getMany();
 
       agenteConfig = {
-        agentId: identifier.LLMAgentId,
+        agentId: identifier.LLMAgentId ?? agenteConfig?.agentId,
         DBagentId: agentId,
         threadId: identifier.threatId,
         funciones: functions.map((f) => {
@@ -98,7 +99,7 @@ export class AgentService {
     }
     const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
     console.timeEnd('configure-agent');
-    const response = await llmService.response(message, conversationId, images);
+    const response = await llmService.response(message, conversationId, images, userId);
     if (response === '') return null;
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }

@@ -99,10 +99,6 @@ export class IntegrationRouterService {
       select: ['last_call'],
     });
     console.log('checking last_call', updatedConversation?.last_call?.getTime() !== currentCall.getTime());
-    if (updatedConversation?.last_call?.getTime() !== currentCall.getTime()) {
-      console.log('not sending message');
-      return null;
-    }
 
     return {
       ...response,

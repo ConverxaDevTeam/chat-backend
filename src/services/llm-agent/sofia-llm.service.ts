@@ -13,6 +13,7 @@ import * as uuid from 'uuid';
 import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
 
 const tempMemory = new Map();
+const tempMemoryConversation = new Map();
 
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
@@ -136,7 +137,8 @@ export class SofiaLLMService extends BaseAgent {
     if (runId) {
       try {
         let runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
-        while (runStatus.status === 'queued') {
+        const INCOMPLETE_STATUS = ['queued', 'cancelling', 'cancelled'];
+        while (INCOMPLETE_STATUS.includes(runStatus.status)) {
           console.log(`before canceling Run status: ${runStatus.status}`);
           await new Promise((resolve) => setTimeout(resolve, 200));
           runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
@@ -145,14 +147,13 @@ export class SofiaLLMService extends BaseAgent {
         await this.openai.beta.threads.runs.cancel(this.threadId!, runId);
         console.log('Run canceled:');
         runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
-        const INCOMPLETE_STATUS = ['completed', 'cancelling', 'cancelled'];
         while (!INCOMPLETE_STATUS.includes(runStatus.status)) {
           console.log(`on canceling Run status: ${runStatus.status}`);
           await new Promise((resolve) => setTimeout(resolve, 200));
           runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
         }
       } catch (error) {
-        console.log('error on cancel run before completed', error);
+        console.log('error on cancel run before completed', error.error.message);
         if (error.error.message === "Cannot cancel run with status 'completed'.") return;
         if (error.error.message === "Cannot cancel run with status 'cancelled'.") return;
         if (error.error.message === "Cannot cancel run with status 'cancelling'.") {
@@ -271,6 +272,7 @@ export class SofiaLLMService extends BaseAgent {
       }
 
       if (runStatus.status === 'failed') {
+        console.error('Assistant run failed', runStatus);
         throw new Error('Assistant run failed');
       }
     }
@@ -290,16 +292,23 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number, images?: string[]): Promise<string> {
+  async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
     const stateDate = new Date();
+    console.log('old execution before response', conversationId, this.threadId);
+    tempMemoryConversation.set(userId ?? conversationId, this.threadId);
     tempMemory.set(this.threadId, stateDate);
 
     try {
       const start = performance.now();
       console.log('Sending message to thread:', message);
-      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
         console.log('old execution before add message');
+        return '';
+      }
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before add message');
         return '';
       }
       await this.addMessageToThread(message, images);
@@ -307,8 +316,13 @@ export class SofiaLLMService extends BaseAgent {
 
       const runStart = performance.now();
       console.log('Running agent...');
-      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
         console.log('old execution before run agent');
+        return '';
+      }
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before run agent');
         return '';
       }
       const hadRun = await this.runAgent(this.threadId!, conversationId);
@@ -317,18 +331,26 @@ export class SofiaLLMService extends BaseAgent {
       }
       console.log(`Running agent took: ${((performance.now() - runStart) / 1000).toFixed(2)}s`);
 
-      const responseStart = performance.now();
-      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
         console.log('old execution before get response');
+        return '';
+      }
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before get response');
         return '';
       }
       console.log('Getting response...');
       const response = await this.getResponse();
-      if (stateDate && tempMemory && tempMemory.get(this.threadId) !== stateDate) {
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
         console.log('old execution before validate response');
         return '';
       }
-      console.log(`Getting response took: ${((performance.now() - responseStart) / 1000).toFixed(2)}s`);
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before validate response');
+        return '';
+      }
       console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
       return this.validateResponse(response);
     } catch (error) {

@@ -119,8 +119,11 @@ export class SocketService {
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
     const imageUrls = images?.length ? await this.saveImages(images) : [];
-
-    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
+    let userId: number | undefined;
+    if (room.startsWith('test-chat-')) {
+      userId = parseInt(room.split('-')[1]);
+    }
+    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls, userId });
     if (!agentResponse) return;
     console.log('new execution', message);
     const { message: response, ...conf } = agentResponse;
