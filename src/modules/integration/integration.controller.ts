@@ -8,6 +8,7 @@ import { UpdateIntegrationWebChatDataDto } from './dto/update-integration-web-ch
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile } from '@nestjs/common';
 import { ChangeChannelNameSlackDto } from './dto/change-channel-name.dto';
+import { UpdateIntegrationMessengerManualDto } from '@modules/facebook/dto/update-integration-messager-manual.dto';
 
 @Controller('integration')
 @ApiTags('integration')
@@ -153,6 +154,61 @@ export class IntegrationController {
     await this.integrationService.changeChannelNameSlack(user, organizationId, departamentoId, integrationId, changeChannelNameSlackDto.name);
     return {
       ok: true,
+    };
+  }
+
+  @ApiOperation({ summary: 'crear integración de messager manual' })
+  @Post('create-messager-manual/:organizationId/:departamentoId')
+  async createIntegrationMessagerManual(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('departamentoId') departamentoId: number) {
+    await this.integrationService.createIntegrationMessagerManual(user, organizationId, departamentoId);
+    return {
+      ok: true,
+    };
+  }
+
+  @ApiOperation({ summary: 'get integración de messager manual' })
+  @Get('get-messenger-manual/:organizationId/:departamentoId/:id')
+  async getIntegrationMessengerManual(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Param('id') id: number,
+  ) {
+    const integration = await this.integrationService.getIntegrationMessengerManual(user, organizationId, departamentoId, id);
+    return {
+      ok: true,
+      integration,
+    };
+  }
+
+  @ApiOperation({ summary: 'cambiar code_webhook de messager manual' })
+  @Post('change-messenger-manual-code/:organizationId/:departamentoId/:id')
+  async changeCodeIntegrationMessengerManual(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Param('id') id: number,
+  ) {
+    const code = await this.integrationService.changeCodeIntegrationMessengerManual(user, organizationId, departamentoId, id);
+    return {
+      ok: true,
+      code_webhook: code,
+    };
+  }
+
+  @ApiOperation({ summary: 'update de messager manual' })
+  @Post('update-messenger-manual/:organizationId/:departamentoId/:id')
+  async updateIntegrationMessengerManual(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Param('id') id: number,
+    @Body() updateIntegrationMessengerManualDto: UpdateIntegrationMessengerManualDto,
+  ) {
+    const integration = await this.integrationService.updateIntegrationMessengerManual(user, organizationId, departamentoId, id, updateIntegrationMessengerManualDto);
+    return {
+      ok: true,
+      integration,
     };
   }
 }

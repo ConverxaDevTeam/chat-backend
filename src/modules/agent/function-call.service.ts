@@ -272,6 +272,10 @@ export class FunctionCallService {
       );
     }
 
-    return await response.json();
+    const contentType = response.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      return await response.json();
+    }
+    return { response: await response.text() };
   }
 }

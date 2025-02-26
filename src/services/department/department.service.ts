@@ -13,6 +13,7 @@ import { IntegrationType } from '@models/Integration.entity';
 interface DepartmentWithAgents {
   id: number;
   name: string;
+  description: string;
   organizacion: { id: number };
   integrations: {
     id: number;
@@ -52,6 +53,7 @@ export class DepartmentService {
 
     const department = this.departmentRepository.create({
       name: createDepartmentDto.name,
+      description: createDepartmentDto.description,
       organizacion: organization,
     });
 
@@ -108,6 +110,7 @@ export class DepartmentService {
       select: {
         id: true,
         name: true,
+        description: true,
         organizacion: {
           id: true,
         },
@@ -149,6 +152,7 @@ export class DepartmentService {
     const departmentResponse: DepartmentWithAgents = {
       id: department.id,
       name: department.name,
+      description: department.description,
       organizacion: { id: department.organizacion.id },
       integrations: department.integrations,
       agente: department.agente

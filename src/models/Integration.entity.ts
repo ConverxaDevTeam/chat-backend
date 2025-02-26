@@ -8,6 +8,7 @@ export enum IntegrationType {
   WHATSAPP = 'whatsapp',
   MESSENGER = 'messenger',
   SLACK = 'slack',
+  MESSENGER_MANUAL = 'messenger_manual',
 }
 
 @Entity({ name: 'Integrations' })
@@ -47,6 +48,12 @@ export class Integration extends BaseEntity {
 
   @Column({ type: 'varchar', nullable: true, select: false })
   refresh_token: string;
+
+  @Column({ type: 'varchar', nullable: true, select: false })
+  code_webhook: string;
+
+  @Column({ type: 'boolean', nullable: true, default: false, select: false })
+  validated_webhook: boolean;
 
   @Column({ type: 'enum', enum: IntegrationType })
   type: IntegrationType;
