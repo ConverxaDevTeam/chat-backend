@@ -89,6 +89,7 @@ export class IntegrationRouterService {
     }
 
     const response = await this.agentService.processMessageWithConversation(message, conversation, images);
+    if (!response) return;
 
     return {
       ...response,
