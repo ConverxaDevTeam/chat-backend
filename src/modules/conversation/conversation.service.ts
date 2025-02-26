@@ -49,6 +49,7 @@ export class ConversationService {
     return await this.conversationRepository.findOne({
       where: { id, chat_user: { id: chatUser.id } },
       relations: ['messages', 'user', 'chat_user'],
+      order: { messages: { created_at: 'ASC' } },
     });
   }
 
