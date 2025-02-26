@@ -16,6 +16,7 @@ import { BadRequestException, InternalServerErrorException, NotFoundException } 
 import { FileService } from '@modules/file/file.service';
 import { ConversationService } from '../conversation/conversation.service';
 import { SlackService } from '@modules/slack/slack.service';
+import { UpdateIntegrationMessengerManualDto } from '@modules/facebook/dto/update-integration-messager-manual.dto';
 
 @Injectable()
 export class IntegrationService {
@@ -477,6 +478,175 @@ export class IntegrationService {
       .where('integration.slack_channel_id = :channelId', { channelId })
       .andWhere('integration.type = :type', { type: IntegrationType.SLACK })
       .getOne();
+
+    return integration;
+  }
+
+  async createIntegrationMessagerManual(user: User, organizationId: number, departamentoId: number): Promise<Integration> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const newIntegration = new Integration();
+    newIntegration.type = IntegrationType.MESSENGER_MANUAL;
+    newIntegration.departamento = departamento;
+    newIntegration.code_webhook = this.generateRandomCode(30);
+    return await this.integrationRepository.save(newIntegration);
+  }
+
+  generateRandomCode(length: number): string {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  }
+
+  async getIntegrationMessengerManual(user: User, organizationId: number, departamentoId: number, id: number): Promise<Integration> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id,
+        departamento: { id: departamentoId },
+        type: IntegrationType.MESSENGER_MANUAL,
+      },
+      select: ['id', 'code_webhook', 'page_id', 'token', 'validated_webhook'],
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${id} no existe en el departamento con ID ${departamentoId}`);
+    }
+
+    return integration;
+  }
+
+  async changeCodeIntegrationMessengerManual(user: User, organizationId: number, departamentoId: number, id: number): Promise<string> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id,
+        departamento: { id: departamentoId },
+        type: IntegrationType.MESSENGER_MANUAL,
+      },
+      select: ['id', 'code_webhook'],
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${id} no existe en el departamento con ID ${departamentoId}`);
+    }
+
+    integration.code_webhook = this.generateRandomCode(30);
+    integration.validated_webhook = false;
+    await this.integrationRepository.save(integration);
+
+    return integration.code_webhook;
+  }
+
+  async getIntegrationMessengerCodeById(id: number): Promise<string> {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id,
+        type: IntegrationType.MESSENGER_MANUAL,
+      },
+      select: ['id', 'code_webhook'],
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${id} no existe`);
+    }
+
+    return integration.code_webhook;
+  }
+
+  async validateCodeIntegrationMessengerManual(id: number, code: string): Promise<boolean> {
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id,
+        type: IntegrationType.MESSENGER_MANUAL,
+        code_webhook: code,
+      },
+      select: ['id', 'code_webhook'],
+    });
+
+    if (!integration) {
+      return false;
+    }
+
+    integration.validated_webhook = true;
+    await this.integrationRepository.save(integration);
+
+    return true;
+  }
+
+  async updateIntegrationMessengerManual(
+    user: User,
+    organizationId: number,
+    departamentoId: number,
+    id: number,
+    updateIntegrationMessengerManualDto: UpdateIntegrationMessengerManualDto,
+  ): Promise<Integration> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id,
+        departamento: { id: departamentoId },
+        type: IntegrationType.MESSENGER_MANUAL,
+      },
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${id} no existe en el departamento con ID ${departamentoId}`);
+    }
+
+    integration.page_id = updateIntegrationMessengerManualDto.page_id;
+    integration.token = updateIntegrationMessengerManualDto.token;
+    await this.integrationRepository.save(integration);
 
     return integration;
   }
