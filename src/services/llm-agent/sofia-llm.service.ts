@@ -12,6 +12,9 @@ import * as os from 'os';
 import * as uuid from 'uuid';
 import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
 
+const tempMemory = new Map();
+const tempMemoryConversation = new Map();
+
 // Funciones auxiliares para el manejo de herramientas
 const createFunctionTool = (func: FunctionResponse) => ({
   type: 'function' as const,
@@ -118,6 +121,56 @@ export class SofiaLLMService extends BaseAgent {
     return thread.id;
   }
 
+  private extractRunId(message: string): string | null {
+    console.log('Extracting run id from message:', message);
+    try {
+      const match = message.match(/run_([\w]+)/);
+      return match ? `run_${match[1]}` : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async cancelRun(errorMessage: string) {
+    const runId = this.extractRunId(errorMessage);
+    console.log('Run id:', runId);
+    if (runId) {
+      try {
+        let runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        const INCOMPLETE_STATUS = ['queued', 'cancelling', 'cancelled'];
+        while (INCOMPLETE_STATUS.includes(runStatus.status)) {
+          console.log(`before canceling Run status: ${runStatus.status}`);
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        }
+        console.log('actual Run status:', runStatus.status);
+        await this.openai.beta.threads.runs.cancel(this.threadId!, runId);
+        console.log('Run canceled:');
+        runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        while (!INCOMPLETE_STATUS.includes(runStatus.status)) {
+          console.log(`on canceling Run status: ${runStatus.status}`);
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+        }
+      } catch (error) {
+        console.log('error on cancel run before completed', error.error.message);
+        if (error.error.message === "Cannot cancel run with status 'completed'.") return;
+        if (error.error.message === "Cannot cancel run with status 'cancelled'.") return;
+        if (error.error.message === "Cannot cancel run with status 'cancelling'.") {
+          let runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+          while (runStatus.status !== 'cancelled') {
+            console.log(`on canceling after error Run status: ${runStatus.status}`);
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            runStatus = await this.openai.beta.threads.runs.retrieve(this.threadId!, runId);
+          }
+          return;
+        }
+        console.log('final error on cancel run', error);
+        throw error;
+      }
+    }
+  }
+
   protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
     if (!this.threadId) throw new Error('Thread not initialized');
     const imagesContent =
@@ -135,50 +188,96 @@ export class SofiaLLMService extends BaseAgent {
       });
     }
     content.push(...imagesContent);
-
-    await this.openai.beta.threads.messages.create(this.threadId, {
-      role: 'user',
-      content,
-    });
+    try {
+      await this.openai.beta.threads.messages.create(this.threadId, {
+        role: 'user',
+        content,
+      });
+    } catch (error) {
+      console.log('on add message to thread error');
+      await this.cancelRun(error.error.message);
+      try {
+        await this.openai.beta.threads.messages.create(this.threadId, {
+          role: 'user',
+          content,
+        });
+        return;
+      } catch (cancelError) {
+        console.error('Error adding extra thread', cancelError);
+        throw cancelError;
+      }
+    }
   }
 
-  protected async runAgent(threadId: string, conversationId: number): Promise<any> {
-    const run = await this.openai.beta.threads.runs.create(threadId, { assistant_id: this.assistantId! });
+  protected async runAgent(threadId: string, conversationId: number): Promise<boolean> {
+    console.time('total-run-time');
+    console.time('create-run');
+    let run: any;
+    try {
+      run = await this.openai.beta.threads.runs.create(threadId, { assistant_id: this.assistantId! });
+    } catch (error) {
+      await this.cancelRun(error.error.message);
+      try {
+        run = await this.openai.beta.threads.runs.create(threadId, { assistant_id: this.assistantId! });
+      } catch (cancelError) {
+        console.error('Error creating second run', cancelError);
+        throw cancelError;
+      }
+    }
+    console.timeEnd('create-run');
 
     // Wait for the run to complete
     let runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
-    while (runStatus.status !== 'completed') {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    const INCOMPLETE_STATUS = ['completed', 'cancelling', 'cancelled'];
+    while (!INCOMPLETE_STATUS.includes(runStatus.status)) {
+      console.time('status-check');
+      await new Promise((resolve) => setTimeout(resolve, 200));
       runStatus = await this.openai.beta.threads.runs.retrieve(threadId, run.id);
+      console.log(`Run status: ${runStatus.status}`);
+      console.timeEnd('status-check');
 
       // Handle function calls
       if (runStatus.status === 'requires_action' && runStatus.required_action?.type === 'submit_tool_outputs') {
+        console.time('tool-calls-processing');
         const toolCalls = runStatus.required_action.submit_tool_outputs.tool_calls;
         console.log(`Processing ${toolCalls.length} tool calls`);
 
         const toolOutputs = await Promise.all(
           toolCalls.map(async (toolCall) => {
+            console.time(`tool-call-${toolCall.function.name}`);
             console.log(`Processing tool call: ${toolCall.function.name}`);
             const result = await handleToolCall(this.agentId!, toolCall, this.functionCallService, conversationId);
+            console.timeEnd(`tool-call-${toolCall.function.name}`);
             console.log(`Tool call result for ${toolCall.function.name}:`);
             return result;
           }),
         );
 
         if (toolOutputs.length > 0) {
+          console.time('submit-outputs');
           console.log('Submitting tool outputs:', toolOutputs);
-          await this.openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: toolOutputs });
+          try {
+            await this.openai.beta.threads.runs.submitToolOutputs(threadId, run.id, { tool_outputs: toolOutputs });
+          } catch (error) {
+            console.error('Error submitting tool outputs', error);
+            throw error;
+          }
+          console.timeEnd('submit-outputs');
           console.log('Tool outputs submitted successfully');
         } else {
           console.error('No tool outputs to submit!');
           throw new Error('No tool outputs available for required function calls');
         }
+        console.timeEnd('tool-calls-processing');
       }
 
       if (runStatus.status === 'failed') {
+        console.error('Assistant run failed', runStatus);
         throw new Error('Assistant run failed');
       }
     }
+    console.timeEnd('total-run-time');
+    return true;
   }
 
   protected async getResponse(): Promise<string> {
@@ -193,12 +292,66 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number, images?: string[]): Promise<string> {
+  async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
     if (!this.threadId) this.threadId = await this.createThread();
+    const stateDate = new Date();
+    console.log('old execution before response', conversationId, this.threadId);
+    tempMemoryConversation.set(userId ?? conversationId, this.threadId);
+    tempMemory.set(this.threadId, stateDate);
+
     try {
+      const start = performance.now();
+      console.log('Sending message to thread:', message);
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before add message');
+        return '';
+      }
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before add message');
+        return '';
+      }
       await this.addMessageToThread(message, images);
-      await this.runAgent(this.threadId!, conversationId);
+      console.log(`Adding message took: ${((performance.now() - start) / 1000).toFixed(2)}s`);
+
+      const runStart = performance.now();
+      console.log('Running agent...');
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before run agent');
+        return '';
+      }
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before run agent');
+        return '';
+      }
+      const hadRun = await this.runAgent(this.threadId!, conversationId);
+      if (!hadRun) {
+        return '';
+      }
+      console.log(`Running agent took: ${((performance.now() - runStart) / 1000).toFixed(2)}s`);
+
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before get response');
+        return '';
+      }
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before get response');
+        return '';
+      }
+      console.log('Getting response...');
       const response = await this.getResponse();
+      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
+        console.log('old execution before validate response');
+        return '';
+      }
+
+      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+        console.log('old conversation execution before validate response');
+        return '';
+      }
+      console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
       return this.validateResponse(response);
     } catch (error) {
       console.error('Error in response:', error);

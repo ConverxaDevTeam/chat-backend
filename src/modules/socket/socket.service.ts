@@ -112,14 +112,21 @@ export class SocketService {
     );
   }
 
-  async sendToChatBot(message: string, room: string, identifier: agentIdentifier, conversationId: number, images: string[] = []) {
+  async sendToChatBot(message: string, room: string, identifier: agentIdentifier | TestAgentIdentifier, conversationId: number, images: string[] = []) {
     this.socketServer.to(room).emit('typing', { message, images });
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
     const imageUrls = images?.length ? await this.saveImages(images) : [];
-    const { message: response, ...conf } = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls });
+    let userId: number | undefined;
+    if (room.startsWith('test-chat-')) {
+      userId = parseInt(room.split('-')[1]);
+    }
+    const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls, userId });
+    if (!agentResponse) return;
+    console.log('new execution', message);
+    const { message: response, ...conf } = agentResponse;
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
 
