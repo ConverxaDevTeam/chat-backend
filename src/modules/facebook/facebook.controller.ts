@@ -15,7 +15,6 @@ import { GetPagesDto } from './dto/get-pages.dto';
 export class FacebookController {
   constructor(
     private readonly facebookService: FacebookService,
-
     private readonly configService: ConfigService,
   ) {}
 
@@ -104,5 +103,39 @@ export class FacebookController {
   async testing(@Query('code') code: string) {
     await this.facebookService.testing(code);
     return 'ok';
+  }
+
+  @ApiOperation({ summary: 'Get Webhook' })
+  @Get('webhook/:integrationId')
+  async getWebhookManual(
+    @Query('hub.verify_token') verifyToken: string,
+    @Query('hub.challenge') challenge: string,
+    @Query('hub.mode') mode: string,
+    @Res() res,
+    @Param('integrationId') integrationId: number,
+  ) {
+    const code = await this.facebookService.getCodeIntegrationMessengerManual(integrationId);
+    if (mode === 'subscribe' && verifyToken === code) {
+      this.facebookService.validateCodeIntegrationMessengerManual(integrationId, code);
+      return res.status(200).send(challenge);
+    }
+
+    throw new HttpException('Authentication failed. Invalid Token.', HttpStatus.UNAUTHORIZED);
+  }
+
+  @ApiOperation({ summary: 'Post Webhook' })
+  @Post('webhook/:integrationId')
+  async postWebhookManual(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
+    if (webhookFacebookDto.object === FacebookType.PAGE) {
+      console.log('Received Messenger event');
+      this.facebookService.analyzefacebookmessage(webhookFacebookDto);
+    } else if (webhookFacebookDto.object === FacebookType.WHATSAPP_BUSINESS_ACCOUNT) {
+      if (!webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages) return;
+      console.log('Received whatsapp event', JSON.stringify(webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages));
+      this.facebookService.analyzeWhatsAppMessage(webhookFacebookDto);
+    } else {
+      console.log('Invalid object');
+    }
+    return res.status(200).send('EVENT_RECEIVED');
   }
 }
