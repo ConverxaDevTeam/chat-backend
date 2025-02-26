@@ -125,16 +125,17 @@ export class FacebookController {
 
   @ApiOperation({ summary: 'Post Webhook' })
   @Post('webhook/:integrationId')
-  async postWebhookManual(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res, @Param('integrationId') integrationId: number) {
-    console.log('webhookFacebookDto', webhookFacebookDto);
-    setImmediate(async () => {
-      if (webhookFacebookDto.object === FacebookType.PAGE) {
-        console.log('Received Messenger event');
-        console.log('webhookFacebookDto', integrationId);
-      } else {
-        console.log('Invalid object');
-      }
-    });
+  async postWebhookManual(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
+    if (webhookFacebookDto.object === FacebookType.PAGE) {
+      console.log('Received Messenger event');
+      this.facebookService.analyzefacebookmessage(webhookFacebookDto);
+    } else if (webhookFacebookDto.object === FacebookType.WHATSAPP_BUSINESS_ACCOUNT) {
+      if (!webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages) return;
+      console.log('Received whatsapp event', JSON.stringify(webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages));
+      this.facebookService.analyzeWhatsAppMessage(webhookFacebookDto);
+    } else {
+      console.log('Invalid object');
+    }
     return res.status(200).send('EVENT_RECEIVED');
   }
 }

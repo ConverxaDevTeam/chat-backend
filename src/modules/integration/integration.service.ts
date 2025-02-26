@@ -216,7 +216,7 @@ export class IntegrationService {
       .leftJoinAndSelect('integration.departamento', 'departamento')
       .leftJoinAndSelect('departamento.organizacion', 'organizacion')
       .where('integration.page_id = :pageId', { pageId })
-      .andWhere('integration.type = :type', { type: IntegrationType.MESSENGER })
+      .andWhere('integration.type IN (:...types)', { types: [IntegrationType.MESSENGER_MANUAL, IntegrationType.MESSENGER] })
       .getOne();
 
     return integration;
