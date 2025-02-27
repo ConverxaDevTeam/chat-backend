@@ -16,28 +16,50 @@ const tempMemory = new Map();
 const tempMemoryConversation = new Map();
 
 // Funciones auxiliares para el manejo de herramientas
-const createFunctionTool = (func: FunctionResponse) => ({
-  type: 'function' as const,
-  function: {
-    name: `${UserFunctionPrefix}${func.name}`, // Evitar múltiples guiones bajos seguidos
-    description: func.description,
-    parameters: {
-      type: 'object',
-      properties:
-        (func.config as HttpRequestConfig).requestBody?.reduce<Record<string, { type: string; description: string }>>(
-          (acc, param: FunctionParam) => ({
-            ...acc,
-            [param.name]: {
-              type: param.type,
-              description: param.description,
-            },
-          }),
-          {},
-        ) || {},
-      required: (func.config as HttpRequestConfig).requestBody?.filter((param) => param.required).map((param) => param.name) || [],
+const createFunctionTool = (func: FunctionResponse) => {
+  const buildParameterProperties = (params: FunctionParam[]): Record<string, any> => {
+    return params.reduce<Record<string, any>>((acc, param) => {
+      const paramDef: Record<string, any> = {
+        type: param.type,
+        description: param.description || '',
+      };
+
+      // Si es un objeto y tiene propiedades anidadas
+      if (param.type === 'object' && param.properties && param.properties.length > 0) {
+        paramDef.properties = buildParameterProperties(param.properties);
+
+        // Agregar required para las propiedades anidadas
+        const requiredProps = param.properties.filter((prop) => prop.required).map((prop) => prop.name);
+
+        if (requiredProps.length > 0) {
+          paramDef.required = requiredProps;
+        }
+      }
+
+      return {
+        ...acc,
+        [param.name]: paramDef,
+      };
+    }, {});
+  };
+
+  const requestBody = (func.config as HttpRequestConfig).requestBody || [];
+  const properties = buildParameterProperties(requestBody);
+  const required = requestBody.filter((param) => param.required).map((param) => param.name);
+
+  return {
+    type: 'function' as const,
+    function: {
+      name: `${UserFunctionPrefix}${func.name}`, // Evitar múltiples guiones bajos seguidos
+      description: func.description,
+      parameters: {
+        type: 'object',
+        properties,
+        required: required.length > 0 ? required : undefined,
+      },
     },
-  },
-});
+  };
+};
 
 const buildToolsArray = (config: { funciones: FunctionResponse[] }) => {
   const tools: OpenAI.Beta.Assistants.AssistantTool[] = [];
