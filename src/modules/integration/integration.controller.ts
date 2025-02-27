@@ -9,6 +9,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile } from '@nestjs/common';
 import { ChangeChannelNameSlackDto } from './dto/change-channel-name.dto';
 import { UpdateIntegrationMessengerManualDto } from '@modules/facebook/dto/update-integration-messager-manual.dto';
+import { IntegrationType } from '@models/Integration.entity';
+import { UpdateIntegrationWhatsAppManualDto } from '@modules/facebook/dto/update-integration-whatsapp-manual.dto';
 
 @Controller('integration')
 @ApiTags('integration')
@@ -160,7 +162,16 @@ export class IntegrationController {
   @ApiOperation({ summary: 'crear integración de messager manual' })
   @Post('create-messager-manual/:organizationId/:departamentoId')
   async createIntegrationMessagerManual(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('departamentoId') departamentoId: number) {
-    await this.integrationService.createIntegrationMessagerManual(user, organizationId, departamentoId);
+    await this.integrationService.createIntegrationManual(user, organizationId, departamentoId, IntegrationType.MESSENGER_MANUAL);
+    return {
+      ok: true,
+    };
+  }
+
+  @ApiOperation({ summary: 'crear integración de messager manual' })
+  @Post('create-whatsapp-manual/:organizationId/:departamentoId')
+  async createIntegrationWhatsAppManual(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('departamentoId') departamentoId: number) {
+    await this.integrationService.createIntegrationManual(user, organizationId, departamentoId, IntegrationType.WHATSAPP_MANUAL);
     return {
       ok: true,
     };
@@ -181,15 +192,30 @@ export class IntegrationController {
     };
   }
 
-  @ApiOperation({ summary: 'cambiar code_webhook de messager manual' })
-  @Post('change-messenger-manual-code/:organizationId/:departamentoId/:id')
-  async changeCodeIntegrationMessengerManual(
+  @ApiOperation({ summary: 'get integración de messager manual' })
+  @Get('get-whatsapp-manual/:organizationId/:departamentoId/:id')
+  async getIntegrationWhatsAppManual(
     @GetUser() user: User,
     @Param('organizationId') organizationId: number,
     @Param('departamentoId') departamentoId: number,
     @Param('id') id: number,
   ) {
-    const code = await this.integrationService.changeCodeIntegrationMessengerManual(user, organizationId, departamentoId, id);
+    const integration = await this.integrationService.getIntegrationWhatsAppManual(user, organizationId, departamentoId, id);
+    return {
+      ok: true,
+      integration,
+    };
+  }
+
+  @ApiOperation({ summary: 'cambiar code_webhook de integracion manual' })
+  @Post('change-manual-code/:organizationId/:departamentoId/:id')
+  async changeCodeIntegrationManual(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Param('id') id: number,
+  ) {
+    const code = await this.integrationService.changeCodeIntegrationManual(user, organizationId, departamentoId, id);
     return {
       ok: true,
       code_webhook: code,
@@ -206,6 +232,22 @@ export class IntegrationController {
     @Body() updateIntegrationMessengerManualDto: UpdateIntegrationMessengerManualDto,
   ) {
     const integration = await this.integrationService.updateIntegrationMessengerManual(user, organizationId, departamentoId, id, updateIntegrationMessengerManualDto);
+    return {
+      ok: true,
+      integration,
+    };
+  }
+
+  @ApiOperation({ summary: 'update de messager manual' })
+  @Post('update-whatsapp-manual/:organizationId/:departamentoId/:id')
+  async updateIntegrationWhatsAppManual(
+    @GetUser() user: User,
+    @Param('organizationId') organizationId: number,
+    @Param('departamentoId') departamentoId: number,
+    @Param('id') id: number,
+    @Body() updateIntegrationWhatsAppManualDto: UpdateIntegrationWhatsAppManualDto,
+  ) {
+    const integration = await this.integrationService.updateIntegrationWhatsAppManual(user, organizationId, departamentoId, id, updateIntegrationWhatsAppManualDto);
     return {
       ok: true,
       integration,

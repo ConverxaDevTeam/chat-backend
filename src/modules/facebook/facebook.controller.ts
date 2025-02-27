@@ -114,9 +114,9 @@ export class FacebookController {
     @Res() res,
     @Param('integrationId') integrationId: number,
   ) {
-    const code = await this.facebookService.getCodeIntegrationMessengerManual(integrationId);
+    const code = await this.facebookService.getCodeIntegrationManual(integrationId);
     if (mode === 'subscribe' && verifyToken === code) {
-      this.facebookService.validateCodeIntegrationMessengerManual(integrationId, code);
+      this.facebookService.validateCodeIntegrationManual(integrationId, code);
       return res.status(200).send(challenge);
     }
 
