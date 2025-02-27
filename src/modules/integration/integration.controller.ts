@@ -193,7 +193,7 @@ export class IntegrationController {
   }
 
   @ApiOperation({ summary: 'get integración de messager manual' })
-  @Get('get-whatsapp-manual/:organizationId/:departamentoId/:id')
+  @Get('get-whatsapp-manual/organization/:organizationId/departamento/:departamentoId/integration/:id')
   async getIntegrationWhatsAppManual(
     @GetUser() user: User,
     @Param('organizationId') organizationId: number,
