@@ -198,6 +198,22 @@ export class ConversationService {
   }
 
   async getConversationByIntegrationIdAndByIdentified(integrationId: number, identified: string, type: IntegrationType): Promise<Conversation | null> {
+    if (type === IntegrationType.WHATSAPP) {
+      return await this.conversationRepository
+        .createQueryBuilder('conversation')
+        .leftJoinAndSelect('conversation.chat_user', 'chat_user')
+        .leftJoinAndSelect('conversation.integration', 'integration')
+        .leftJoinAndSelect('conversation.user', 'user')
+        .addSelect('user.id')
+        .addSelect('integration.token')
+        .addSelect('integration.waba_id')
+        .addSelect('integration.phone_number_id')
+        .addSelect('integration.token')
+        .where('integration.id = :integrationId', { integrationId })
+        .andWhere('integration.type IN (:...types)', { types: [IntegrationType.WHATSAPP, IntegrationType.WHATSAPP_MANUAL] })
+        .andWhere('chat_user.identified = :identified', { identified })
+        .getOne();
+    }
     return await this.conversationRepository
       .createQueryBuilder('conversation')
       .leftJoinAndSelect('conversation.chat_user', 'chat_user')

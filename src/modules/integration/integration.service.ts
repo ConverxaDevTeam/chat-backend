@@ -5,7 +5,7 @@ import { DepartmentService } from '@modules/department/department.service';
 import { OrganizationService } from '@modules/organization/organization.service';
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import * as fs from 'fs';
 import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
@@ -17,6 +17,7 @@ import { FileService } from '@modules/file/file.service';
 import { ConversationService } from '../conversation/conversation.service';
 import { SlackService } from '@modules/slack/slack.service';
 import { UpdateIntegrationMessengerManualDto } from '@modules/facebook/dto/update-integration-messager-manual.dto';
+import { UpdateIntegrationWhatsAppManualDto } from '@modules/facebook/dto/update-integration-whatsapp-manual.dto';
 
 @Injectable()
 export class IntegrationService {
@@ -236,11 +237,11 @@ export class IntegrationService {
   async getIntegrationByphoneNumberId(waba_id: string): Promise<Integration | null> {
     const integration = await this.integrationRepository
       .createQueryBuilder('integration')
-      .select(['integration.id', 'integration.token', 'integration.waba_id'])
+      .select(['integration.id', 'integration.token', 'integration.waba_id', 'integration.phone_number_id'])
       .leftJoinAndSelect('integration.departamento', 'departamento')
       .leftJoinAndSelect('departamento.organizacion', 'organizacion')
       .where('integration.waba_id = :waba_id', { waba_id })
-      .andWhere('integration.type = :type', { type: IntegrationType.WHATSAPP })
+      .andWhere('integration.type IN (:...types)', { types: [IntegrationType.WHATSAPP, IntegrationType.WHATSAPP_MANUAL] })
       .getOne();
     return integration;
   }
@@ -482,7 +483,7 @@ export class IntegrationService {
     return integration;
   }
 
-  async createIntegrationMessagerManual(user: User, organizationId: number, departamentoId: number): Promise<Integration> {
+  async createIntegrationManual(user: User, organizationId: number, departamentoId: number, type: IntegrationType): Promise<Integration> {
     const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
 
     const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
@@ -497,7 +498,7 @@ export class IntegrationService {
     }
 
     const newIntegration = new Integration();
-    newIntegration.type = IntegrationType.MESSENGER_MANUAL;
+    newIntegration.type = type;
     newIntegration.departamento = departamento;
     newIntegration.code_webhook = this.generateRandomCode(30);
     return await this.integrationRepository.save(newIntegration);
@@ -542,7 +543,7 @@ export class IntegrationService {
     return integration;
   }
 
-  async changeCodeIntegrationMessengerManual(user: User, organizationId: number, departamentoId: number, id: number): Promise<string> {
+  async getIntegrationWhatsAppManual(user: User, organizationId: number, departamentoId: number, id: number): Promise<Integration> {
     const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
 
     const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
@@ -560,7 +561,37 @@ export class IntegrationService {
       where: {
         id,
         departamento: { id: departamentoId },
-        type: IntegrationType.MESSENGER_MANUAL,
+        type: IntegrationType.WHATSAPP_MANUAL,
+      },
+      select: ['id', 'code_webhook', 'phone_number_id', 'token', 'validated_webhook', 'waba_id'],
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${id} no existe en el departamento con ID ${departamentoId}`);
+    }
+
+    return integration;
+  }
+
+  async changeCodeIntegrationManual(user: User, organizationId: number, departamentoId: number, id: number): Promise<string> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id,
+        departamento: { id: departamentoId },
+        type: In([IntegrationType.MESSENGER_MANUAL, IntegrationType.WHATSAPP_MANUAL]),
       },
       select: ['id', 'code_webhook'],
     });
@@ -576,11 +607,11 @@ export class IntegrationService {
     return integration.code_webhook;
   }
 
-  async getIntegrationMessengerCodeById(id: number): Promise<string> {
+  async getIntegrationCodeById(id: number): Promise<string> {
     const integration = await this.integrationRepository.findOne({
       where: {
         id,
-        type: IntegrationType.MESSENGER_MANUAL,
+        type: In([IntegrationType.MESSENGER_MANUAL, IntegrationType.WHATSAPP_MANUAL]),
       },
       select: ['id', 'code_webhook'],
     });
@@ -592,11 +623,11 @@ export class IntegrationService {
     return integration.code_webhook;
   }
 
-  async validateCodeIntegrationMessengerManual(id: number, code: string): Promise<boolean> {
+  async validateCodeIntegrationManual(id: number, code: string): Promise<boolean> {
     const integration = await this.integrationRepository.findOne({
       where: {
         id,
-        type: IntegrationType.MESSENGER_MANUAL,
+        type: In([IntegrationType.MESSENGER_MANUAL, IntegrationType.WHATSAPP_MANUAL]),
         code_webhook: code,
       },
       select: ['id', 'code_webhook'],
@@ -646,6 +677,46 @@ export class IntegrationService {
 
     integration.page_id = updateIntegrationMessengerManualDto.page_id;
     integration.token = updateIntegrationMessengerManualDto.token;
+    await this.integrationRepository.save(integration);
+
+    return integration;
+  }
+
+  async updateIntegrationWhatsAppManual(
+    user: User,
+    organizationId: number,
+    departamentoId: number,
+    id: number,
+    updateIntegrationWhatsAppManualDto: UpdateIntegrationWhatsAppManualDto,
+  ): Promise<Integration> {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+
+    const allowedRoles = [OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.USER];
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new Error('No tienes permisos para obtener la integración');
+    }
+
+    const departamento = await this.departmentService.getDepartmentByOrganizationAndDepartmentId(organizationId, departamentoId);
+
+    if (!departamento) {
+      throw new Error(`El departamento con ID ${departamentoId} no existe en la organización con ID ${organizationId}`);
+    }
+
+    const integration = await this.integrationRepository.findOne({
+      where: {
+        id,
+        departamento: { id: departamentoId },
+        type: IntegrationType.WHATSAPP_MANUAL,
+      },
+    });
+
+    if (!integration) {
+      throw new Error(`La integración con ID ${id} no existe en el departamento con ID ${departamentoId}`);
+    }
+
+    integration.waba_id = updateIntegrationWhatsAppManualDto.waba_id;
+    integration.phone_number_id = updateIntegrationWhatsAppManualDto.phone_number_id;
+    integration.token = updateIntegrationWhatsAppManualDto.token;
     await this.integrationRepository.save(integration);
 
     return integration;

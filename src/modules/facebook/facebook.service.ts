@@ -490,15 +490,15 @@ export class FacebookService {
     }
   }
 
-  async getCodeIntegrationMessengerManual(integrationId: number): Promise<string> {
-    const integration = await this.integrationService.getIntegrationMessengerCodeById(integrationId);
+  async getCodeIntegrationManual(integrationId: number): Promise<string> {
+    const integration = await this.integrationService.getIntegrationCodeById(integrationId);
     if (!integration) {
       throw new BadRequestException('Integration not found');
     }
     return integration;
   }
 
-  async validateCodeIntegrationMessengerManual(integrationId: number, code: string): Promise<void> {
-    await this.integrationService.validateCodeIntegrationMessengerManual(integrationId, code);
+  async validateCodeIntegrationManual(integrationId: number, code: string): Promise<void> {
+    await this.integrationService.validateCodeIntegrationManual(integrationId, code);
   }
 }
