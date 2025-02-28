@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Express } from 'express';
+import { EventType } from '@models/SystemEvent.entity';
 
 @Injectable()
 export class IntegrationRouterService {
@@ -132,5 +133,9 @@ export class IntegrationRouterService {
       this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL, conversation.departamento.organizacion.id, savedImages);
     }
     return { message, images: savedImages };
+  }
+
+  async sendEventToUser(conversationId: number, event: EventType) {
+    console.log(event, conversationId);
   }
 }

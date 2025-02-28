@@ -22,6 +22,7 @@ import { NotificationService } from '@modules/notification/notification.service'
 import { NotificationType } from 'src/interfaces/notifications.interface';
 import { EventType, TableName } from '@models/SystemEvent.entity';
 import { NotificationType as NotificationTypeSystemEvents } from '@models/notification.entity';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 @Injectable()
 export class FunctionCallService {
@@ -34,6 +35,8 @@ export class FunctionCallService {
     private readonly socketService: SocketService,
     private readonly systemEventsService: SystemEventsService,
     private readonly notificationService: NotificationService,
+    @Inject(forwardRef(() => IntegrationRouterService))
+    private readonly integrationRouterService: IntegrationRouterService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
@@ -98,6 +101,9 @@ export class FunctionCallService {
           conversation: { id: conversationId } as any,
         });
 
+        // Notificar al usuario sobre el cambio de estado
+        await this.integrationRouterService.sendEventToUser(conversationId, EventType.CONVERSATION_ASSIGNED);
+
         if (!conversation.need_human) {
           return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
         }
@@ -148,6 +154,9 @@ export class FunctionCallService {
           table_id: functionConfig.id,
           conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
         });
+
+        // Notificar al usuario sobre el inicio de la ejecución
+        await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_EXECUTION_STARTED);
       }
 
       // Validate and transform params based on function configuration
@@ -176,6 +185,11 @@ export class FunctionCallService {
                 conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
                 error_message: errorMsg,
               });
+
+              // Notificar al usuario sobre el error de validación
+              if (conversationId > 0) {
+                await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_PARAM_VALIDATION_ERROR);
+              }
 
               throw new Error(errorMsg);
             }
@@ -209,6 +223,9 @@ export class FunctionCallService {
           table_id: functionConfig.id,
           conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
         });
+
+        // Notificar al usuario sobre la finalización exitosa
+        await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_EXECUTION_COMPLETED);
       }
 
       return result;
