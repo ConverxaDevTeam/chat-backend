@@ -8,7 +8,7 @@ import { Conversation } from '@models/Conversation.entity';
 interface CreateEventParams {
   type: EventType;
   metadata: Record<string, any>;
-  organization: Organization;
+  organization?: Organization;
   table_name: TableName;
   table_id: number;
   conversation?: Conversation;
@@ -39,8 +39,25 @@ export class SystemEventsService {
     functionName: string;
     conversationId: number;
   }): Promise<SystemEvent> {
+    // Determinar el tipo de evento basado en el error
+    let eventType = params.error ? EventType.FUNCTION_EXECUTION_FAILED : EventType.FUNCTION_CALL;
+    
+    // Detectar errores de validación de parámetros
+    if (params.error) {
+      const errorMessage = params.error.message || '';
+      // Verificar si es un error de validación de parámetros
+      if (
+        errorMessage.includes('Falta parámetro requerido') || 
+        errorMessage.includes('Parámetro incorrecto') ||
+        errorMessage.includes('required parameter') ||
+        errorMessage.includes('validation failed')
+      ) {
+        eventType = EventType.FUNCTION_PARAM_VALIDATION_ERROR;
+      }
+    }
+
     return this.create({
-      type: EventType.FUNCTION_CALL,
+      type: eventType,
       metadata: {
         params: params.params,
         result: params.result,
@@ -50,7 +67,7 @@ export class SystemEventsService {
       organization: { id: params.organizationId } as Organization,
       table_name: TableName.FUNCTIONS,
       table_id: params.functionId,
-      conversation: params.conversationId ? ({ id: params.conversationId } as Conversation) : undefined,
+      conversation: params.conversationId > 0 ? ({ id: params.conversationId } as Conversation) : undefined,
       error_message: params.error?.message,
     });
   }
