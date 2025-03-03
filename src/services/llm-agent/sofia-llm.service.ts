@@ -101,19 +101,12 @@ export class SofiaLLMService extends BaseAgent {
 
   constructor(functionCallService: FunctionCallService, identifier: agentIdentifier, agenteConfig?: AgentConfig) {
     super(identifier, functionCallService, agenteConfig);
-    if (this.agenteConfig?.agentId) this.assistantId = this.agenteConfig.agentId;
-    if (this.agenteConfig && 'threadId' in this.agenteConfig) {
-      this.threadId = this.agenteConfig?.threadId ?? null;
-    }
-    if (this.agenteConfig?.DBagentId) this.agentId = this.agenteConfig.DBagentId;
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
 
   async _initializeAgent(): Promise<void> {
-    if (this.assistantId) return;
-
     const config = this.agenteConfig as CreateAgentConfig;
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
@@ -308,8 +301,7 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
-    if (!this.threadId) this.threadId = await this._createThread();
+  protected async _response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
     const stateDate = new Date();
     console.log('old execution before response', conversationId, this.threadId);
     tempMemoryConversation.set(userId ?? conversationId, this.threadId);

@@ -12,11 +12,16 @@ export abstract class BaseAgent {
     protected functionCallService: FunctionCallService,
     protected agenteConfig?: AgentConfig,
   ) {
-    if (this.agenteConfig?.agentId) this.assistantId = this.agenteConfig.agentId;
+    this.assistantId = this.agenteConfig?.agentId ?? null;
     if (this.agenteConfig && 'threadId' in this.agenteConfig) {
       this.threadId = this.agenteConfig?.threadId ?? null;
     }
     if (this.agenteConfig?.DBagentId) this.agentId = this.agenteConfig.DBagentId;
+  }
+
+  public async initializeAgent(): Promise<void> {
+    if (this.assistantId) return;
+    return this._initializeAgent();
   }
 
   public async getAudioText(audioName: string): Promise<any> {
@@ -83,10 +88,16 @@ export abstract class BaseAgent {
     return '';
   }
 
+  public async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
+    if (!this.threadId) this.threadId = await this._createThread();
+    return this._response(message, conversationId, images, userId);
+  }
+
   async init(): Promise<void> {
     await this._initializeAgent();
   }
 
+  protected abstract _response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string>;
   protected abstract _initializeAgent(): Promise<void>;
   protected abstract _createThread(): Promise<string>;
   protected abstract _addMessageToThread(message: string, images?: string[]): Promise<void>;
