@@ -17,6 +17,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { WhatsAppService } from '../facebook/whatsapp.service';
 import { SlackService } from '@modules/slack/slack.service';
+import { EventType } from '@models/SystemEvent.entity';
 
 @Injectable()
 export class SocketService {
@@ -232,5 +233,25 @@ export class SocketService {
     for (const clientId of listRonnOrganization) {
       this.socketServer.to(clientId).emit('notification', event);
     }
+  }
+
+  // Verificar si existe un cliente de WebChat
+  hasWebChatClient(chatUserId: number): boolean {
+    return this.webChatClients.has(chatUserId);
+  }
+
+  // Enviar evento al usuario de WebChat
+  sendEventToWebChatUser(chatUserId: number, event: EventType, conversationId: number): void {
+    const clientSocket = this.webChatClients.get(chatUserId);
+    if (!clientSocket) return;
+
+    const eventData = {
+      action: 'event',
+      type: event,
+      conversation_id: conversationId,
+      timestamp: new Date().toISOString(),
+    };
+
+    clientSocket.send(JSON.stringify(eventData));
   }
 }

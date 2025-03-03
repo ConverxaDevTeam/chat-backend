@@ -13,6 +13,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Express } from 'express';
 import { EventType } from '@models/SystemEvent.entity';
+import { ConversationType } from '@models/Conversation.entity';
 
 @Injectable()
 export class IntegrationRouterService {
@@ -135,7 +136,12 @@ export class IntegrationRouterService {
     return { message, images: savedImages };
   }
 
-  async sendEventToUser(conversationId: number, event: EventType) {
-    console.log(event, conversationId);
+  async sendEventToUser(conversationId: number, event: EventType, conversationType?: ConversationType, chatUserId?: number) {
+    if (conversationType === ConversationType.CHAT_WEB && chatUserId) {
+      console.log(event, conversationId);
+      if (this.socketService.hasWebChatClient(chatUserId)) {
+        this.socketService.sendEventToWebChatUser(chatUserId, event, conversationId);
+      }
+    }
   }
 }

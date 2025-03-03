@@ -102,7 +102,7 @@ export class FunctionCallService {
         });
 
         // Notificar al usuario sobre el cambio de estado
-        await this.integrationRouterService.sendEventToUser(conversationId, EventType.CONVERSATION_ASSIGNED);
+        await this.integrationRouterService.sendEventToUser(conversationId, EventType.CONVERSATION_ASSIGNED, conversation.type, conversation.chat_user?.id);
 
         if (!conversation.need_human) {
           return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
@@ -156,7 +156,13 @@ export class FunctionCallService {
         });
 
         // Notificar al usuario sobre el inicio de la ejecución
-        await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_EXECUTION_STARTED);
+        const conversationForEvent = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['chat_user'],
+        });
+        if (conversationForEvent) {
+          await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_EXECUTION_STARTED, conversationForEvent.type, conversationForEvent.chat_user?.id);
+        }
       }
 
       // Validate and transform params based on function configuration
@@ -169,15 +175,13 @@ export class FunctionCallService {
             } catch (e) {
               const errorMsg = `El parámetro ${param.name} debe ser un JSON válido`;
 
-              // Registrar evento de error para parámetro inválido
+              // Registrar el error de validación
               await this.systemEventsService.create({
                 type: EventType.FUNCTION_PARAM_VALIDATION_ERROR,
                 metadata: {
-                  error: errorMsg,
-                  functionId: functionConfig.id,
-                  functionName: functionConfig.name,
+                  functionName,
                   param: param.name,
-                  value,
+                  error: errorMsg,
                 },
                 organization: functionConfig.agente.departamento.organizacion,
                 table_name: TableName.FUNCTIONS,
@@ -188,7 +192,13 @@ export class FunctionCallService {
 
               // Notificar al usuario sobre el error de validación
               if (conversationId > 0) {
-                await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_PARAM_VALIDATION_ERROR);
+                const conversation = await this.conversationRepository.findOne({
+                  where: { id: conversationId },
+                  relations: ['chat_user'],
+                });
+                if (conversation) {
+                  await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_PARAM_VALIDATION_ERROR, conversation.type, conversation.chat_user?.id);
+                }
               }
 
               throw new Error(errorMsg);
@@ -225,7 +235,18 @@ export class FunctionCallService {
         });
 
         // Notificar al usuario sobre la finalización exitosa
-        await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_EXECUTION_COMPLETED);
+        const conversationForCompletedEvent = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['chat_user'],
+        });
+        if (conversationForCompletedEvent) {
+          await this.integrationRouterService.sendEventToUser(
+            conversationId,
+            EventType.FUNCTION_EXECUTION_COMPLETED,
+            conversationForCompletedEvent.type,
+            conversationForCompletedEvent.chat_user?.id,
+          );
+        }
       }
 
       return result;
