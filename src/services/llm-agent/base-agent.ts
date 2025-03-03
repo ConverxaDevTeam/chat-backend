@@ -1,27 +1,48 @@
 import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
 import { FunctionCallService } from '../../modules/agent/function-call.service';
 import { Funcion } from '@models/agent/Function.entity';
+import { SystemEventsService } from '../../modules/system-events/system-events.service';
+import { EventType } from '@models/SystemEvent.entity';
 
 export abstract class BaseAgent {
   protected threadId: string | null = null;
   protected assistantId: string | null = null;
-  protected agentId: number | null = null;
+  protected agentId: number;
+  protected organizationId: number | null = null;
 
   constructor(
     protected identifier: agentIdentifier,
     protected functionCallService: FunctionCallService,
+    protected systemEventsService: SystemEventsService,
     protected agenteConfig?: AgentConfig,
   ) {
-    this.assistantId = this.agenteConfig?.agentId ?? null;
-    if (this.agenteConfig && 'threadId' in this.agenteConfig) {
-      this.threadId = this.agenteConfig?.threadId ?? null;
+    if (!this.agenteConfig) return;
+    this.assistantId = this.agenteConfig.agentId;
+    if ('threadId' in this.agenteConfig) {
+      this.threadId = this.agenteConfig.threadId ?? null;
     }
-    if (this.agenteConfig?.DBagentId) this.agentId = this.agenteConfig.DBagentId;
+    if (this.agenteConfig.DBagentId) this.agentId = this.agenteConfig.DBagentId;
+    this.organizationId = this.agenteConfig.organizationId ?? null;
   }
 
   public async initializeAgent(): Promise<void> {
-    if (this.assistantId) return;
-    return this._initializeAgent();
+    try {
+      if (this.assistantId) return;
+      await this._initializeAgent();
+      await this.systemEventsService.logAgentEvent({
+        agentId: this.agentId!,
+        type: EventType.AGENT_INITIALIZED,
+        organizationId: this.organizationId!,
+      });
+    } catch (error) {
+      await this.systemEventsService.logAgentEvent({
+        agentId: this.agentId!,
+        type: EventType.AGENT_INITIALIZED,
+        organizationId: this.organizationId!,
+        error: error as Error,
+      });
+      throw error;
+    }
   }
 
   public async getAudioText(audioName: string): Promise<any> {
@@ -37,35 +58,52 @@ export abstract class BaseAgent {
   }
 
   public async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
-    return this._updateFunctions(funciones, assistantId, hasKnowledgeBase, hasHitl);
+    try {
+      await this._updateFunctions(funciones, assistantId, hasKnowledgeBase, hasHitl);
+      await this.systemEventsService.logAgentToolsUpdate({
+        agentId: this.agentId!,
+        organizationId: this.organizationId!,
+        functions: funciones,
+        hitl: hasHitl,
+      });
+    } catch (error) {
+      await this.systemEventsService.logAgentToolsUpdate({
+        agentId: this.agentId!,
+        organizationId: this.organizationId!,
+        functions: funciones,
+        hitl: hasHitl,
+        error: error as Error,
+      });
+      throw error;
+    }
   }
 
-  public async createVectorStore(agentId: number): Promise<string> {
-    return this._createVectorStore(agentId);
+  public static async createVectorStore(agentId: number): Promise<string> {
+    throw new Error('Method not implemented');
   }
 
-  public async uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string> {
-    return this._uploadFileToVectorStore(file, vectorStoreId);
+  public static async uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string> {
+    throw new Error('Method not implemented');
   }
 
-  public async deleteFileFromVectorStore(fileId: string): Promise<void> {
-    return this._deleteFileFromVectorStore(fileId);
+  public static async deleteFileFromVectorStore(fileId: string): Promise<void> {
+    throw new Error('Method not implemented');
   }
 
-  public async deleteVectorStore(vectorStoreId: string): Promise<void> {
-    return this._deleteVectorStore(vectorStoreId);
+  public static async deleteVectorStore(vectorStoreId: string): Promise<void> {
+    throw new Error('Method not implemented');
   }
 
-  public async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
-    return this._listVectorStoreFiles(vectorStoreId);
+  public static async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+    throw new Error('Method not implemented');
   }
 
-  public async updateAssistantToolResources(
+  public static async updateAssistantToolResources(
     assistantId: string,
     vectorStoreId: string | null,
     updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
   ): Promise<void> {
-    return this._updateAssistantToolResources(assistantId, vectorStoreId, updateToolFunction);
+    throw new Error('Method not implemented');
   }
 
   public getThreadId(): string | undefined {
@@ -89,8 +127,36 @@ export abstract class BaseAgent {
   }
 
   public async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
-    if (!this.threadId) this.threadId = await this._createThread();
-    return this._response(message, conversationId, images, userId);
+    const startTime = Date.now();
+    if (!this.agentId) throw new Error('Agent ID is required');
+    try {
+      if (!this.threadId) this.threadId = await this.createThread();
+      await this.systemEventsService.logAgentEvent({
+        agentId: this.agentId,
+        type: EventType.AGENT_RESPONSE_STARTED,
+        organizationId: this.organizationId!,
+        conversationId,
+      });
+      const response = await this._response(message, conversationId, images, userId);
+      await this.systemEventsService.logAgentResponse({
+        agentId: this.agentId,
+        message: response,
+        organizationId: this.organizationId!,
+        conversationId,
+        responseTime: Date.now() - startTime,
+      });
+      return response;
+    } catch (error) {
+      await this.systemEventsService.logAgentResponse({
+        agentId: this.agentId,
+        message: message,
+        organizationId: this.organizationId!,
+        conversationId,
+        responseTime: Date.now() - startTime,
+        error: error as Error,
+      });
+      throw error;
+    }
   }
 
   async init(): Promise<void> {
@@ -107,14 +173,14 @@ export abstract class BaseAgent {
   protected abstract _textToAudio(text: string): Promise<string>;
   protected abstract _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void>;
   protected abstract _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void>;
-  protected abstract _createVectorStore(agentId: number): Promise<string>;
-  protected abstract _uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string>;
-  protected abstract _deleteFileFromVectorStore(fileId: string): Promise<void>;
-  protected abstract _deleteVectorStore(vectorStoreId: string): Promise<void>;
-  protected abstract _listVectorStoreFiles(vectorStoreId: string): Promise<string[]>;
-  protected abstract _updateAssistantToolResources(
-    assistantId: string,
-    vectorStoreId: string | null,
-    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
-  ): Promise<void>;
+
+  protected async createThread(): Promise<string> {
+    const threadId = await this._createThread();
+    await this.systemEventsService.logAgentThreadEvent({
+      agentId: this.agentId!,
+      threadId,
+      organizationId: this.organizationId!,
+    });
+    return threadId;
+  }
 }

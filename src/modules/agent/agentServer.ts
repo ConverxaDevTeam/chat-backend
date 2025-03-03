@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { AgentConfig, agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
+import { agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
 import { SofiaLLMService } from '../../services/llm-agent/sofia-llm.service';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
@@ -8,6 +8,7 @@ import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
 import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
 import { FunctionCallService } from './function-call.service';
+import { SystemEventsService } from '@modules/system-events/system-events.service';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -24,19 +25,29 @@ interface getAgentResponseProps {
   images: string[];
   userId?: number;
 }
+
+interface AgentConfig {
+  agentId: string;
+  DBagentId?: number;
+  threadId?: string;
+  funciones: Funcion[];
+  organizationId: number;
+}
+
 /**
  * Funcion que setea la configuracion del agente
  * @param config configuracion del agente
  * @param name nombre del agente
  * @returns configuracion del agente
  */
-function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[]): AgentConfig {
+function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[], organizationId: number): AgentConfig {
   if (!config.agentId) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
   return {
     agentId: config.agentId,
     funciones: funciones,
+    organizationId: organizationId,
   };
 }
 
@@ -57,6 +68,7 @@ export class AgentService {
     @InjectRepository(Conversation)
     private readonly conversationRepository: Repository<Conversation>,
     private readonly functionCallService: FunctionCallService,
+    private readonly systemEventsService: SystemEventsService,
   ) {}
 
   /**
@@ -74,10 +86,13 @@ export class AgentService {
         .select(['agente.config'])
         .leftJoin('agente.funciones', 'funciones')
         .addSelect(['funciones.name', 'funciones.description', 'funciones.type', 'funciones.config'])
+        .leftJoinAndSelect('agente.departamento', 'departamento')
+        .leftJoinAndSelect('departamento.organizacion', 'organizacion')
         .where('agente.id = :agentId', { agentId });
       const result = await queryBuilder.getOne();
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
-      agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones);
+      if (!result.departamento?.organizacion) throw new Error('No se pudo obtener la organizacion');
+      agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones, result.departamento.organizacion.id);
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {
@@ -97,7 +112,7 @@ export class AgentService {
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
-    const llmService = new SofiaLLMService(this.functionCallService, identifier, agenteConfig);
+    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, identifier, agenteConfig);
     console.timeEnd('configure-agent');
     const response = await llmService.response(message, conversationId, images, userId);
     if (response === '') return null;

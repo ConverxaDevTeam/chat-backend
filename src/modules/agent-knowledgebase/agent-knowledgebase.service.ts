@@ -3,8 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { KnowledgeBase } from '@models/agent/KnowledgeBase.entity';
 import { Agente } from '@models/agent/Agente.entity';
-import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { Funcion } from '@models/agent/Function.entity';
+import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 
 @Injectable()
 export class AgentKnowledgebaseService {
@@ -15,14 +15,16 @@ export class AgentKnowledgebaseService {
     private knowledgeBaseRepository: Repository<KnowledgeBase>,
     @InjectRepository(Agente)
     private agenteRepository: Repository<Agente>,
-    private readonly sofiaLLMService: SofiaLLMService,
+    private readonly agentManagerService: AgentManagerService,
   ) {}
 
   private async ensureVectorStore(agent: Agente) {
     if (!agent.config?.vectorStoreId) {
       if (!agent.config?.agentId) throw new Error('No se pudo obtener la configuración del agente');
       if (!agent.funciones) this.logger.warn('No se encontraron funciones para el agente');
-      const vectorStoreId = await this.sofiaLLMService.createVectorStore(agent.id);
+
+      const vectorStoreId = await this.agentManagerService.createVectorStore(agent.id);
+
       agent.config = {
         ...agent.config,
         vectorStoreId,
@@ -35,7 +37,7 @@ export class AgentKnowledgebaseService {
         hitl: agent.canEscalateToHuman,
       };
       this.logger.debug('updateToolResourcesData', updateToolResourcesData);
-      await this.sofiaLLMService.updateAssistantToolResources(agent.config.agentId as string, vectorStoreId, updateToolResourcesData);
+      await this.agentManagerService.updateAssistantToolResources(agent.config.agentId as string, vectorStoreId, updateToolResourcesData);
     }
     return agent.config.vectorStoreId as string;
   }
@@ -60,7 +62,7 @@ export class AgentKnowledgebaseService {
       for (const file of files) {
         this.logger.debug(`Processing file: ${file.originalname}`);
 
-        const fileId = await this.sofiaLLMService.uploadFileToVectorStore(file, vectorStoreId);
+        const fileId = await this.agentManagerService.uploadFileToVectorStore(file, vectorStoreId);
 
         const knowledgeBase = new KnowledgeBase();
         knowledgeBase.filename = file.originalname;
@@ -118,7 +120,7 @@ export class AgentKnowledgebaseService {
     if (!agent.config?.vectorStoreId) throw new Error('Vector store ID not found in agent config');
     if (!agent.config?.agentId) throw new Error('Agent ID not found in agent config');
     try {
-      await this.sofiaLLMService.deleteFileFromVectorStore(knowledgeBase.fileId);
+      await this.agentManagerService.deleteFileFromVectorStore(knowledgeBase.fileId);
 
       await this.knowledgeBaseRepository.remove(knowledgeBase);
 
@@ -126,7 +128,7 @@ export class AgentKnowledgebaseService {
       // Verificar si quedan archivos en el vector store
       if (hasKnowledgeBases) return { message: 'Knowledge base deleted successfully' };
       // Si no quedan archivos, eliminar el vector store y actualizar el agente
-      await this.sofiaLLMService.deleteVectorStore(agent.config.vectorStoreId as string);
+      await this.agentManagerService.deleteVectorStore(agent.config.vectorStoreId as string);
 
       agent.config = {
         ...agent.config,
@@ -138,7 +140,7 @@ export class AgentKnowledgebaseService {
         add: false,
         hitl: agent.canEscalateToHuman,
       };
-      await this.sofiaLLMService.updateAssistantToolResources(agent.config.agentId as string, null, updateToolResourcesData);
+      await this.agentManagerService.updateAssistantToolResources(agent.config.agentId as string, null, updateToolResourcesData);
 
       return { message: 'Knowledge base deleted successfully' };
     } catch (error) {

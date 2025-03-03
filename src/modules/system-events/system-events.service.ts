@@ -41,13 +41,13 @@ export class SystemEventsService {
   }): Promise<SystemEvent> {
     // Determinar el tipo de evento basado en el error
     let eventType = params.error ? EventType.FUNCTION_EXECUTION_FAILED : EventType.FUNCTION_CALL;
-    
+
     // Detectar errores de validación de parámetros
     if (params.error) {
       const errorMessage = params.error.message || '';
       // Verificar si es un error de validación de parámetros
       if (
-        errorMessage.includes('Falta parámetro requerido') || 
+        errorMessage.includes('Falta parámetro requerido') ||
         errorMessage.includes('Parámetro incorrecto') ||
         errorMessage.includes('required parameter') ||
         errorMessage.includes('validation failed')
@@ -105,6 +105,136 @@ export class SystemEventsService {
       table_name: TableName.SYSTEM,
       table_id: 0,
       error_message: params.error.message,
+    });
+  }
+
+  // Eventos de agente
+  async logAgentEvent(params: {
+    agentId: number;
+    type:
+      | EventType.AGENT_CREATED
+      | EventType.AGENT_UPDATED
+      | EventType.AGENT_DELETED
+      | EventType.AGENT_ASSIGNED
+      | EventType.AGENT_INITIALIZED
+      | EventType.AGENT_RESPONSE_STARTED
+      | EventType.AGENT_RESPONSE_COMPLETED
+      | EventType.AGENT_RESPONSE_FAILED
+      | EventType.AGENT_VECTOR_STORE_CREATED
+      | EventType.AGENT_VECTOR_STORE_DELETED
+      | EventType.AGENT_FILE_UPLOADED
+      | EventType.AGENT_FILE_DELETED
+      | EventType.AGENT_TOOLS_UPDATED
+      | EventType.AGENT_THREAD_CREATED;
+    metadata?: Record<string, any>;
+    organizationId: number;
+    conversationId?: number;
+    error?: Error;
+  }): Promise<SystemEvent> {
+    return this.create({
+      type: params.type,
+      metadata: {
+        ...params.metadata,
+        error: params.error?.message,
+        stack: params.error?.stack,
+      },
+      organization: { id: params.organizationId } as Organization,
+      table_name: TableName.AGENTS,
+      table_id: params.agentId,
+      conversation: params.conversationId ? ({ id: params.conversationId } as Conversation) : undefined,
+      error_message: params.error?.message,
+    });
+  }
+
+  async logAgentResponse(params: { agentId: number; message: string; organizationId: number; conversationId: number; responseTime: number; error?: Error }): Promise<SystemEvent> {
+    const eventType = params.error ? EventType.AGENT_RESPONSE_FAILED : EventType.AGENT_RESPONSE_COMPLETED;
+
+    return this.create({
+      type: eventType,
+      metadata: {
+        message: params.message,
+        response_time: params.responseTime,
+        error: params.error?.message,
+        stack: params.error?.stack,
+      },
+      organization: { id: params.organizationId } as Organization,
+      table_name: TableName.AGENTS,
+      table_id: params.agentId,
+      conversation: { id: params.conversationId } as Conversation,
+      error_message: params.error?.message,
+    });
+  }
+
+  async logAgentVectorStoreEvent(params: {
+    agentId: number;
+    type: EventType.AGENT_VECTOR_STORE_CREATED | EventType.AGENT_VECTOR_STORE_DELETED;
+    vectorStoreId: string;
+    organizationId: number;
+    error?: Error;
+  }): Promise<SystemEvent> {
+    return this.create({
+      type: params.type,
+      metadata: {
+        vector_store_id: params.vectorStoreId,
+        error: params.error?.message,
+        stack: params.error?.stack,
+      },
+      organization: { id: params.organizationId } as Organization,
+      table_name: TableName.AGENTS,
+      table_id: params.agentId,
+      error_message: params.error?.message,
+    });
+  }
+
+  async logAgentFileEvent(params: {
+    agentId: number;
+    type: EventType.AGENT_FILE_UPLOADED | EventType.AGENT_FILE_DELETED;
+    fileId: string;
+    organizationId: number;
+    error?: Error;
+  }): Promise<SystemEvent> {
+    return this.create({
+      type: params.type,
+      metadata: {
+        file_id: params.fileId,
+        error: params.error?.message,
+        stack: params.error?.stack,
+      },
+      organization: { id: params.organizationId } as Organization,
+      table_name: TableName.AGENTS,
+      table_id: params.agentId,
+      error_message: params.error?.message,
+    });
+  }
+
+  async logAgentToolsUpdate(params: { agentId: number; organizationId: number; functions: any[]; hitl: boolean; error?: Error }): Promise<SystemEvent> {
+    return this.create({
+      type: EventType.AGENT_TOOLS_UPDATED,
+      metadata: {
+        functions: params.functions,
+        hitl: params.hitl,
+        error: params.error?.message,
+        stack: params.error?.stack,
+      },
+      organization: { id: params.organizationId } as Organization,
+      table_name: TableName.AGENTS,
+      table_id: params.agentId,
+      error_message: params.error?.message,
+    });
+  }
+
+  async logAgentThreadEvent(params: { agentId: number; threadId: string; organizationId: number; error?: Error }): Promise<SystemEvent> {
+    return this.create({
+      type: EventType.AGENT_THREAD_CREATED,
+      metadata: {
+        thread_id: params.threadId,
+        error: params.error?.message,
+        stack: params.error?.stack,
+      },
+      organization: { id: params.organizationId } as Organization,
+      table_name: TableName.AGENTS,
+      table_id: params.agentId,
+      error_message: params.error?.message,
     });
   }
 

@@ -55,6 +55,7 @@ export interface CreateAgentConfig {
   instruccion: string;
   agentId: string;
   funciones?: FunctionResponse[];
+  organizationId: number;
 }
 
 export interface AgentConfig {
@@ -62,6 +63,7 @@ export interface AgentConfig {
   threadId?: string;
   DBagentId?: number;
   funciones?: FunctionResponse[];
+  organizationId: number;
 }
 
 export type agentIdentifier = ChatAgentIdentifier | ThreatAgentIdentifier | TestAgentIdentifier;

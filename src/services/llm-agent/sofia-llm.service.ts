@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as uuid from 'uuid';
 import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
+import { SystemEventsService } from '@modules/system-events/system-events.service';
 
 const tempMemory = new Map();
 const tempMemoryConversation = new Map();
@@ -99,8 +100,9 @@ const handleToolCall = async (
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
 
-  constructor(functionCallService: FunctionCallService, identifier: agentIdentifier, agenteConfig?: AgentConfig) {
-    super(identifier, functionCallService, agenteConfig);
+  constructor(functionCallService: FunctionCallService, systemEventsService: SystemEventsService, identifier: agentIdentifier, agenteConfig: AgentConfig) {
+    console.log('Initializing BaseAgent with:', { identifier, agenteConfig });
+    super(identifier, functionCallService, systemEventsService, agenteConfig);
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -431,9 +433,12 @@ export class SofiaLLMService extends BaseAgent {
       });
   }
 
-  async _createVectorStore(agentId: number): Promise<string> {
+  public static async createVectorStore(agentId: number): Promise<string> {
     try {
-      const vectorStore = await this.openai.beta.vectorStores.create({
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const vectorStore = await openai.beta.vectorStores.create({
         name: `agent_${agentId}_knowledge`,
       });
       return vectorStore.id;
@@ -443,12 +448,15 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async _uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
+  public static async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
     if (!file?.buffer || !file?.originalname) {
       throw new Error('Invalid file upload: Missing buffer or filename');
     }
 
     let tempPath: string | null = null;
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     try {
       // Create unique temp file name
@@ -460,12 +468,12 @@ export class SofiaLLMService extends BaseAgent {
       await fs.promises.writeFile(tempPath, file.buffer);
 
       // Upload to vector store
-      await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
+      await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
         files: [fs.createReadStream(tempPath)],
       });
 
       // Get file ID from vector store
-      const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
+      const files = await openai.beta.vectorStores.files.list(vectorStoreId);
       const vectorFile = files.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
 
       if (!vectorFile) {
@@ -486,9 +494,12 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async _deleteFileFromVectorStore(fileId: string): Promise<void> {
+  public static async deleteFileFromVectorStore(fileId: string): Promise<void> {
     try {
-      await this.openai.files.del(fileId);
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      await openai.files.del(fileId);
       console.log('File deleted from vector store:', fileId);
     } catch (error) {
       console.error('Error deleting file from vector store:', error);
@@ -496,18 +507,24 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async _deleteVectorStore(vectorStoreId: string): Promise<void> {
+  public static async deleteVectorStore(vectorStoreId: string): Promise<void> {
     try {
-      await this.openai.beta.vectorStores.del(vectorStoreId);
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      await openai.beta.vectorStores.del(vectorStoreId);
     } catch (error) {
       console.error('Error deleting vector store:', error);
       throw error;
     }
   }
 
-  async _listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+  public static async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
     try {
-      const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const files = await openai.beta.vectorStores.files.list(vectorStoreId);
       return files.data.map((file) => file.id);
     } catch (error) {
       console.error('Error listing vector store files:', error);
@@ -515,12 +532,35 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async _updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean }) {
+  public static async updateAssistantToolResources(
+    assistantId: string,
+    vectorStoreId: string | null,
+    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
+  ): Promise<void> {
     try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
       const updateData: { tools?: OpenAI.Beta.Assistants.AssistantTool[]; tool_resources?: { file_search: { vector_store_ids: string[] } } } = {};
 
       updateData.tools = buildToolsArray({ funciones: updateToolFunction.funciones });
-      this.renderHITL(updateToolFunction.hitl, updateData.tools);
+
+      // Render HITL
+      if (updateToolFunction.hitl) {
+        updateData.tools.push({
+          type: 'function',
+          function: {
+            name: HitlName,
+            description: 'envia la conversacion a una persona',
+            parameters: {
+              type: 'object',
+              properties: {},
+              required: [],
+            },
+          },
+        });
+      }
+
       if (updateToolFunction.add) {
         updateData.tools.push({ type: 'file_search' });
       }
@@ -532,7 +572,7 @@ export class SofiaLLMService extends BaseAgent {
           },
         };
       }
-      await this.openai.beta.assistants.update(assistantId, updateData);
+      await openai.beta.assistants.update(assistantId, updateData);
     } catch (error) {
       console.error('Error updating assistant tool resources:', error);
       throw error;
