@@ -98,15 +98,9 @@ const handleToolCall = async (
 
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
-  private assistantId: string | null = null;
-  private agentId: number | null = null;
 
-  constructor(
-    private readonly functionCallService: FunctionCallService,
-    identifier: agentIdentifier,
-    private readonly agenteConfig?: AgentConfig,
-  ) {
-    super(identifier);
+  constructor(functionCallService: FunctionCallService, identifier: agentIdentifier, agenteConfig?: AgentConfig) {
+    super(identifier, functionCallService, agenteConfig);
     if (this.agenteConfig?.agentId) this.assistantId = this.agenteConfig.agentId;
     if (this.agenteConfig && 'threadId' in this.agenteConfig) {
       this.threadId = this.agenteConfig?.threadId ?? null;
@@ -117,7 +111,7 @@ export class SofiaLLMService extends BaseAgent {
     });
   }
 
-  async initializeAgent(): Promise<void> {
+  async _initializeAgent(): Promise<void> {
     if (this.assistantId) return;
 
     const config = this.agenteConfig as CreateAgentConfig;
@@ -137,7 +131,7 @@ export class SofiaLLMService extends BaseAgent {
     return;
   }
 
-  protected async createThread(): Promise<string> {
+  protected async _createThread(): Promise<string> {
     const thread = await this.openai.beta.threads.create();
     this.threadId = thread.id;
     return thread.id;
@@ -193,7 +187,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
+  protected async _addMessageToThread(message: string, images?: string[]): Promise<void> {
     if (!this.threadId) throw new Error('Thread not initialized');
     const imagesContent =
       images?.map((image) => ({
@@ -231,7 +225,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  protected async runAgent(threadId: string, conversationId: number): Promise<boolean> {
+  protected async _runAgent(threadId: string, conversationId: number): Promise<boolean> {
     console.time('total-run-time');
     console.time('create-run');
     let run: any;
@@ -302,7 +296,7 @@ export class SofiaLLMService extends BaseAgent {
     return true;
   }
 
-  protected async getResponse(): Promise<string> {
+  protected async _getResponse(): Promise<string> {
     if (!this.threadId) throw new Error('Thread not initialized');
     const messages = await this.openai.beta.threads.messages.list(this.threadId);
     const lastMessage = messages.data[0];
@@ -315,7 +309,7 @@ export class SofiaLLMService extends BaseAgent {
   }
 
   async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
-    if (!this.threadId) this.threadId = await this.createThread();
+    if (!this.threadId) this.threadId = await this._createThread();
     const stateDate = new Date();
     console.log('old execution before response', conversationId, this.threadId);
     tempMemoryConversation.set(userId ?? conversationId, this.threadId);
@@ -333,7 +327,7 @@ export class SofiaLLMService extends BaseAgent {
         console.log('old conversation execution before add message');
         return '';
       }
-      await this.addMessageToThread(message, images);
+      await this._addMessageToThread(message, images);
       console.log(`Adding message took: ${((performance.now() - start) / 1000).toFixed(2)}s`);
 
       const runStart = performance.now();
@@ -347,7 +341,7 @@ export class SofiaLLMService extends BaseAgent {
         console.log('old conversation execution before run agent');
         return '';
       }
-      const hadRun = await this.runAgent(this.threadId!, conversationId);
+      const hadRun = await this._runAgent(this.threadId!, conversationId);
       if (!hadRun) {
         return '';
       }
@@ -363,7 +357,7 @@ export class SofiaLLMService extends BaseAgent {
         return '';
       }
       console.log('Getting response...');
-      const response = await this.getResponse();
+      const response = await this._getResponse();
       if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
         console.log('old execution before validate response');
         return '';
@@ -386,7 +380,7 @@ export class SofiaLLMService extends BaseAgent {
     return this.assistantId;
   }
 
-  async getAudioText(audioName: string) {
+  async _getAudioText(audioName: string) {
     const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
     const transcription = await this.openai.audio.transcriptions.create({
       file: createReadStream(pathFileAudio),
@@ -396,7 +390,7 @@ export class SofiaLLMService extends BaseAgent {
     return transcription;
   }
 
-  async textToAudio(text: string): Promise<string> {
+  async _textToAudio(text: string): Promise<string> {
     const audioId = uuid.v4();
     const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', `${audioId}.mp3`);
     const mp3 = await this.openai.audio.speech.create({
@@ -409,7 +403,7 @@ export class SofiaLLMService extends BaseAgent {
     return `${audioId}.mp3`;
   }
 
-  async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
+  async _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     if (!config?.name) throw new Error('No se pudo obtener el nombre del agente');
     console.log('Actualizando agente...');
@@ -420,7 +414,7 @@ export class SofiaLLMService extends BaseAgent {
     console.log('Actualización de agente exitosa:', response);
   }
 
-  async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
+  async _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     this.renderHITL(hasHitl, tools);
@@ -445,7 +439,7 @@ export class SofiaLLMService extends BaseAgent {
       });
   }
 
-  async createVectorStore(agentId: number): Promise<string> {
+  async _createVectorStore(agentId: number): Promise<string> {
     try {
       const vectorStore = await this.openai.beta.vectorStores.create({
         name: `agent_${agentId}_knowledge`,
@@ -457,7 +451,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
+  async _uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
     if (!file?.buffer || !file?.originalname) {
       throw new Error('Invalid file upload: Missing buffer or filename');
     }
@@ -500,7 +494,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async deleteFileFromVectorStore(fileId: string): Promise<void> {
+  async _deleteFileFromVectorStore(fileId: string): Promise<void> {
     try {
       await this.openai.files.del(fileId);
       console.log('File deleted from vector store:', fileId);
@@ -510,7 +504,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async deleteVectorStore(vectorStoreId: string): Promise<void> {
+  async _deleteVectorStore(vectorStoreId: string): Promise<void> {
     try {
       await this.openai.beta.vectorStores.del(vectorStoreId);
     } catch (error) {
@@ -519,7 +513,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+  async _listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
     try {
       const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
       return files.data.map((file) => file.id);
@@ -529,7 +523,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean }) {
+  async _updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean }) {
     try {
       const updateData: { tools?: OpenAI.Beta.Assistants.AssistantTool[]; tool_resources?: { file_search: { vector_store_ids: string[] } } } = {};
 

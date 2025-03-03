@@ -1,37 +1,75 @@
-import { agentIdentifier } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
+import { FunctionCallService } from '../../modules/agent/function-call.service';
+import { Funcion } from '@models/agent/Function.entity';
 
 export abstract class BaseAgent {
   protected threadId: string | null = null;
+  protected assistantId: string | null = null;
+  protected agentId: number | null = null;
 
-  constructor(protected identifier: agentIdentifier) {}
+  constructor(
+    protected identifier: agentIdentifier,
+    protected functionCallService: FunctionCallService,
+    protected agenteConfig?: AgentConfig,
+  ) {
+    if (this.agenteConfig?.agentId) this.assistantId = this.agenteConfig.agentId;
+    if (this.agenteConfig && 'threadId' in this.agenteConfig) {
+      this.threadId = this.agenteConfig?.threadId ?? null;
+    }
+    if (this.agenteConfig?.DBagentId) this.agentId = this.agenteConfig.DBagentId;
+  }
+
+  public async getAudioText(audioName: string): Promise<any> {
+    return this._getAudioText(audioName);
+  }
+
+  public async textToAudio(text: string): Promise<string> {
+    return this._textToAudio(text);
+  }
+
+  public async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
+    return this._updateAgent(config, assistantId);
+  }
+
+  public async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
+    return this._updateFunctions(funciones, assistantId, hasKnowledgeBase, hasHitl);
+  }
+
+  public async createVectorStore(agentId: number): Promise<string> {
+    return this._createVectorStore(agentId);
+  }
+
+  public async uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string> {
+    return this._uploadFileToVectorStore(file, vectorStoreId);
+  }
+
+  public async deleteFileFromVectorStore(fileId: string): Promise<void> {
+    return this._deleteFileFromVectorStore(fileId);
+  }
+
+  public async deleteVectorStore(vectorStoreId: string): Promise<void> {
+    return this._deleteVectorStore(vectorStoreId);
+  }
+
+  public async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+    return this._listVectorStoreFiles(vectorStoreId);
+  }
+
+  public async updateAssistantToolResources(
+    assistantId: string,
+    vectorStoreId: string | null,
+    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
+  ): Promise<void> {
+    return this._updateAssistantToolResources(assistantId, vectorStoreId, updateToolFunction);
+  }
 
   public getThreadId(): string | undefined {
     return this.threadId || undefined;
   }
 
-  abstract response(message: string, context?: any): Promise<string>;
-
-  protected async initializeAgent(): Promise<void> {
-    // Base initialization logic if needed
-  }
-
-  protected async createThread(): Promise<any> {
-    // Base thread creation logic if needed
-    return null;
-  }
-
-  protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
-    // Base message adding logic
-  }
-
-  protected async runAgent(threadId: string, conversationId: number): Promise<any> {
-    // Base agent running logic
-    return null;
-  }
-
-  protected async getResponse(threadId: string): Promise<string> {
-    // Base response retrieval logic
-    return '';
+  public getAgentId(): string {
+    if (!this.assistantId) throw new Error('Assistant not initialized');
+    return this.assistantId;
   }
 
   protected async validateResponse(response: string): Promise<string> {
@@ -42,11 +80,30 @@ export abstract class BaseAgent {
   }
 
   protected getContextualizedInstructions(): string {
-    const baseInstructions = '';
-    return baseInstructions;
+    return '';
   }
 
   async init(): Promise<void> {
-    await this.initializeAgent();
+    await this._initializeAgent();
   }
+
+  protected abstract _initializeAgent(): Promise<void>;
+  protected abstract _createThread(): Promise<string>;
+  protected abstract _addMessageToThread(message: string, images?: string[]): Promise<void>;
+  protected abstract _runAgent(threadId: string, conversationId: number): Promise<boolean>;
+  protected abstract _getResponse(): Promise<string>;
+  protected abstract _getAudioText(audioName: string): Promise<any>;
+  protected abstract _textToAudio(text: string): Promise<string>;
+  protected abstract _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void>;
+  protected abstract _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void>;
+  protected abstract _createVectorStore(agentId: number): Promise<string>;
+  protected abstract _uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string>;
+  protected abstract _deleteFileFromVectorStore(fileId: string): Promise<void>;
+  protected abstract _deleteVectorStore(vectorStoreId: string): Promise<void>;
+  protected abstract _listVectorStoreFiles(vectorStoreId: string): Promise<string[]>;
+  protected abstract _updateAssistantToolResources(
+    assistantId: string,
+    vectorStoreId: string | null,
+    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
+  ): Promise<void>;
 }
