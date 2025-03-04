@@ -238,6 +238,29 @@ export class SystemEventsService {
     });
   }
 
+  async logVectorStoreError(params: {
+    agentId: number;
+    type: EventType.AGENT_VECTOR_STORE_ERROR | EventType.AGENT_FILE_UPLOAD_ERROR | EventType.AGENT_FILE_DELETE_ERROR;
+    vectorStoreId?: string;
+    fileId?: string;
+    organizationId: number;
+    error: Error;
+  }): Promise<SystemEvent> {
+    return this.create({
+      type: params.type,
+      metadata: {
+        vector_store_id: params.vectorStoreId,
+        file_id: params.fileId,
+        error: params.error?.message,
+        stack: params.error?.stack,
+      },
+      organization: { id: params.organizationId } as Organization,
+      table_name: TableName.AGENTS,
+      table_id: params.agentId,
+      error_message: params.error?.message,
+    });
+  }
+
   // Consultas
   async findByOrganizationId(organizationId: number): Promise<SystemEvent[]> {
     return this.systemEventRepository.find({

@@ -320,7 +320,7 @@ export class SofiaLLMService extends BaseAgent {
         console.log('old conversation execution before add message');
         return '';
       }
-      await this._addMessageToThread(message, images);
+      await this.addMessageToThread(message, images);
       console.log(`Adding message took: ${((performance.now() - start) / 1000).toFixed(2)}s`);
 
       const runStart = performance.now();
@@ -334,7 +334,7 @@ export class SofiaLLMService extends BaseAgent {
         console.log('old conversation execution before run agent');
         return '';
       }
-      const hadRun = await this._runAgent(this.threadId!, conversationId);
+      const hadRun = await this.runAgent(this.threadId!, conversationId);
       if (!hadRun) {
         return '';
       }
@@ -350,7 +350,7 @@ export class SofiaLLMService extends BaseAgent {
         return '';
       }
       console.log('Getting response...');
-      const response = await this._getResponse();
+      const response = await this.getResponse();
       if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
         console.log('old execution before validate response');
         return '';
@@ -373,7 +373,7 @@ export class SofiaLLMService extends BaseAgent {
     return this.assistantId;
   }
 
-  public static async getAudioText(audioName: string) {
+  protected static async _getAudioText(audioName: string) {
     try {
       const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
@@ -391,7 +391,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  public static async textToAudio(text: string): Promise<string> {
+  protected static async _textToAudio(text: string): Promise<string> {
     try {
       const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,

@@ -46,14 +46,6 @@ export abstract class BaseAgent {
     }
   }
 
-  public static async getAudioText(audioName: string): Promise<any> {
-    throw new Error('Method not implemented');
-  }
-
-  public static async textToAudio(text: string): Promise<string> {
-    throw new Error('Method not implemented');
-  }
-
   public async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     return this._updateAgent(config, assistantId);
   }
@@ -79,27 +71,185 @@ export abstract class BaseAgent {
     }
   }
 
-  public static async createVectorStore(agentId: number): Promise<string> {
+  protected static async _getAudioText(audioName: string): Promise<any> {
     throw new Error('Method not implemented');
   }
 
-  public static async uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string> {
+  public static async getAudioText(audioName: string): Promise<any> {
+    return this._getAudioText(audioName);
+  }
+
+  protected static async _textToAudio(text: string): Promise<string> {
     throw new Error('Method not implemented');
   }
 
-  public static async deleteFileFromVectorStore(fileId: string): Promise<void> {
+  public static async textToAudio(text: string): Promise<string> {
+    return this._textToAudio(text);
+  }
+
+  public static async createVectorStore(agentId: number, organizationId: number, systemEventsService: SystemEventsService): Promise<string> {
+    try {
+      const vectorStoreId = await this._createVectorStore(agentId);
+
+      await systemEventsService.logAgentEvent({
+        agentId,
+        type: EventType.AGENT_VECTOR_STORE_CREATED,
+        organizationId,
+        metadata: { vectorStoreId },
+      });
+
+      return vectorStoreId;
+    } catch (error) {
+      await systemEventsService.logVectorStoreError({
+        agentId,
+        type: EventType.AGENT_VECTOR_STORE_ERROR,
+        organizationId,
+        error: error as Error,
+      });
+
+      throw error;
+    }
+  }
+
+  protected static async _createVectorStore(agentId: number): Promise<string> {
     throw new Error('Method not implemented');
   }
 
-  public static async deleteVectorStore(vectorStoreId: string): Promise<void> {
+  public static async uploadFileToVectorStore(
+    file: any,
+    vectorStoreId: string,
+    agentId: number,
+    organizationId: number,
+    systemEventsService: SystemEventsService,
+  ): Promise<string> {
+    try {
+      const fileId = await this._uploadFileToVectorStore(file, vectorStoreId);
+
+      await systemEventsService.logAgentFileEvent({
+        agentId,
+        type: EventType.AGENT_FILE_UPLOADED,
+        fileId,
+        organizationId,
+      });
+
+      return fileId;
+    } catch (error) {
+      await systemEventsService.logVectorStoreError({
+        agentId,
+        type: EventType.AGENT_FILE_UPLOAD_ERROR,
+        vectorStoreId,
+        organizationId,
+        error: error as Error,
+      });
+
+      throw error;
+    }
+  }
+
+  protected static async _uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string> {
+    throw new Error('Method not implemented');
+  }
+
+  public static async deleteFileFromVectorStore(
+    fileId: string,
+    agentId: number,
+    vectorStoreId: string,
+    organizationId: number,
+    systemEventsService: SystemEventsService,
+  ): Promise<void> {
+    try {
+      await this._deleteFileFromVectorStore(fileId);
+
+      await systemEventsService.logAgentFileEvent({
+        agentId,
+        type: EventType.AGENT_FILE_DELETED,
+        fileId,
+        organizationId,
+      });
+    } catch (error) {
+      await systemEventsService.logVectorStoreError({
+        agentId,
+        type: EventType.AGENT_FILE_DELETE_ERROR,
+        fileId,
+        vectorStoreId,
+        organizationId,
+        error: error as Error,
+      });
+
+      throw error;
+    }
+  }
+
+  protected static async _deleteFileFromVectorStore(fileId: string): Promise<void> {
+    throw new Error('Method not implemented');
+  }
+
+  public static async deleteVectorStore(vectorStoreId: string, agentId: number, organizationId: number, systemEventsService: SystemEventsService): Promise<void> {
+    try {
+      await this._deleteVectorStore(vectorStoreId);
+
+      await systemEventsService.logAgentVectorStoreEvent({
+        agentId,
+        type: EventType.AGENT_VECTOR_STORE_DELETED,
+        vectorStoreId,
+        organizationId,
+      });
+    } catch (error) {
+      await systemEventsService.logVectorStoreError({
+        agentId,
+        type: EventType.AGENT_VECTOR_STORE_ERROR,
+        vectorStoreId,
+        organizationId,
+        error: error as Error,
+      });
+
+      throw error;
+    }
+  }
+
+  protected static async _deleteVectorStore(vectorStoreId: string): Promise<void> {
     throw new Error('Method not implemented');
   }
 
   public static async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+    return this._listVectorStoreFiles(vectorStoreId);
+  }
+
+  protected static async _listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
     throw new Error('Method not implemented');
   }
 
   public static async updateAssistantToolResources(
+    assistantId: string,
+    vectorStoreId: string | null,
+    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
+    agentId: number,
+    organizationId: number,
+    systemEventsService: SystemEventsService,
+  ): Promise<void> {
+    try {
+      await this._updateAssistantToolResources(assistantId, vectorStoreId, updateToolFunction);
+
+      await systemEventsService.logAgentToolsUpdate({
+        agentId,
+        organizationId,
+        functions: updateToolFunction.funciones,
+        hitl: updateToolFunction.hitl,
+      });
+    } catch (error) {
+      await systemEventsService.logAgentToolsUpdate({
+        agentId,
+        organizationId,
+        functions: updateToolFunction.funciones,
+        hitl: updateToolFunction.hitl,
+        error: error as Error,
+      });
+
+      throw error;
+    }
+  }
+
+  protected static async _updateAssistantToolResources(
     assistantId: string,
     vectorStoreId: string | null,
     updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
@@ -172,6 +322,18 @@ export abstract class BaseAgent {
   protected abstract _getResponse(): Promise<string>;
   protected abstract _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void>;
   protected abstract _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void>;
+
+  protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
+    return this._addMessageToThread(message, images);
+  }
+
+  protected async runAgent(threadId: string, conversationId: number): Promise<boolean> {
+    return this._runAgent(threadId, conversationId);
+  }
+
+  protected async getResponse(): Promise<string> {
+    return this._getResponse();
+  }
 
   protected async createThread(): Promise<string> {
     const threadId = await this._createThread();
