@@ -66,7 +66,7 @@ export class IntegrationRouterService {
   async processMessage(message: string, conversationId: number, images: string[] = []) {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
-      relations: ['user', 'departamento.agente'],
+      relations: ['user', 'departamento.agente', 'chat_user'],
     });
 
     if (!conversation) {
@@ -90,7 +90,7 @@ export class IntegrationRouterService {
       return null;
     }
 
-    const response = await this.agentService.processMessageWithConversation(message, conversation, images);
+    const response = await this.agentService.processMessageWithConversation(message, conversation, images, conversation.chat_user?.id);
     if (!response) return;
 
     return {

@@ -11,6 +11,7 @@ import { AgentModule } from '@modules/agent/agent.module';
 import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 import { LlmAgentService } from 'src/services/llm-agent/llm-agent.service';
 import { SystemEventsModule } from '@modules/system-events/system-events.module';
+import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SystemEventsModule } from '@modules/system-events/system-events.module'
     forwardRef(() => AuthModule),
     forwardRef(() => AgentModule),
     SystemEventsModule,
+    IntegrationRouterModule,
   ],
   controllers: [LlmAgentController],
   providers: [LlmAgentService, AgentManagerService],

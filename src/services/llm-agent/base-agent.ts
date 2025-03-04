@@ -3,6 +3,8 @@ import { FunctionCallService } from '../../modules/agent/function-call.service';
 import { Funcion } from '@models/agent/Function.entity';
 import { SystemEventsService } from '../../modules/system-events/system-events.service';
 import { EventType } from '@models/SystemEvent.entity';
+import { ConversationType } from '@models/Conversation.entity';
+import { IntegrationRouterService } from '../../modules/integration-router/integration.router.service';
 
 export abstract class BaseAgent {
   protected threadId: string | null = null;
@@ -14,6 +16,7 @@ export abstract class BaseAgent {
     protected identifier: agentIdentifier,
     protected functionCallService: FunctionCallService,
     protected systemEventsService: SystemEventsService,
+    protected integrationRouterService: IntegrationRouterService,
     protected agenteConfig?: AgentConfig,
   ) {
     if (!this.agenteConfig) return;
@@ -277,7 +280,7 @@ export abstract class BaseAgent {
     return '';
   }
 
-  public async response(message: string, conversationId: number, images?: string[]): Promise<string> {
+  public async response(message: string, conversationId: number, images?: string[], chatUserId?: number): Promise<string> {
     const startTime = Date.now();
     if (!this.agentId) throw new Error('Agent ID is required');
     try {
@@ -290,7 +293,9 @@ export abstract class BaseAgent {
         conversationId,
       });
 
-      // Implementación de lógica de control de flujo genérico
+      // Enviar evento al usuario si es chat web
+      this.integrationRouterService.sendEventToUser(conversationId, EventType.AGENT_RESPONSE_STARTED, ConversationType.CHAT_WEB, chatUserId);
+
       await this.addMessageToThread(message, images);
 
       await this.systemEventsService.logAgentEvent({
@@ -316,6 +321,9 @@ export abstract class BaseAgent {
         conversationId,
         responseTime: Date.now() - startTime,
       });
+
+      // Enviar evento al usuario si es chat web
+      this.integrationRouterService.sendEventToUser(conversationId, EventType.AGENT_RESPONSE_COMPLETED, ConversationType.CHAT_WEB, chatUserId);
 
       return validatedResponse;
     } catch (error) {

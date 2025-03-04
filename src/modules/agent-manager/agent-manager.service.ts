@@ -10,6 +10,7 @@ import { Departamento } from '@models/Departamento.entity';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { Funcion } from '@models/agent/Function.entity';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 // Tipos para las configuraciones de agentes
 type SofiaAgente = Agente<SofiaLLMConfig>;
@@ -23,6 +24,7 @@ export class AgentManagerService {
     private readonly socketService: SocketService,
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
+    private readonly integrationRouterService: IntegrationRouterService,
   ) {}
 
   private buildAgentConfig(agente: SofiaAgente, organizationId: number): CreateAgentConfig {
@@ -84,7 +86,7 @@ export class AgentManagerService {
         type: AgentIdentifierType.CHAT,
         agentId: config.agentId,
       };
-      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, identifier, config);
+      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       await llmService.init();
       sofiaAgent.config.agentId = llmService.getAgentId();
       // Guardar el ID del asistente
@@ -148,7 +150,7 @@ export class AgentManagerService {
         type: AgentIdentifierType.CHAT,
         agentId: previousConfig.agentId,
       };
-      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, identifier, config);
+      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       if (!previousConfig.agentId) {
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
       }
@@ -183,14 +185,20 @@ export class AgentManagerService {
       type: AgentIdentifierType.CHAT,
       agentId: config.agentId,
     };
-    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, identifier, config);
+    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
     await llmService.updateFunctions(agente.funciones, config.agentId, !!agente.config.vectorStoreId, canEscalateToHuman);
     agente.canEscalateToHuman = canEscalateToHuman;
     return this.agenteRepository.save(agente);
   }
 
   async updateFunctions(functions: Funcion[], agentId: string, hasVectorStore: boolean, canEscalateToHuman: boolean, organizationId: number): Promise<void> {
-    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, { type: AgentIdentifierType.CHAT, agentId }, { agentId, organizationId });
+    const llmService = new SofiaLLMService(
+      this.functionCallService,
+      this.systemEventsService,
+      this.integrationRouterService,
+      { type: AgentIdentifierType.CHAT, agentId },
+      { agentId, organizationId },
+    );
     return llmService.updateFunctions(functions, agentId, hasVectorStore, canEscalateToHuman);
   }
 

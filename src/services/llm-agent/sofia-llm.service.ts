@@ -12,6 +12,7 @@ import * as os from 'os';
 import * as uuid from 'uuid';
 import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 const tempMemory = new Map();
 const tempMemoryConversation = new Map();
@@ -100,8 +101,14 @@ const handleToolCall = async (
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
 
-  constructor(functionCallService: FunctionCallService, systemEventsService: SystemEventsService, identifier: agentIdentifier, agenteConfig: AgentConfig) {
-    super(identifier, functionCallService, systemEventsService, agenteConfig);
+  constructor(
+    functionCallService: FunctionCallService,
+    systemEventsService: SystemEventsService,
+    integrationRouterService: IntegrationRouterService,
+    identifier: agentIdentifier,
+    agenteConfig: AgentConfig,
+  ) {
+    super(identifier, functionCallService, systemEventsService, integrationRouterService, agenteConfig);
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });

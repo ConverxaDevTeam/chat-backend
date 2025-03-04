@@ -9,6 +9,7 @@ import { Conversation } from '@models/Conversation.entity';
 import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
 import { FunctionCallService } from './function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -24,6 +25,7 @@ interface getAgentResponseProps {
   conversationId: number;
   images: string[];
   userId?: number;
+  chatUserId?: number;
 }
 
 interface AgentConfig {
@@ -70,6 +72,7 @@ export class AgentService {
     private readonly conversationRepository: Repository<Conversation>,
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
+    private readonly integrationRouterService: IntegrationRouterService,
   ) {}
 
   /**
@@ -78,7 +81,7 @@ export class AgentService {
    * @returns respuesta del agente
    */
   async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse | null> {
-    const { message, identifier, agentId, conversationId, images } = props;
+    const { message, identifier, agentId, conversationId, images, chatUserId } = props;
     console.time('configure-agent');
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
@@ -114,9 +117,9 @@ export class AgentService {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
     console.log('Configurando agente...', agenteConfig, identifier);
-    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, identifier, agenteConfig);
+    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, agenteConfig);
     console.timeEnd('configure-agent');
-    const response = await llmService.response(message, conversationId, images);
+    const response = await llmService.response(message, conversationId, images, chatUserId);
     if (response === '') return null;
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }
@@ -127,7 +130,7 @@ export class AgentService {
    * @param conversationId id de la conversación
    * @returns respuesta del agente
    */
-  async processMessageWithConversation(message: string, conversation: Conversation, images: string[]): Promise<AgentResponse | null> {
+  async processMessageWithConversation(message: string, conversation: Conversation, images: string[], chatUserId?: number): Promise<AgentResponse | null> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
     const isConfigured = !!config;
@@ -152,7 +155,14 @@ export class AgentService {
       } as agentIdentifier;
     }
 
-    const response = await this.getAgentResponse({ message, identifier, agentId: conversation.departamento.agente?.id, conversationId: conversation.id, images });
+    const response = await this.getAgentResponse({
+      message,
+      identifier,
+      agentId: conversation.departamento.agente?.id,
+      conversationId: conversation.id,
+      images,
+      chatUserId: chatUserId,
+    });
     if (!response) return null;
     if (!isConfigured) {
       config.agentIdentifier.agentId = response.agentId;
