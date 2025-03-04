@@ -11,6 +11,8 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as uuid from 'uuid';
 import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
+import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 const tempMemory = new Map();
 const tempMemoryConversation = new Map();
@@ -98,28 +100,21 @@ const handleToolCall = async (
 
 export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
-  private assistantId: string | null = null;
-  private agentId: number | null = null;
 
   constructor(
-    private readonly functionCallService: FunctionCallService,
+    functionCallService: FunctionCallService,
+    systemEventsService: SystemEventsService,
+    integrationRouterService: IntegrationRouterService,
     identifier: agentIdentifier,
-    private readonly agenteConfig?: AgentConfig,
+    agenteConfig: AgentConfig,
   ) {
-    super(identifier);
-    if (this.agenteConfig?.agentId) this.assistantId = this.agenteConfig.agentId;
-    if (this.agenteConfig && 'threadId' in this.agenteConfig) {
-      this.threadId = this.agenteConfig?.threadId ?? null;
-    }
-    if (this.agenteConfig?.DBagentId) this.agentId = this.agenteConfig.DBagentId;
+    super(identifier, functionCallService, systemEventsService, integrationRouterService, agenteConfig);
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
   }
 
-  async initializeAgent(): Promise<void> {
-    if (this.assistantId) return;
-
+  async _initializeAgent(): Promise<void> {
     const config = this.agenteConfig as CreateAgentConfig;
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
@@ -137,9 +132,12 @@ export class SofiaLLMService extends BaseAgent {
     return;
   }
 
-  protected async createThread(): Promise<string> {
-    const thread = await this.openai.beta.threads.create();
-    this.threadId = thread.id;
+  protected async _createThread(conversationId: number): Promise<string> {
+    const thread = await this.openai.beta.threads.create({
+      metadata: {
+        conversation_id: conversationId.toString(),
+      },
+    });
     return thread.id;
   }
 
@@ -193,7 +191,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
+  protected async _addMessageToThread(message: string, images?: string[]): Promise<void> {
     if (!this.threadId) throw new Error('Thread not initialized');
     const imagesContent =
       images?.map((image) => ({
@@ -231,7 +229,7 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  protected async runAgent(threadId: string, conversationId: number): Promise<boolean> {
+  protected async _runAgent(threadId: string, conversationId: number): Promise<boolean> {
     console.time('total-run-time');
     console.time('create-run');
     let run: any;
@@ -302,7 +300,7 @@ export class SofiaLLMService extends BaseAgent {
     return true;
   }
 
-  protected async getResponse(): Promise<string> {
+  protected async _getResponse(): Promise<string> {
     if (!this.threadId) throw new Error('Thread not initialized');
     const messages = await this.openai.beta.threads.messages.list(this.threadId);
     const lastMessage = messages.data[0];
@@ -314,71 +312,61 @@ export class SofiaLLMService extends BaseAgent {
     return lastMessage.content[0].type === 'text' ? lastMessage.content[0].text.value : '';
   }
 
-  async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
-    if (!this.threadId) this.threadId = await this.createThread();
+  protected async _response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
     const stateDate = new Date();
     console.log('old execution before response', conversationId, this.threadId);
     tempMemoryConversation.set(userId ?? conversationId, this.threadId);
     tempMemory.set(this.threadId, stateDate);
 
     try {
-      const start = performance.now();
-      console.log('Sending message to thread:', message);
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before add message');
+      // Verificar si la ejecución es antigua antes de cada paso
+      if (this._isExpiredExecution(stateDate, userId, conversationId)) {
         return '';
       }
 
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before add message');
-        return '';
-      }
-      await this.addMessageToThread(message, images);
-      console.log(`Adding message took: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-
-      const runStart = performance.now();
-      console.log('Running agent...');
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before run agent');
-        return '';
-      }
-
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before run agent');
-        return '';
-      }
-      const hadRun = await this.runAgent(this.threadId!, conversationId);
-      if (!hadRun) {
-        return '';
-      }
-      console.log(`Running agent took: ${((performance.now() - runStart) / 1000).toFixed(2)}s`);
-
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before get response');
-        return '';
-      }
-
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before get response');
-        return '';
-      }
-      console.log('Getting response...');
-      const response = await this.getResponse();
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before validate response');
-        return '';
-      }
-
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before validate response');
-        return '';
-      }
-      console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-      return this.validateResponse(response);
+      return await this._executeWithStateValidation(
+        async () => {
+          // Lógica específica de OpenAI que no puede ir en la clase base
+          const start = performance.now();
+          console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
+          return '';
+        },
+        stateDate,
+        userId,
+        conversationId,
+      );
     } catch (error) {
       console.error('Error in response:', error);
       throw error;
     }
+  }
+
+  /**
+   * Verifica si la ejecución actual está expirada
+   */
+  private _isExpiredExecution(stateDate: Date, userId: number | undefined, conversationId: number): boolean {
+    if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
+      console.log('old execution detected');
+      return true;
+    }
+
+    if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+      console.log('old conversation execution detected');
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Ejecuta una función con validación de estado
+   */
+  private async _executeWithStateValidation<T>(fn: () => Promise<T>, stateDate: Date, userId: number | undefined, conversationId: number): Promise<T> {
+    if (this._isExpiredExecution(stateDate, userId, conversationId)) {
+      return '' as unknown as T;
+    }
+
+    return await fn();
   }
 
   public getAgentId(): string {
@@ -386,30 +374,46 @@ export class SofiaLLMService extends BaseAgent {
     return this.assistantId;
   }
 
-  async getAudioText(audioName: string) {
-    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
-    const transcription = await this.openai.audio.transcriptions.create({
-      file: createReadStream(pathFileAudio),
-      model: 'whisper-1',
-    });
+  protected static async _getAudioText(audioName: string) {
+    try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
+      const transcription = await openai.audio.transcriptions.create({
+        file: createReadStream(pathFileAudio),
+        model: 'whisper-1',
+      });
 
-    return transcription;
+      return transcription;
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      throw error;
+    }
   }
 
-  async textToAudio(text: string): Promise<string> {
-    const audioId = uuid.v4();
-    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', `${audioId}.mp3`);
-    const mp3 = await this.openai.audio.speech.create({
-      model: 'tts-1',
-      voice: 'alloy',
-      input: text,
-    });
-    const buffer = Buffer.from(await mp3.arrayBuffer());
-    await fs.promises.writeFile(pathFileAudio, buffer);
-    return `${audioId}.mp3`;
+  protected static async _textToAudio(text: string): Promise<string> {
+    try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const audioId = uuid.v4();
+      const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', `${audioId}.mp3`);
+      const mp3 = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: 'alloy',
+        input: text,
+      });
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+      await fs.promises.writeFile(pathFileAudio, buffer);
+      return `${audioId}.mp3`;
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      throw error;
+    }
   }
 
-  async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
+  protected async _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     if (!config?.name) throw new Error('No se pudo obtener el nombre del agente');
     console.log('Actualizando agente...');
@@ -420,7 +424,7 @@ export class SofiaLLMService extends BaseAgent {
     console.log('Actualización de agente exitosa:', response);
   }
 
-  async updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
+  protected async _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     this.renderHITL(hasHitl, tools);
@@ -445,9 +449,12 @@ export class SofiaLLMService extends BaseAgent {
       });
   }
 
-  async createVectorStore(agentId: number): Promise<string> {
+  public static async createVectorStore(agentId: number): Promise<string> {
     try {
-      const vectorStore = await this.openai.beta.vectorStores.create({
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const vectorStore = await openai.beta.vectorStores.create({
         name: `agent_${agentId}_knowledge`,
       });
       return vectorStore.id;
@@ -457,12 +464,15 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
+  public static async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
     if (!file?.buffer || !file?.originalname) {
       throw new Error('Invalid file upload: Missing buffer or filename');
     }
 
     let tempPath: string | null = null;
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     try {
       // Create unique temp file name
@@ -474,12 +484,12 @@ export class SofiaLLMService extends BaseAgent {
       await fs.promises.writeFile(tempPath, file.buffer);
 
       // Upload to vector store
-      await this.openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
+      await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
         files: [fs.createReadStream(tempPath)],
       });
 
       // Get file ID from vector store
-      const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
+      const files = await openai.beta.vectorStores.files.list(vectorStoreId);
       const vectorFile = files.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
 
       if (!vectorFile) {
@@ -500,9 +510,12 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async deleteFileFromVectorStore(fileId: string): Promise<void> {
+  public static async deleteFileFromVectorStore(fileId: string): Promise<void> {
     try {
-      await this.openai.files.del(fileId);
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      await openai.files.del(fileId);
       console.log('File deleted from vector store:', fileId);
     } catch (error) {
       console.error('Error deleting file from vector store:', error);
@@ -510,18 +523,24 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async deleteVectorStore(vectorStoreId: string): Promise<void> {
+  public static async deleteVectorStore(vectorStoreId: string): Promise<void> {
     try {
-      await this.openai.beta.vectorStores.del(vectorStoreId);
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      await openai.beta.vectorStores.del(vectorStoreId);
     } catch (error) {
       console.error('Error deleting vector store:', error);
       throw error;
     }
   }
 
-  async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+  public static async listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
     try {
-      const files = await this.openai.beta.vectorStores.files.list(vectorStoreId);
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const files = await openai.beta.vectorStores.files.list(vectorStoreId);
       return files.data.map((file) => file.id);
     } catch (error) {
       console.error('Error listing vector store files:', error);
@@ -529,12 +548,35 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  async updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean }) {
+  public static async updateAssistantToolResources(
+    assistantId: string,
+    vectorStoreId: string | null,
+    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
+  ): Promise<void> {
     try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
       const updateData: { tools?: OpenAI.Beta.Assistants.AssistantTool[]; tool_resources?: { file_search: { vector_store_ids: string[] } } } = {};
 
       updateData.tools = buildToolsArray({ funciones: updateToolFunction.funciones });
-      this.renderHITL(updateToolFunction.hitl, updateData.tools);
+
+      // Render HITL
+      if (updateToolFunction.hitl) {
+        updateData.tools.push({
+          type: 'function',
+          function: {
+            name: HitlName,
+            description: 'envia la conversacion a una persona',
+            parameters: {
+              type: 'object',
+              properties: {},
+              required: [],
+            },
+          },
+        });
+      }
+
       if (updateToolFunction.add) {
         updateData.tools.push({ type: 'file_search' });
       }
@@ -546,7 +588,7 @@ export class SofiaLLMService extends BaseAgent {
           },
         };
       }
-      await this.openai.beta.assistants.update(assistantId, updateData);
+      await openai.beta.assistants.update(assistantId, updateData);
     } catch (error) {
       console.error('Error updating assistant tool resources:', error);
       throw error;

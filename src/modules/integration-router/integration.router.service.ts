@@ -12,6 +12,8 @@ import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Express } from 'express';
+import { EventType } from '@models/SystemEvent.entity';
+import { ConversationType } from '@models/Conversation.entity';
 
 @Injectable()
 export class IntegrationRouterService {
@@ -64,7 +66,7 @@ export class IntegrationRouterService {
   async processMessage(message: string, conversationId: number, images: string[] = []) {
     const conversation = await this.conversationRepository.findOne({
       where: { id: conversationId },
-      relations: ['user', 'departamento.agente'],
+      relations: ['user', 'departamento.agente', 'chat_user'],
     });
 
     if (!conversation) {
@@ -88,7 +90,7 @@ export class IntegrationRouterService {
       return null;
     }
 
-    const response = await this.agentService.processMessageWithConversation(message, conversation, images);
+    const response = await this.agentService.processMessageWithConversation(message, conversation, images, conversation.chat_user?.id);
     if (!response) return;
 
     return {
@@ -132,5 +134,14 @@ export class IntegrationRouterService {
       this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL, conversation.departamento.organizacion.id, savedImages);
     }
     return { message, images: savedImages };
+  }
+
+  async sendEventToUser(conversationId: number, event: EventType, conversationType?: ConversationType, chatUserId?: number) {
+    if (conversationType === ConversationType.CHAT_WEB && chatUserId) {
+      console.log(event, conversationId);
+      if (this.socketService.hasWebChatClient(chatUserId)) {
+        this.socketService.sendEventToWebChatUser(chatUserId, event, conversationId);
+      }
+    }
   }
 }

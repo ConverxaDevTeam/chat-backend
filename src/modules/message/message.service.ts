@@ -7,13 +7,13 @@ import { WebhookWhatsAppDto } from '@modules/facebook/dto/webhook.dto';
 import axios from 'axios';
 import * as uuid from 'uuid';
 import * as fs from 'fs';
-import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { IntegrationType } from '@models/Integration.entity';
 import { join } from 'path';
 import * as getMP3Duration from 'get-mp3-duration';
 import { SessionService } from './session.service';
 import { NotificationService } from '@modules/notification/notification.service';
 import { NotificationType } from '@models/notification.entity';
+import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 
 @Injectable()
 export class MessageService {
@@ -22,9 +22,9 @@ export class MessageService {
   constructor(
     @InjectRepository(Message)
     private readonly messageRepository: Repository<Message>,
-    private readonly sofiaLLMService: SofiaLLMService,
     private readonly sessionService: SessionService,
     private readonly notificationService: NotificationService,
+    private readonly agentManagerService: AgentManagerService,
   ) {}
 
   async createMessage(
@@ -64,11 +64,11 @@ export class MessageService {
         } catch (error) {
           console.error('Error obteniendo la duración del audio:', error.message);
         }
-        const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
+        const transcription = await this.agentManagerService.getAudioText(uniqueName);
         message.text = transcription.text;
       } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.CHAT_WEB && options.audio_url) {
         message.audio = options.audio_url;
-        const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        const transcription = await this.agentManagerService.getAudioText(options.audio_url);
         const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', options.audio_url);
         try {
           const audioDuration = await this.getAudioDuration(audioPath);
@@ -79,7 +79,7 @@ export class MessageService {
         message.text = transcription.text;
       } else if (options.format === MessageFormatType.AUDIO && options.platform === IntegrationType.WHATSAPP && options.audio_url) {
         message.audio = options.audio_url;
-        const transcription = await this.sofiaLLMService.getAudioText(options.audio_url);
+        const transcription = await this.agentManagerService.getAudioText(options.audio_url);
         message.text = transcription.text;
         const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', options.audio_url);
         try {
@@ -105,7 +105,7 @@ export class MessageService {
   }
 
   async createMessageAudio(conversation: Conversation, text: string, type: MessageType, organizationId: number, userId?: number): Promise<Message> {
-    const audio = await this.sofiaLLMService.textToAudio(text);
+    const audio = await this.agentManagerService.textToAudio(text);
     const message = new Message();
     const audioPath = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audio);
     try {
@@ -172,7 +172,7 @@ export class MessageService {
         } catch (error) {
           console.error('Error obteniendo la duración del audio:', error.message);
         }
-        const transcription = await this.sofiaLLMService.getAudioText(uniqueName);
+        const transcription = await this.agentManagerService.getAudioText(uniqueName);
         message.text = transcription.text;
       } catch (error) {
         console.error('Error downloading image:', error.message);

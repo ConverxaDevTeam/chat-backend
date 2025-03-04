@@ -5,12 +5,12 @@ import { Agente } from '@models/agent/Agente.entity';
 import { AgentKnowledgebaseController } from './agent-knowledgebase.controller';
 import { AgentKnowledgebaseService } from './agent-knowledgebase.service';
 import { AuthModule } from '@modules/auth/auth.module';
-import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { AgentManagerModule } from '@modules/agent-manager/agent-manager.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([KnowledgeBase, Agente]), AuthModule],
+  imports: [TypeOrmModule.forFeature([KnowledgeBase, Agente]), AuthModule, AgentManagerModule],
   controllers: [AgentKnowledgebaseController],
-  providers: [AgentKnowledgebaseService, SofiaLLMService],
+  providers: [AgentKnowledgebaseService],
   exports: [AgentKnowledgebaseService],
 })
 export class AgentKnowledgebaseModule {}

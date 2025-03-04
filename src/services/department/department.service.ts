@@ -7,8 +7,8 @@ import { UpdateDepartmentDto } from '@modules/department/dto/update-department.d
 import { Organization } from '@models/Organization.entity';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
-import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
 import { IntegrationType } from '@models/Integration.entity';
+import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 
 interface DepartmentWithAgents {
   id: number;
