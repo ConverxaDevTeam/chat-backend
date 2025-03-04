@@ -78,7 +78,7 @@ export class AgentService {
    * @returns respuesta del agente
    */
   async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse | null> {
-    const { message, identifier, agentId, conversationId, images, userId } = props;
+    const { message, identifier, agentId, conversationId, images } = props;
     console.time('configure-agent');
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
@@ -116,7 +116,7 @@ export class AgentService {
     console.log('Configurando agente...', agenteConfig, identifier);
     const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, identifier, agenteConfig);
     console.timeEnd('configure-agent');
-    const response = await llmService.response(message, conversationId, images, userId);
+    const response = await llmService.response(message, conversationId, images);
     if (response === '') return null;
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }

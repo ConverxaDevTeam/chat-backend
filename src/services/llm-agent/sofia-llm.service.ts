@@ -125,9 +125,12 @@ export class SofiaLLMService extends BaseAgent {
     return;
   }
 
-  protected async _createThread(): Promise<string> {
-    const thread = await this.openai.beta.threads.create();
-    this.threadId = thread.id;
+  protected async _createThread(conversationId: number): Promise<string> {
+    const thread = await this.openai.beta.threads.create({
+      metadata: {
+        conversation_id: conversationId.toString(),
+      },
+    });
     return thread.id;
   }
 
@@ -309,63 +312,54 @@ export class SofiaLLMService extends BaseAgent {
     tempMemory.set(this.threadId, stateDate);
 
     try {
-      const start = performance.now();
-      console.log('Sending message to thread:', message);
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before add message');
+      // Verificar si la ejecución es antigua antes de cada paso
+      if (this._isExpiredExecution(stateDate, userId, conversationId)) {
         return '';
       }
 
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before add message');
-        return '';
-      }
-      await this.addMessageToThread(message, images);
-      console.log(`Adding message took: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-
-      const runStart = performance.now();
-      console.log('Running agent...');
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before run agent');
-        return '';
-      }
-
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before run agent');
-        return '';
-      }
-      const hadRun = await this.runAgent(this.threadId!, conversationId);
-      if (!hadRun) {
-        return '';
-      }
-      console.log(`Running agent took: ${((performance.now() - runStart) / 1000).toFixed(2)}s`);
-
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before get response');
-        return '';
-      }
-
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before get response');
-        return '';
-      }
-      console.log('Getting response...');
-      const response = await this.getResponse();
-      if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
-        console.log('old execution before validate response');
-        return '';
-      }
-
-      if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
-        console.log('old conversation execution before validate response');
-        return '';
-      }
-      console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-      return this.validateResponse(response);
+      return await this._executeWithStateValidation(
+        async () => {
+          // Lógica específica de OpenAI que no puede ir en la clase base
+          const start = performance.now();
+          console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
+          return '';
+        },
+        stateDate,
+        userId,
+        conversationId,
+      );
     } catch (error) {
       console.error('Error in response:', error);
       throw error;
     }
+  }
+
+  /**
+   * Verifica si la ejecución actual está expirada
+   */
+  private _isExpiredExecution(stateDate: Date, userId: number | undefined, conversationId: number): boolean {
+    if (stateDate && tempMemory.get(this.threadId) !== stateDate) {
+      console.log('old execution detected');
+      return true;
+    }
+
+    if (tempMemoryConversation.get(userId ?? conversationId) !== this.threadId) {
+      console.log('old conversation execution detected');
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Ejecuta una función con validación de estado
+   */
+  private async _executeWithStateValidation<T>(fn: () => Promise<T>, stateDate: Date, userId: number | undefined, conversationId: number): Promise<T> {
+    if (this._isExpiredExecution(stateDate, userId, conversationId)) {
+      return '' as unknown as T;
+    }
+
+    return await fn();
   }
 
   public getAgentId(): string {

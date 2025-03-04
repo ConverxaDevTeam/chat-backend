@@ -277,26 +277,47 @@ export abstract class BaseAgent {
     return '';
   }
 
-  public async response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string> {
+  public async response(message: string, conversationId: number, images?: string[]): Promise<string> {
     const startTime = Date.now();
     if (!this.agentId) throw new Error('Agent ID is required');
     try {
-      if (!this.threadId) this.threadId = await this.createThread();
+      if (!this.threadId) this.threadId = await this.createThread(conversationId);
+
       await this.systemEventsService.logAgentEvent({
         agentId: this.agentId,
         type: EventType.AGENT_RESPONSE_STARTED,
         organizationId: this.organizationId!,
         conversationId,
       });
-      const response = await this._response(message, conversationId, images, userId);
+
+      // Implementación de lógica de control de flujo genérico
+      await this.addMessageToThread(message, images);
+
+      await this.systemEventsService.logAgentEvent({
+        agentId: this.agentId,
+        type: EventType.AGENT_MESSAGE_ADDED,
+        organizationId: this.organizationId!,
+        conversationId,
+        metadata: { message },
+      });
+
+      const hadRun = await this.runAgent(this.threadId, conversationId);
+      if (!hadRun) {
+        throw new Error('Failed to run agent');
+      }
+
+      const response = await this.getResponse();
+      const validatedResponse = await this.validateResponse(response);
+
       await this.systemEventsService.logAgentResponse({
         agentId: this.agentId,
-        message: response,
+        message: validatedResponse,
         organizationId: this.organizationId!,
         conversationId,
         responseTime: Date.now() - startTime,
       });
-      return response;
+
+      return validatedResponse;
     } catch (error) {
       await this.systemEventsService.logAgentResponse({
         agentId: this.agentId,
@@ -316,7 +337,7 @@ export abstract class BaseAgent {
 
   protected abstract _response(message: string, conversationId: number, images?: string[], userId?: number): Promise<string>;
   protected abstract _initializeAgent(): Promise<void>;
-  protected abstract _createThread(): Promise<string>;
+  protected abstract _createThread(conversationId: number): Promise<string>;
   protected abstract _addMessageToThread(message: string, images?: string[]): Promise<void>;
   protected abstract _runAgent(threadId: string, conversationId: number): Promise<boolean>;
   protected abstract _getResponse(): Promise<string>;
@@ -335,12 +356,13 @@ export abstract class BaseAgent {
     return this._getResponse();
   }
 
-  protected async createThread(): Promise<string> {
-    const threadId = await this._createThread();
+  protected async createThread(conversationId: number): Promise<string> {
+    const threadId = await this._createThread(conversationId);
     await this.systemEventsService.logAgentThreadEvent({
       agentId: this.agentId!,
       threadId,
       organizationId: this.organizationId!,
+      conversationId,
     });
     return threadId;
   }

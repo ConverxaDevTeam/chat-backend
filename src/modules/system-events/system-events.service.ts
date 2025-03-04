@@ -120,6 +120,7 @@ export class SystemEventsService {
       | EventType.AGENT_RESPONSE_STARTED
       | EventType.AGENT_RESPONSE_COMPLETED
       | EventType.AGENT_RESPONSE_FAILED
+      | EventType.AGENT_MESSAGE_ADDED
       | EventType.AGENT_VECTOR_STORE_CREATED
       | EventType.AGENT_VECTOR_STORE_DELETED
       | EventType.AGENT_FILE_UPLOADED
@@ -223,7 +224,7 @@ export class SystemEventsService {
     });
   }
 
-  async logAgentThreadEvent(params: { agentId: number; threadId: string; organizationId: number; error?: Error }): Promise<SystemEvent> {
+  async logAgentThreadEvent(params: { agentId: number; threadId: string; organizationId: number; conversationId?: number; error?: Error }): Promise<SystemEvent> {
     return this.create({
       type: EventType.AGENT_THREAD_CREATED,
       metadata: {
@@ -234,6 +235,7 @@ export class SystemEventsService {
       organization: { id: params.organizationId } as Organization,
       table_name: TableName.AGENTS,
       table_id: params.agentId,
+      conversation: params.conversationId ? ({ id: params.conversationId } as Conversation) : undefined,
       error_message: params.error?.message,
     });
   }
