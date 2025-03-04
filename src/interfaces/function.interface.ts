@@ -31,7 +31,18 @@ export class FunctionParam {
 
   @IsBoolean()
   required: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => FunctionParam)
+  properties?: FunctionParam[];
 }
+
+// Tipos de configuración según el tipo de función
+export type FunctionConfig = {
+  [FunctionType.API_ENDPOINT]: HttpRequestConfig;
+};
 
 export class HttpRequestConfig {
   @IsOptional()
@@ -52,14 +63,6 @@ export class HttpRequestConfig {
   @Type(() => FunctionParam)
   requestBody?: FunctionParam[];
 }
-
-// Tipos de configuración según el tipo de función
-export type FunctionConfig = {
-  [FunctionType.API_ENDPOINT]: HttpRequestConfig;
-  // [FunctionType.WEBSOCKET]: WebSocketConfig;
-  // [FunctionType.DATABASE]: DatabaseConfig;
-  // etc...
-};
 
 export class BaseFunctionDto {
   @IsString()
