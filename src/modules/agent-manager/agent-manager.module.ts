@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { AgentManagerService } from './agent-manager.service';
@@ -7,7 +7,7 @@ import { FunctionCallModule } from '@modules/function-call/function-call.module'
 import { SystemEventsModule } from '@modules/system-events/system-events.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Agente]), SocketModule, FunctionCallModule, SystemEventsModule],
+  imports: [TypeOrmModule.forFeature([Agente]), forwardRef(() => SocketModule), forwardRef(() => FunctionCallModule), SystemEventsModule],
   providers: [AgentManagerService],
   exports: [AgentManagerService],
 })

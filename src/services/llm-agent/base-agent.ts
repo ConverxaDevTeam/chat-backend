@@ -21,7 +21,8 @@ export abstract class BaseAgent {
     if ('threadId' in this.agenteConfig) {
       this.threadId = this.agenteConfig.threadId ?? null;
     }
-    if (this.agenteConfig.DBagentId) this.agentId = this.agenteConfig.DBagentId;
+    if (!this.agenteConfig.DBagentId) throw new Error('DBagentId is not set');
+    this.agentId = this.agenteConfig.DBagentId;
     this.organizationId = this.agenteConfig.organizationId ?? null;
   }
 
@@ -45,12 +46,12 @@ export abstract class BaseAgent {
     }
   }
 
-  public async getAudioText(audioName: string): Promise<any> {
-    return this._getAudioText(audioName);
+  public static async getAudioText(audioName: string): Promise<any> {
+    throw new Error('Method not implemented');
   }
 
-  public async textToAudio(text: string): Promise<string> {
-    return this._textToAudio(text);
+  public static async textToAudio(text: string): Promise<string> {
+    throw new Error('Method not implemented');
   }
 
   public async updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
@@ -169,8 +170,6 @@ export abstract class BaseAgent {
   protected abstract _addMessageToThread(message: string, images?: string[]): Promise<void>;
   protected abstract _runAgent(threadId: string, conversationId: number): Promise<boolean>;
   protected abstract _getResponse(): Promise<string>;
-  protected abstract _getAudioText(audioName: string): Promise<any>;
-  protected abstract _textToAudio(text: string): Promise<string>;
   protected abstract _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void>;
   protected abstract _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void>;
 

@@ -6,13 +6,13 @@ import { MessageService } from './message.service';
 import { Message } from '../../models/Message.entity';
 import { ChatSession } from '@models/ChatSession.entity';
 import { SessionService } from './session.service';
-import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { NotificationModule } from '../notification/notification.module';
+import { AgentManagerModule } from '@modules/agent-manager/agent-manager.module';
 
 @Module({
-  providers: [MessageService, SessionService, SofiaLLMService],
+  providers: [MessageService, SessionService],
   controllers: [MessageController],
-  imports: [TypeOrmModule.forFeature([Conversation, Message, ChatSession]), NotificationModule],
+  imports: [TypeOrmModule.forFeature([Conversation, Message, ChatSession]), NotificationModule, AgentManagerModule],
   exports: [MessageService],
 })
 export class MessageModule {}

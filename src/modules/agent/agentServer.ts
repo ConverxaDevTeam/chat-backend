@@ -40,7 +40,7 @@ interface AgentConfig {
  * @param name nombre del agente
  * @returns configuracion del agente
  */
-function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[], organizationId: number): AgentConfig {
+function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[], organizationId: number, agentId: number): AgentConfig {
   if (!config.agentId) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
@@ -48,6 +48,7 @@ function setStartAgentConfig(config: Record<string, any>, name: string, funcione
     agentId: config.agentId,
     funciones: funciones,
     organizationId: organizationId,
+    DBagentId: agentId,
   };
 }
 
@@ -92,7 +93,7 @@ export class AgentService {
       const result = await queryBuilder.getOne();
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
       if (!result.departamento?.organizacion) throw new Error('No se pudo obtener la organizacion');
-      agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones, result.departamento.organizacion.id);
+      agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones, result.departamento.organizacion.id, agentId);
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {
@@ -112,6 +113,7 @@ export class AgentService {
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
+    console.log('Configurando agente...', agenteConfig, identifier);
     const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, identifier, agenteConfig);
     console.timeEnd('configure-agent');
     const response = await llmService.response(message, conversationId, images, userId);

@@ -101,7 +101,6 @@ export class SofiaLLMService extends BaseAgent {
   private openai: OpenAI;
 
   constructor(functionCallService: FunctionCallService, systemEventsService: SystemEventsService, identifier: agentIdentifier, agenteConfig: AgentConfig) {
-    console.log('Initializing BaseAgent with:', { identifier, agenteConfig });
     super(identifier, functionCallService, systemEventsService, agenteConfig);
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
@@ -374,30 +373,46 @@ export class SofiaLLMService extends BaseAgent {
     return this.assistantId;
   }
 
-  async _getAudioText(audioName: string) {
-    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
-    const transcription = await this.openai.audio.transcriptions.create({
-      file: createReadStream(pathFileAudio),
-      model: 'whisper-1',
-    });
+  public static async getAudioText(audioName: string) {
+    try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
+      const transcription = await openai.audio.transcriptions.create({
+        file: createReadStream(pathFileAudio),
+        model: 'whisper-1',
+      });
 
-    return transcription;
+      return transcription;
+    } catch (error) {
+      console.error('Error transcribing audio:', error);
+      throw error;
+    }
   }
 
-  async _textToAudio(text: string): Promise<string> {
-    const audioId = uuid.v4();
-    const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', `${audioId}.mp3`);
-    const mp3 = await this.openai.audio.speech.create({
-      model: 'tts-1',
-      voice: 'alloy',
-      input: text,
-    });
-    const buffer = Buffer.from(await mp3.arrayBuffer());
-    await fs.promises.writeFile(pathFileAudio, buffer);
-    return `${audioId}.mp3`;
+  public static async textToAudio(text: string): Promise<string> {
+    try {
+      const openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+      const audioId = uuid.v4();
+      const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', `${audioId}.mp3`);
+      const mp3 = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: 'alloy',
+        input: text,
+      });
+      const buffer = Buffer.from(await mp3.arrayBuffer());
+      await fs.promises.writeFile(pathFileAudio, buffer);
+      return `${audioId}.mp3`;
+    } catch (error) {
+      console.error('Error generating audio:', error);
+      throw error;
+    }
   }
 
-  async _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
+  protected async _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void> {
     if (!assistantId) throw new Error('No se ha inicializado el agente');
     if (!config?.name) throw new Error('No se pudo obtener el nombre del agente');
     console.log('Actualizando agente...');
@@ -408,7 +423,7 @@ export class SofiaLLMService extends BaseAgent {
     console.log('Actualización de agente exitosa:', response);
   }
 
-  async _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
+  protected async _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     this.renderHITL(hasHitl, tools);

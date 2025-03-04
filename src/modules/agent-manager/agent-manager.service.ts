@@ -189,6 +189,19 @@ export class AgentManagerService {
     return this.agenteRepository.save(agente);
   }
 
+  async updateFunctions(functions: Funcion[], agentId: string, hasVectorStore: boolean, canEscalateToHuman: boolean, organizationId: number): Promise<void> {
+    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, { type: AgentIdentifierType.CHAT, agentId }, { agentId, organizationId });
+    return llmService.updateFunctions(functions, agentId, hasVectorStore, canEscalateToHuman);
+  }
+
+  async getAudioText(audioName: string) {
+    return SofiaLLMService.getAudioText(audioName);
+  }
+
+  async textToAudio(text: string): Promise<string> {
+    return SofiaLLMService.textToAudio(text);
+  }
+
   // Métodos para operaciones de vectorStore
   async createVectorStore(agentId: number): Promise<string> {
     return SofiaLLMService.createVectorStore(agentId);

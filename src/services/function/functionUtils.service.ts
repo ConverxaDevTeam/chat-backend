@@ -2,10 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
-import { SofiaLLMService } from '../llm-agent/sofia-llm.service';
-import { AgentIdentifierType } from 'src/interfaces/agent';
 import { FunctionCallService } from '../../modules/agent/function-call.service';
-import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 
 @Injectable()
 export class FunctionUtilsService {
@@ -13,7 +11,7 @@ export class FunctionUtilsService {
     @InjectRepository(Funcion)
     private functionRepository: Repository<Funcion>,
     private readonly functionCallService: FunctionCallService,
-    private readonly systemEventsService: SystemEventsService,
+    private readonly agentManagerService: AgentManagerService,
   ) {}
 
   async updateLLMFunctions(agentId: number): Promise<void> {
@@ -35,17 +33,7 @@ export class FunctionUtilsService {
       organizationId: agent.departamento.organizacion.id,
     };
 
-    const llmService = new SofiaLLMService(
-      this.functionCallService,
-      this.systemEventsService,
-      {
-        type: AgentIdentifierType.CHAT,
-        agentId: agentConfig.agentId,
-      },
-      agentConfig,
-    );
-
-    await llmService.updateFunctions(functions, agentConfig.agentId!, !!agentConfig.vectorStoreId, agent.canEscalateToHuman);
+    await this.agentManagerService.updateFunctions(functions, agentConfig.agentId!, !!agentConfig.vectorStoreId, agent.canEscalateToHuman, agentConfig.organizationId);
   }
 
   async testFunction(functionId: number, params: Record<string, any>): Promise<any> {
