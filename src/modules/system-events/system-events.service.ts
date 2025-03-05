@@ -22,7 +22,10 @@ export class SystemEventsService {
     private readonly systemEventRepository: Repository<SystemEvent>,
   ) {}
 
-  async create(params: CreateEventParams): Promise<SystemEvent> {
+  async create(params: CreateEventParams): Promise<SystemEvent | null> {
+    if (params.organization?.id === -1) {
+      return null;
+    }
     return this.systemEventRepository.save({
       ...params,
       created_at: new Date(),
@@ -38,7 +41,8 @@ export class SystemEventsService {
     organizationId: number;
     functionName: string;
     conversationId: number;
-  }): Promise<SystemEvent> {
+  }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     // Determinar el tipo de evento basado en el error
     let eventType = params.error ? EventType.FUNCTION_EXECUTION_FAILED : EventType.FUNCTION_CALL;
 
@@ -79,7 +83,8 @@ export class SystemEventsService {
     metadata?: Record<string, any>;
     organizationId: number;
     departmentId: number;
-  }): Promise<SystemEvent> {
+  }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: params.type,
       metadata: {
@@ -93,7 +98,8 @@ export class SystemEventsService {
   }
 
   // Eventos de sistema
-  async logSystemError(params: { organizationId: number; error: Error; context?: string }): Promise<SystemEvent> {
+  async logSystemError(params: { organizationId: number; error: Error; context?: string }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: EventType.SYSTEM_ERROR,
       metadata: {
@@ -131,7 +137,8 @@ export class SystemEventsService {
     organizationId: number;
     conversationId?: number;
     error?: Error;
-  }): Promise<SystemEvent> {
+  }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: params.type,
       metadata: {
@@ -147,7 +154,15 @@ export class SystemEventsService {
     });
   }
 
-  async logAgentResponse(params: { agentId: number; message: string; organizationId: number; conversationId: number; responseTime: number; error?: Error }): Promise<SystemEvent> {
+  async logAgentResponse(params: {
+    agentId: number;
+    message: string;
+    organizationId: number;
+    conversationId: number;
+    responseTime: number;
+    error?: Error;
+  }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     const eventType = params.error ? EventType.AGENT_RESPONSE_FAILED : EventType.AGENT_RESPONSE_COMPLETED;
 
     return this.create({
@@ -172,7 +187,8 @@ export class SystemEventsService {
     vectorStoreId: string;
     organizationId: number;
     error?: Error;
-  }): Promise<SystemEvent> {
+  }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: params.type,
       metadata: {
@@ -193,7 +209,8 @@ export class SystemEventsService {
     fileId: string;
     organizationId: number;
     error?: Error;
-  }): Promise<SystemEvent> {
+  }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: params.type,
       metadata: {
@@ -208,7 +225,8 @@ export class SystemEventsService {
     });
   }
 
-  async logAgentToolsUpdate(params: { agentId: number; organizationId: number; functions: any[]; hitl: boolean; error?: Error }): Promise<SystemEvent> {
+  async logAgentToolsUpdate(params: { agentId: number; organizationId: number; functions: any[]; hitl: boolean; error?: Error }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: EventType.AGENT_TOOLS_UPDATED,
       metadata: {
@@ -224,7 +242,8 @@ export class SystemEventsService {
     });
   }
 
-  async logAgentThreadEvent(params: { agentId: number; threadId: string; organizationId: number; conversationId?: number; error?: Error }): Promise<SystemEvent> {
+  async logAgentThreadEvent(params: { agentId: number; threadId: string; organizationId: number; conversationId?: number; error?: Error }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: EventType.AGENT_THREAD_CREATED,
       metadata: {
@@ -247,7 +266,8 @@ export class SystemEventsService {
     fileId?: string;
     organizationId: number;
     error: Error;
-  }): Promise<SystemEvent> {
+  }): Promise<SystemEvent | null> {
+    if (params.organizationId === -1) return null;
     return this.create({
       type: params.type,
       metadata: {
