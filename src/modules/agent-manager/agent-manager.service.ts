@@ -1,13 +1,16 @@
-import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
-import { AgenteType, AgentIdentifierType, CreateAgentConfig, SofiaLLMConfig } from 'src/interfaces/agent';
+import { AgenteType, AgentIdentifierType, ChatAgentIdentifier, CreateAgentConfig, SofiaLLMConfig } from 'src/interfaces/agent';
 import { SocketService } from '@modules/socket/socket.service';
-import { SofiaLLMService } from './sofia-llm.service';
 import { FunctionCallService } from '../../modules/agent/function-call.service';
 import { Departamento } from '@models/Departamento.entity';
+import { SystemEventsService } from '@modules/system-events/system-events.service';
+import { Funcion } from '@models/agent/Function.entity';
+import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 // Tipos para las configuraciones de agentes
 type SofiaAgente = Agente<SofiaLLMConfig>;
@@ -20,9 +23,11 @@ export class AgentManagerService {
     @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly functionCallService: FunctionCallService,
+    private readonly systemEventsService: SystemEventsService,
+    private readonly integrationRouterService: IntegrationRouterService,
   ) {}
 
-  private buildAgentConfig(agente: SofiaAgente): CreateAgentConfig {
+  private buildAgentConfig(agente: SofiaAgente, organizationId: number): CreateAgentConfig {
     if (!agente.config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
@@ -30,13 +35,14 @@ export class AgentManagerService {
       name: `sofia_${agente.departamento.id}_${agente.name}`,
       instruccion: agente.config.instruccion,
       agentId: agente.config.agentId ?? '',
+      organizationId: organizationId,
     };
   }
 
   async getAgentById(id: number): Promise<Agente> {
     const agente = await this.agenteRepository.findOne({
       where: { id },
-      relations: ['funciones', 'departamento'],
+      relations: ['funciones', 'departamento', 'departamento.organizacion'],
     });
 
     if (!agente) {
@@ -75,12 +81,29 @@ export class AgentManagerService {
     // Inicializar el agente según su tipo
     if (agente.type === AgenteType.SOFIA_ASISTENTE) {
       const sofiaAgent = agente as Agente<SofiaLLMConfig>;
-      const config = this.buildAgentConfig(sofiaAgent);
-      const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
+      const config = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id);
+      const identifier: ChatAgentIdentifier = {
+        type: AgentIdentifierType.CHAT,
+        agentId: config.agentId,
+      };
+      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       await llmService.init();
       sofiaAgent.config.agentId = llmService.getAgentId();
       // Guardar el ID del asistente
-      return await this.agenteRepository.save(sofiaAgent);
+      const savedAgente = await this.agenteRepository.save(sofiaAgent);
+      const agenteWithRelations = await this.agenteRepository.findOne({
+        where: { id: savedAgente.id },
+        relations: ['funciones', 'departamento', 'departamento.organizacion'],
+      });
+
+      if (!agenteWithRelations) {
+        throw new NotFoundException(`Agente con ID ${savedAgente.id} no encontrado`);
+      }
+
+      if (!agenteWithRelations.departamento?.organizacion) {
+        throw new BadRequestException('Agente sin organización asignada');
+      }
+      return agenteWithRelations;
     }
 
     return agente;
@@ -103,10 +126,14 @@ export class AgentManagerService {
 
     const agente = await this.agenteRepository.findOne({
       where: { id },
-      relations: ['departamento'],
+      relations: ['funciones', 'departamento', 'departamento.organizacion'],
     });
     if (!agente) {
       throw new Error(`Agente con ID ${id} no encontrado`);
+    }
+
+    if (!agente.departamento?.organizacion) {
+      throw new BadRequestException('Agente sin organización asignada');
     }
 
     const previousConfig: SofiaLLMConfig['config'] = agente.config as SofiaLLMConfig['config'];
@@ -118,8 +145,12 @@ export class AgentManagerService {
 
     // Actualizar el asistente si cambió la configuración
     if (JSON.stringify(previousConfig) !== JSON.stringify(sofiaAgent.config)) {
-      const config = this.buildAgentConfig(sofiaAgent);
-      const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
+      const config = this.buildAgentConfig(sofiaAgent, agente.departamento?.organizacion?.id);
+      const identifier: ChatAgentIdentifier = {
+        type: AgentIdentifierType.CHAT,
+        agentId: previousConfig.agentId,
+      };
+      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       if (!previousConfig.agentId) {
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
       }
@@ -138,18 +169,66 @@ export class AgentManagerService {
   async updateEscalateToHuman(id: number, canEscalateToHuman: boolean): Promise<Agente> {
     const agente = await this.agenteRepository.findOne({
       where: { id },
-      relations: ['funciones', 'departamento'],
+      relations: ['funciones', 'departamento', 'departamento.organizacion'],
     });
 
     if (!agente) {
       throw new NotFoundException(`Agente con ID ${id} no encontrado`);
     }
 
-    const config = this.buildAgentConfig(agente);
-    const llmService = new SofiaLLMService(this.functionCallService, { type: AgentIdentifierType.CHAT }, config);
+    if (!agente.departamento?.organizacion) {
+      throw new BadRequestException('Agente sin organización asignada');
+    }
+
+    const config = this.buildAgentConfig(agente, agente.departamento.organizacion.id);
+    const identifier: ChatAgentIdentifier = {
+      type: AgentIdentifierType.CHAT,
+      agentId: config.agentId,
+    };
+    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
     await llmService.updateFunctions(agente.funciones, config.agentId, !!agente.config.vectorStoreId, canEscalateToHuman);
     agente.canEscalateToHuman = canEscalateToHuman;
     return this.agenteRepository.save(agente);
+  }
+
+  async updateFunctions(functions: Funcion[], agentId: string, hasVectorStore: boolean, canEscalateToHuman: boolean, organizationId: number): Promise<void> {
+    const llmService = new SofiaLLMService(
+      this.functionCallService,
+      this.systemEventsService,
+      this.integrationRouterService,
+      { type: AgentIdentifierType.CHAT, agentId },
+      { agentId, organizationId },
+    );
+    return llmService.updateFunctions(functions, agentId, hasVectorStore, canEscalateToHuman);
+  }
+
+  async getAudioText(audioName: string) {
+    return SofiaLLMService.getAudioText(audioName);
+  }
+
+  async textToAudio(text: string): Promise<string> {
+    return SofiaLLMService.textToAudio(text);
+  }
+
+  // Métodos para operaciones de vectorStore
+  async createVectorStore(agentId: number): Promise<string> {
+    return SofiaLLMService.createVectorStore(agentId);
+  }
+
+  async deleteVectorStore(vectorStoreId: string): Promise<void> {
+    return SofiaLLMService.deleteVectorStore(vectorStoreId);
+  }
+
+  async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
+    return SofiaLLMService.uploadFileToVectorStore(file, vectorStoreId);
+  }
+
+  async deleteFileFromVectorStore(fileId: string): Promise<void> {
+    return SofiaLLMService.deleteFileFromVectorStore(fileId);
+  }
+
+  async updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, data: { funciones: Funcion[]; add: boolean; hitl: boolean }): Promise<void> {
+    return SofiaLLMService.updateAssistantToolResources(assistantId, vectorStoreId, data);
   }
 
   private emitUpdateEvent(agentId: number, userId: number): void {

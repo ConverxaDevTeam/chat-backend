@@ -20,7 +20,9 @@ import { SystemEventsService } from '@modules/system-events/system-events.servic
 import { ParamType } from 'src/interfaces/function-param.interface';
 import { NotificationService } from '@modules/notification/notification.service';
 import { NotificationType } from 'src/interfaces/notifications.interface';
+import { EventType, TableName } from '@models/SystemEvent.entity';
 import { NotificationType as NotificationTypeSystemEvents } from '@models/notification.entity';
+import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 @Injectable()
 export class FunctionCallService {
@@ -33,11 +35,30 @@ export class FunctionCallService {
     private readonly socketService: SocketService,
     private readonly systemEventsService: SystemEventsService,
     private readonly notificationService: NotificationService,
+    @Inject(forwardRef(() => IntegrationRouterService))
+    private readonly integrationRouterService: IntegrationRouterService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
     try {
       if (functionName === HitlName) {
+        if (conversationId === -1) {
+          // Registrar evento de error para HITL sin conversación
+          await this.systemEventsService.create({
+            type: EventType.FUNCTION_EXECUTION_FAILED,
+            metadata: {
+              error: 'No se puede escalar a humano sin una conversación',
+              agentId,
+              functionName,
+            },
+            organization: { id: 1 } as any, // Default organization
+            table_name: TableName.FUNCTIONS,
+            table_id: 0,
+            error_message: 'No se puede escalar a humano sin una conversación',
+          });
+          throw new Error('No se puede escalar a humano sin una conversación');
+        }
+
         const conversation = await this.conversationRepository.findOne({
           where: { id: conversationId },
           relations: ['departamento', 'departamento.organizacion'],
@@ -64,6 +85,25 @@ export class FunctionCallService {
             conversationId: conversationId,
           },
         });
+
+        // Registrar evento de asignación de conversación
+        await this.systemEventsService.create({
+          type: EventType.CONVERSATION_ASSIGNED,
+          metadata: {
+            agentId,
+            conversationId,
+            functionName,
+            humanAssistanceRequested: true,
+          },
+          organization: conversation.departamento.organizacion,
+          table_name: TableName.CONVERSATIONS,
+          table_id: conversationId,
+          conversation: { id: conversationId } as any,
+        });
+
+        // Notificar al usuario sobre el cambio de estado
+        await this.integrationRouterService.sendEventToUser(conversationId, EventType.CONVERSATION_ASSIGNED, conversation.type, conversation.chat_user?.id);
+
         if (!conversation.need_human) {
           return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
         }
@@ -76,6 +116,20 @@ export class FunctionCallService {
       });
 
       if (!functionConfig) {
+        // Registrar evento de error para función no encontrada
+        await this.systemEventsService.create({
+          type: EventType.FUNCTION_NOT_FOUND,
+          metadata: {
+            error: `Function with name ${functionName} not found`,
+            agentId,
+            functionName,
+          },
+          organization: { id: 1 } as any, // Default organization
+          table_name: TableName.FUNCTIONS,
+          table_id: 0,
+          conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
+          error_message: `Function with name ${functionName} not found`,
+        });
         throw new NotFoundException(`Function with name ${functionName} not found`);
       }
 
@@ -86,6 +140,31 @@ export class FunctionCallService {
         throw new Error('No se pudo obtener la URL de la función');
       }
 
+      // Registrar evento de inicio de ejecución de función
+      if (conversationId !== -1) {
+        await this.systemEventsService.create({
+          type: EventType.FUNCTION_EXECUTION_STARTED,
+          metadata: {
+            functionName: functionConfig.name,
+            params,
+            agentId,
+          },
+          organization: functionConfig.agente.departamento.organizacion,
+          table_name: TableName.FUNCTIONS,
+          table_id: functionConfig.id,
+          conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
+        });
+
+        // Notificar al usuario sobre el inicio de la ejecución
+        const conversationForEvent = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['chat_user'],
+        });
+        if (conversationForEvent) {
+          await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_EXECUTION_STARTED, conversationForEvent.type, conversationForEvent.chat_user?.id);
+        }
+      }
+
       // Validate and transform params based on function configuration
       if (httpConfig.requestBody) {
         for (const param of httpConfig.requestBody) {
@@ -94,7 +173,35 @@ export class FunctionCallService {
             try {
               params[param.name] = JSON.parse(value);
             } catch (e) {
-              throw new Error(`El parámetro ${param.name} debe ser un JSON válido`);
+              const errorMsg = `El parámetro ${param.name} debe ser un JSON válido`;
+
+              // Registrar el error de validación
+              await this.systemEventsService.create({
+                type: EventType.FUNCTION_PARAM_VALIDATION_ERROR,
+                metadata: {
+                  functionName,
+                  param: param.name,
+                  error: errorMsg,
+                },
+                organization: functionConfig.agente.departamento.organizacion,
+                table_name: TableName.FUNCTIONS,
+                table_id: functionConfig.id,
+                conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
+                error_message: errorMsg,
+              });
+
+              // Notificar al usuario sobre el error de validación
+              if (conversationId > 0) {
+                const conversation = await this.conversationRepository.findOne({
+                  where: { id: conversationId },
+                  relations: ['chat_user'],
+                });
+                if (conversation) {
+                  await this.integrationRouterService.sendEventToUser(conversationId, EventType.FUNCTION_PARAM_VALIDATION_ERROR, conversation.type, conversation.chat_user?.id);
+                }
+              }
+
+              throw new Error(errorMsg);
             }
           }
         }
@@ -111,6 +218,35 @@ export class FunctionCallService {
           functionName: functionConfig.name,
           conversationId,
         });
+
+        // Registrar evento adicional de función ejecutada correctamente
+        await this.systemEventsService.create({
+          type: EventType.FUNCTION_EXECUTION_COMPLETED,
+          metadata: {
+            functionName: functionConfig.name,
+            params,
+            result: typeof result === 'object' ? JSON.stringify(result).substring(0, 500) : String(result).substring(0, 500),
+            agentId,
+          },
+          organization: functionConfig.agente.departamento.organizacion,
+          table_name: TableName.FUNCTIONS,
+          table_id: functionConfig.id,
+          conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
+        });
+
+        // Notificar al usuario sobre la finalización exitosa
+        const conversationForCompletedEvent = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['chat_user'],
+        });
+        if (conversationForCompletedEvent) {
+          await this.integrationRouterService.sendEventToUser(
+            conversationId,
+            EventType.FUNCTION_EXECUTION_COMPLETED,
+            conversationForCompletedEvent.type,
+            conversationForCompletedEvent.chat_user?.id,
+          );
+        }
       }
 
       return result;
@@ -131,6 +267,22 @@ export class FunctionCallService {
           organizationId: functionConfig.agente.departamento.organizacion.id,
           functionName: functionConfig.name,
           conversationId,
+        });
+      } else {
+        // Registrar evento de error para función no encontrada durante el manejo de errores
+        await this.systemEventsService.create({
+          type: EventType.FUNCTION_NOT_FOUND,
+          metadata: {
+            error: `Function with name ${functionName} not found during error handling`,
+            agentId,
+            functionName,
+            originalError: error.message,
+          },
+          organization: { id: 1 } as any, // Default organization
+          table_name: TableName.FUNCTIONS,
+          table_id: 0,
+          conversation: conversationId > 0 ? ({ id: conversationId } as any) : undefined,
+          error_message: error.message,
         });
       }
 

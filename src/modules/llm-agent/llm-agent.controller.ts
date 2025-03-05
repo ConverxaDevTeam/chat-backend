@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/comm
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from './dto/CreateAgent.dto';
-import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
+import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';

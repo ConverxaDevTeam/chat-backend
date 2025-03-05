@@ -8,11 +8,20 @@ import { LlmAgentController } from './llm-agent.controller';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
 import { AgentModule } from '@modules/agent/agent.module';
-import { AgentManagerService } from 'src/services/llm-agent/agent-manager.service';
+import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 import { LlmAgentService } from 'src/services/llm-agent/llm-agent.service';
+import { SystemEventsModule } from '@modules/system-events/system-events.module';
+import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Agente, Departamento, Funcion, Conversation]), forwardRef(() => SocketModule), forwardRef(() => AuthModule), forwardRef(() => AgentModule)],
+  imports: [
+    TypeOrmModule.forFeature([Agente, Departamento, Funcion, Conversation]),
+    forwardRef(() => SocketModule),
+    forwardRef(() => AuthModule),
+    forwardRef(() => AgentModule),
+    SystemEventsModule,
+    IntegrationRouterModule,
+  ],
   controllers: [LlmAgentController],
   providers: [LlmAgentService, AgentManagerService],
   exports: [LlmAgentService, AgentManagerService],

@@ -8,9 +8,16 @@ import { SocketModule } from '@modules/socket/socket.module';
 import { FunctionCallService } from './function-call.service';
 import { SystemEventsModule } from '@modules/system-events/system-events.module';
 import { NotificationModule } from '../notification/notification.module';
+import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Agente, Funcion, Conversation]), forwardRef(() => SocketModule), SystemEventsModule, NotificationModule],
+  imports: [
+    TypeOrmModule.forFeature([Agente, Funcion, Conversation]),
+    forwardRef(() => SocketModule),
+    SystemEventsModule,
+    NotificationModule,
+    forwardRef(() => IntegrationRouterModule),
+  ],
   providers: [AgentService, FunctionCallService],
   exports: [AgentService, FunctionCallService],
 })
