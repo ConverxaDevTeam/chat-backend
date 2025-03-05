@@ -40,9 +40,9 @@ export class DashboardCardController {
     return this.dashboardCardService.updateLayout(user, relationId, updateLayoutDto);
   }
 
-  @Delete(':id/:organizationId?')
+  @Delete(':id/')
   @ApiOperation({ summary: 'Delete dashboard card' })
-  remove(@GetUser() user: User, @Param('id', ParseIntPipe) id: number, @Param('organizationId') organizationId?: string): Promise<void> {
-    return this.dashboardCardService.remove(user, id, organizationId ? parseInt(organizationId) : null);
+  remove(@GetUser() user: User, @Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.dashboardCardService.remove(user, id);
   }
 }

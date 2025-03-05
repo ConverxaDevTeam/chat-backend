@@ -244,21 +244,20 @@ export class DashboardCardService {
     return this.dashboardCardRepository.save(updatedCards);
   }
 
-  async remove(user: User, id: number, organizationId?: number | null): Promise<void> {
-    const userOrg = await this.validateUserOrganization(user.id, organizationId || undefined);
+  async remove(user: User, id: number): Promise<void> {
+    const dashboardCard = await this.dashboardCardRepository.findOne({
+      where: { id, deleted_at: IsNull() },
+      relations: ['userOrganization', 'userOrganization.user'],
+    });
 
-    const queryBuilder = this.dashboardCardRepository.createQueryBuilder();
-
-    if (userOrg) {
-      queryBuilder.where('id = :id AND userOrganizationId = :userOrgId', { id, userOrgId: userOrg.id });
-    } else {
-      queryBuilder.where('id = :id AND userOrganizationId IS NULL AND userId = :userId', { id, userId: user.id });
-    }
-
-    const result = await queryBuilder.delete().execute();
-
-    if (result.affected === 0) {
+    if (!dashboardCard) {
       throw new NotFoundException('Dashboard card not found');
     }
+
+    if (dashboardCard.userOrganization?.user.id !== user.id) {
+      throw new ForbiddenException('You do not have permission to delete this dashboard card');
+    }
+
+    await this.dashboardCardRepository.delete(id);
   }
 }
