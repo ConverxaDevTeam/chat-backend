@@ -6,8 +6,7 @@ export const HitlName = 'sofia__hitl';
 
 export enum AgenteType {
   SOFIA_ASISTENTE = 'sofia_asistente',
-  LLAMA = 'llama',
-  GROK = 'grok',
+  CLAUDE = 'claude',
 }
 
 export interface SofiaLLMConfig {

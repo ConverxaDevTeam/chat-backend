@@ -13,6 +13,7 @@ import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { AgenteType } from 'src/interfaces/agent';
 
 @Controller('organization')
 @ApiTags('organization')
@@ -117,5 +118,12 @@ export class OrganizationController {
     }
     const organization = await this.organizationService.updateLogo(organizationId, logo);
     return { ok: true, organization };
+  }
+
+  @ApiOperation({ summary: 'Actualizar el tipo de agente de la organización' })
+  @Patch(':organizationId/agent-type')
+  async updateAgentType(@Param('organizationId') organizationId: number, @Body('agentType') agentType: AgenteType) {
+    await this.organizationService.updateAgentType(organizationId, agentType);
+    return { ok: true };
   }
 }

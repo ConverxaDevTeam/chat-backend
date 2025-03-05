@@ -56,7 +56,7 @@
     "socket.io": "^4.7.4",
     "stripe": "^16.11.0",
     "swagger-ui-express": "^5.0.0",
-    "typeorm": "^0.3.20",
+    "typeorm": "^0.3.21",
     "typevert": "^0.9.11",
     "winston-syslog": "^2.7.0",
     "ws": "^8.18.0"
