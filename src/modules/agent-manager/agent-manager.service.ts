@@ -82,7 +82,6 @@ export class AgentManagerService {
     // Inicializar el agente según su tipo
     if (agente.type === AgenteType.SOFIA_ASISTENTE) {
       const sofiaAgent = agente as Agente<SofiaLLMConfig>;
-      console.log('on create agent', sofiaAgent);
       const config = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id);
       const identifier: ChatAgentIdentifier = {
         type: AgentIdentifierType.CHAT,
@@ -144,9 +143,6 @@ export class AgentManagerService {
     const sofiaAgent = agente as SofiaAgente;
     Object.assign(sofiaAgent, updateData);
 
-    console.log('on update agent');
-    // Mantener el agentId si existe
-
     // Actualizar el asistente si cambió la configuración
     if (JSON.stringify(previousConfig) !== JSON.stringify(sofiaAgent.config)) {
       const config = this.buildAgentConfig(sofiaAgent, agente.departamento?.organizacion?.id);
@@ -154,7 +150,6 @@ export class AgentManagerService {
         type: AgentIdentifierType.CHAT,
         agentId: previousConfig.agentId,
       };
-      console.log('identifier', config);
       const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       if (!previousConfig.agentId) {
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
