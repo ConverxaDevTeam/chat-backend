@@ -54,6 +54,7 @@ export interface CreateAgentConfig {
   name: string;
   instruccion: string;
   agentId: string;
+  DBagentId: number;
   funciones?: FunctionResponse[];
   organizationId: number;
 }
