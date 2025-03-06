@@ -176,7 +176,7 @@ export class ClaudeSonetService extends BaseAgent {
       // Llamar a la API de Claude
       // Corregimos la llamada para adaptarla a los tipos esperados
       const response = await this.anthropic.messages.create({
-        model: 'claude-3-sonnet-20240229',
+        model: 'claude-3-7-sonnet-20250219',
         messages: messages as any, // Forzamos el tipo para evitar error de compilación
         system: this.system,
         tools: tools as any, // Forzamos el tipo para evitar error de compilación

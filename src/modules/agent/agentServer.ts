@@ -1,7 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
 import { SofiaLLMService } from '../../services/llm-agent/sofia-llm.service';
+import { ClaudeSonetService } from '../../services/llm-agent/claude-sonet.service';
+import { BaseAgent } from '../../services/llm-agent/base-agent';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
@@ -36,6 +38,11 @@ interface AgentConfig {
   organizationId: number;
 }
 
+// Factory para crear servicios de agente según su tipo
+type AgentServiceFactory = {
+  [key in AgenteType]: (identifier: agentIdentifier, config: AgentConfig) => BaseAgent;
+};
+
 /**
  * Funcion que setea la configuracion del agente
  * @param config configuracion del agente
@@ -59,6 +66,8 @@ function setStartAgentConfig(config: Record<string, any>, name: string, funcione
  */
 @Injectable()
 export class AgentService {
+  private readonly agentServiceFactory: AgentServiceFactory;
+
   /**
    * Constructor del servicio
    * @param agenteRepository repositorio de agentes
@@ -73,7 +82,13 @@ export class AgentService {
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
     private readonly integrationRouterService: IntegrationRouterService,
-  ) {}
+  ) {
+    this.agentServiceFactory = {
+      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) =>
+        new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+      [AgenteType.CLAUDE]: (identifier, config) => new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+    };
+  }
 
   /**
    * Obtiene la respuesta del agente
@@ -117,7 +132,17 @@ export class AgentService {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
     console.log('Configurando agente...', agenteConfig, identifier);
-    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, agenteConfig);
+
+    // Obtener el tipo de agente de la consulta
+    const agentType = await this.getAgentType(agentId);
+
+    // Usar el factory para crear el servicio de agente según el tipo
+    const createAgentService = this.agentServiceFactory[agentType];
+    if (!createAgentService) {
+      throw new BadRequestException(`Tipo de agente no soportado: ${agentType}`);
+    }
+
+    const llmService = createAgentService(identifier, agenteConfig);
     console.timeEnd('configure-agent');
     const response = await llmService.response(message, conversationId, images, chatUserId);
     if (response === '') return null;
@@ -130,6 +155,24 @@ export class AgentService {
    * @param conversationId id de la conversación
    * @returns respuesta del agente
    */
+  /**
+   * Obtiene el tipo de agente por su ID
+   * @param agentId ID del agente
+   * @returns tipo de agente
+   */
+  private async getAgentType(agentId: number): Promise<AgenteType> {
+    const agent = await this.agenteRepository.findOne({
+      where: { id: agentId },
+      select: ['type'],
+    });
+
+    if (!agent) {
+      throw new Error(`Agente con ID ${agentId} no encontrado`);
+    }
+
+    return agent.type as AgenteType;
+  }
+
   async processMessageWithConversation(message: string, conversation: Conversation, images: string[], chatUserId?: number): Promise<AgentResponse | null> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
@@ -151,7 +194,7 @@ export class AgentService {
         type: AgentIdentifierType.CHAT,
         threatId: config.agentIdentifier.threatId,
         LLMAgentId: config.agentIdentifier.agentId,
-        agent: AgenteType.SOFIA_ASISTENTE,
+        agent: config.type || AgenteType.SOFIA_ASISTENTE,
       } as agentIdentifier;
     }
 
