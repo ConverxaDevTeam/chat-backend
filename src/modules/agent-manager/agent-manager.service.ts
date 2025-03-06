@@ -163,9 +163,6 @@ export class AgentManagerService {
     const sofiaAgent = agente as SofiaAgente;
     Object.assign(sofiaAgent, updateData);
 
-    console.log('on update agent');
-    // Mantener el agentId si existe
-
     // Actualizar el asistente si cambió la configuración
     if (JSON.stringify(previousConfig) !== JSON.stringify(sofiaAgent.config)) {
       const config = this.buildAgentConfig(sofiaAgent, agente.departamento?.organizacion?.id);
