@@ -8,7 +8,7 @@ export class CreateOrganizationDto {
     description: 'Nombre de la organización',
   })
   @IsNotEmpty({ message: 'Introduce un nombre para la organización.' })
-  @Length(4, 100, {
+  @Length(3, 100, {
     message: 'El nombre de la organización debe tener entre 4 y 100 letras.',
   })
   @IsString({ message: 'El nombre de la organización debe ser un texto.' })
