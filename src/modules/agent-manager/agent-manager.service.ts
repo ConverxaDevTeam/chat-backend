@@ -35,6 +35,7 @@ export class AgentManagerService {
       name: `sofia_${agente.departamento.id}_${agente.name}`,
       instruccion: agente.config.instruccion,
       agentId: agente.config.agentId ?? '',
+      DBagentId: agente.id,
       organizationId: organizationId,
     };
   }
@@ -57,7 +58,7 @@ export class AgentManagerService {
 
     // Convertir el DTO a un objeto plano
     const plainConfig = config ? { ...config } : undefined;
-    const agente = this.agenteRepository.create({
+    const agente = await this.agenteRepository.save({
       ...rest,
       type: createAgentDto.type as AgenteType.SOFIA_ASISTENTE,
       config: plainConfig,
@@ -141,7 +142,6 @@ export class AgentManagerService {
     // Actualizar según el tipo de agente
     const sofiaAgent = agente as SofiaAgente;
     Object.assign(sofiaAgent, updateData);
-    // Mantener el agentId si existe
 
     // Actualizar el asistente si cambió la configuración
     if (JSON.stringify(previousConfig) !== JSON.stringify(sofiaAgent.config)) {
