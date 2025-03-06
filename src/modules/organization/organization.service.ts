@@ -33,6 +33,9 @@ export class OrganizationService {
         userOrganizations: {
           user: true,
         },
+        departamentos: {
+          agente: true,
+        },
       },
       select: {
         id: true,
@@ -46,6 +49,14 @@ export class OrganizationService {
           user: {
             id: true,
             email: true,
+          },
+        },
+        departamentos: {
+          id: true,
+          name: true,
+          agente: {
+            id: true,
+            type: true,
           },
         },
       },

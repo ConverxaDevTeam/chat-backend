@@ -34,11 +34,13 @@ export class OrganizationController {
     const organizations = await this.organizationService.getAll();
     const formattedOrganization = organizations.map(({ userOrganizations, ...organization }) => {
       const uniqueEmails = new Set(userOrganizations.filter((uo) => uo.user).map((uo) => uo.user.email));
+      const agentType = organization.departamentos?.[0]?.agente?.type || AgenteType.SOFIA_ASISTENTE;
       return {
         ...organization,
         logo: organization.logo,
         users: uniqueEmails.size,
         owner: userOrganizations.find((userOrganization) => userOrganization.role === 'owner'),
+        agentType,
       };
     });
     return { ok: true, organizations: formattedOrganization };
