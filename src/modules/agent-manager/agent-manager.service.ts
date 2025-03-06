@@ -10,13 +10,22 @@ import { Departamento } from '@models/Departamento.entity';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { Funcion } from '@models/agent/Function.entity';
 import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { ClaudeSonetService } from 'src/services/llm-agent/claude-sonet.service';
+import { BaseAgent } from 'src/services/llm-agent/base-agent';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 
 // Tipos para las configuraciones de agentes
 type SofiaAgente = Agente<SofiaLLMConfig>;
 
+// Factory para crear servicios de agente según su tipo
+type AgentServiceFactory = {
+  [key in AgenteType]: (identifier: ChatAgentIdentifier, config: CreateAgentConfig) => BaseAgent;
+};
+
 @Injectable()
 export class AgentManagerService {
+  private readonly agentServiceFactory: AgentServiceFactory;
+
   constructor(
     @InjectRepository(Agente)
     private readonly agenteRepository: Repository<Agente<SofiaLLMConfig>>,
@@ -25,7 +34,13 @@ export class AgentManagerService {
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
     private readonly integrationRouterService: IntegrationRouterService,
-  ) {}
+  ) {
+    this.agentServiceFactory = {
+      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) =>
+        new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+      [AgenteType.CLAUDE]: (identifier, config) => new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+    };
+  }
 
   private buildAgentConfig(agente: SofiaAgente, organizationId: number): CreateAgentConfig {
     if (!agente.config?.instruccion) {
@@ -80,35 +95,39 @@ export class AgentManagerService {
     }
 
     // Inicializar el agente según su tipo
-    if (agente.type === AgenteType.SOFIA_ASISTENTE) {
-      const sofiaAgent = agente as Agente<SofiaLLMConfig>;
-      console.log('on create agent', sofiaAgent);
-      const config = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id);
-      const identifier: ChatAgentIdentifier = {
-        type: AgentIdentifierType.CHAT,
-        agentId: config.agentId,
-      };
-      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
-      await llmService.init();
-      sofiaAgent.config.agentId = llmService.getAgentId();
-      // Guardar el ID del asistente
-      const savedAgente = await this.agenteRepository.save(sofiaAgent);
-      const agenteWithRelations = await this.agenteRepository.findOne({
-        where: { id: savedAgente.id },
-        relations: ['funciones', 'departamento', 'departamento.organizacion'],
-      });
+    const sofiaAgent = agente as Agente<SofiaLLMConfig>;
+    console.log('on create agent', sofiaAgent);
+    const sofiaConfig = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id);
+    const identifier: ChatAgentIdentifier = {
+      type: AgentIdentifierType.CHAT,
+      agentId: sofiaConfig.agentId,
+    };
 
-      if (!agenteWithRelations) {
-        throw new NotFoundException(`Agente con ID ${savedAgente.id} no encontrado`);
-      }
-
-      if (!agenteWithRelations.departamento?.organizacion) {
-        throw new BadRequestException('Agente sin organización asignada');
-      }
-      return agenteWithRelations;
+    // Usar el factory para crear el servicio de agente según el tipo
+    const createAgentService = this.agentServiceFactory[agente.type];
+    if (!createAgentService) {
+      throw new BadRequestException(`Tipo de agente no soportado: ${agente.type}`);
     }
 
-    return agente;
+    const llmService = createAgentService(identifier, sofiaConfig);
+    await llmService.init();
+    sofiaAgent.config.agentId = llmService.getAgentId();
+
+    // Guardar el ID del asistente
+    const savedAgente = await this.agenteRepository.save(sofiaAgent);
+    const agenteWithRelations = await this.agenteRepository.findOne({
+      where: { id: savedAgente.id },
+      relations: ['funciones', 'departamento', 'departamento.organizacion'],
+    });
+
+    if (!agenteWithRelations) {
+      throw new NotFoundException(`Agente con ID ${savedAgente.id} no encontrado`);
+    }
+
+    if (!agenteWithRelations.departamento?.organizacion) {
+      throw new BadRequestException('Agente sin organización asignada');
+    }
+    return agenteWithRelations;
   }
 
   async updateAgent(id: number, updateAgentDto: Partial<CreateAgentDto>, userId: number): Promise<Agente> {
@@ -155,7 +174,14 @@ export class AgentManagerService {
         agentId: previousConfig.agentId,
       };
       console.log('identifier', config);
-      const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
+
+      // Usar el factory para obtener el servicio de agente según el tipo
+      const createAgentService = this.agentServiceFactory[agente.type];
+      if (!createAgentService) {
+        throw new BadRequestException(`Tipo de agente no soportado: ${agente.type}`);
+      }
+
+      const llmService = createAgentService(identifier, config);
       if (!previousConfig.agentId) {
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
       }
@@ -190,7 +216,14 @@ export class AgentManagerService {
       type: AgentIdentifierType.CHAT,
       agentId: config.agentId,
     };
-    const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
+
+    // Usar el factory para obtener el servicio de agente según el tipo
+    const createAgentService = this.agentServiceFactory[agente.type];
+    if (!createAgentService) {
+      throw new BadRequestException(`Tipo de agente no soportado: ${agente.type}`);
+    }
+
+    const llmService = createAgentService(identifier, config);
     await llmService.updateFunctions(agente.funciones, config.agentId, !!agente.config.vectorStoreId, canEscalateToHuman);
     agente.canEscalateToHuman = canEscalateToHuman;
     return this.agenteRepository.save(agente);
