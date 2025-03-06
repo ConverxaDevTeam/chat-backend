@@ -35,6 +35,7 @@ export class AgentManagerService {
       name: `sofia_${agente.departamento.id}_${agente.name}`,
       instruccion: agente.config.instruccion,
       agentId: agente.config.agentId ?? '',
+      DBagentId: agente.id,
       organizationId: organizationId,
     };
   }
@@ -57,7 +58,7 @@ export class AgentManagerService {
 
     // Convertir el DTO a un objeto plano
     const plainConfig = config ? { ...config } : undefined;
-    const agente = this.agenteRepository.create({
+    const agente = await this.agenteRepository.save({
       ...rest,
       type: createAgentDto.type as AgenteType.SOFIA_ASISTENTE,
       config: plainConfig,
@@ -81,6 +82,7 @@ export class AgentManagerService {
     // Inicializar el agente según su tipo
     if (agente.type === AgenteType.SOFIA_ASISTENTE) {
       const sofiaAgent = agente as Agente<SofiaLLMConfig>;
+      console.log('on create agent', sofiaAgent);
       const config = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id);
       const identifier: ChatAgentIdentifier = {
         type: AgentIdentifierType.CHAT,
@@ -141,6 +143,8 @@ export class AgentManagerService {
     // Actualizar según el tipo de agente
     const sofiaAgent = agente as SofiaAgente;
     Object.assign(sofiaAgent, updateData);
+
+    console.log('on update agent');
     // Mantener el agentId si existe
 
     // Actualizar el asistente si cambió la configuración
@@ -150,6 +154,7 @@ export class AgentManagerService {
         type: AgentIdentifierType.CHAT,
         agentId: previousConfig.agentId,
       };
+      console.log('identifier', config);
       const llmService = new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       if (!previousConfig.agentId) {
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
