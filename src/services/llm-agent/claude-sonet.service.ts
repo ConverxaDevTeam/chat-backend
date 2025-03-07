@@ -235,7 +235,6 @@ export class ClaudeSonetService extends BaseAgent {
       };
 
       const response = await this.anthropic.messages.create(messagesObject);
-      console.log('response', JSON.stringify(response));
 
       // Verificar si hay contenido de herramientas en la respuesta
       const toolUses = response.content.filter(

@@ -219,15 +219,18 @@ export class AgentService {
    * @returns Configuración del agente
    */
   private async configureClaudeAgent(conversationId: number, baseConfig: AgentConfig): Promise<AgentConfig> {
-    const dbConversation = await this.conversationRepository
-      .createQueryBuilder('conversation')
-      .leftJoin('conversation.messages', 'messages')
-      .leftJoin('messages.chatSession', 'session')
-      .where('conversation.id = :conversationId', { conversationId })
-      .getOne();
+    // Consulta directa para obtener mensajes de la sesión activa en una sola operación
+    const query = this.conversationRepository.manager
+      .createQueryBuilder(Message, 'message')
+      .leftJoinAndSelect('message.chatSession', 'session')
+      .where('message.conversationId = :conversationId', { conversationId })
+      .andWhere('session.closedAt IS NULL')
+      .orderBy('message.created_at', 'ASC');
 
-    if (dbConversation?.messages) {
-      baseConfig.messages = dbConversation.messages.slice(0, -1);
+    const messages = await query.getMany();
+
+    if (messages.length > 0) {
+      baseConfig.messages = messages.slice(0, -1);
     }
 
     return baseConfig;
