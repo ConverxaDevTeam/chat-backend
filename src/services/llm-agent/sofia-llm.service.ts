@@ -475,6 +475,17 @@ export class SofiaLLMService extends BaseAgent {
     });
 
     try {
+      // Verificar si el vector store existe antes de intentar subir el archivo
+      try {
+        await openai.beta.vectorStores.retrieve(vectorStoreId);
+      } catch (error) {
+        console.error(`Vector store ${vectorStoreId} no existe, creando uno nuevo`);
+        const newVectorStore = await openai.beta.vectorStores.create({
+          name: `agent_knowledge_${Date.now()}`,
+        });
+        vectorStoreId = newVectorStore.id;
+      }
+
       // Create unique temp file name
       const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
       const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -484,15 +495,22 @@ export class SofiaLLMService extends BaseAgent {
       await fs.promises.writeFile(tempPath, file.buffer);
 
       // Upload to vector store
+      const fileStream = fs.createReadStream(tempPath);
       await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
-        files: [fs.createReadStream(tempPath)],
+        files: [fileStream],
       });
 
       // Get file ID from vector store
-      const files = await openai.beta.vectorStores.files.list(vectorStoreId);
-      const vectorFile = files.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
+      const filesResponse = await openai.beta.vectorStores.files.list(vectorStoreId);
+
+      // Sort by creation date (newest first) and find first completed file
+      const vectorFile = filesResponse.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
+
 
       if (!vectorFile) {
+        const errors = filesResponse.data.filter((f) => f.status === 'failed').map((f) => f.last_error);
+
+        console.error('File upload completed but vector store processing failed', errors);
         throw new Error('File upload completed but vector store processing failed');
       }
 

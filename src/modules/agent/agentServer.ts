@@ -239,12 +239,14 @@ export class AgentService {
   private async getAgentType(agentId: number): Promise<AgenteType> {
     const agent = await this.agenteRepository.findOne({
       where: { id: agentId },
-      select: ['type'],
+      relations: ['knowledgeBases'],
+      select: ['type', 'knowledgeBases'],
     });
 
     if (!agent) {
       throw new Error(`Agente con ID ${agentId} no encontrado`);
     }
+    console.log('agent', agent.knowledgeBases);
 
     return agent.type as AgenteType;
   }

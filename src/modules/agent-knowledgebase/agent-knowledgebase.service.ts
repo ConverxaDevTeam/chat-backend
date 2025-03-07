@@ -51,7 +51,6 @@ export class AgentKnowledgebaseService {
         where: { id: agentId },
         relations: ['knowledgeBases', 'funciones'],
       });
-
       if (!agent) {
         throw new NotFoundException(`Agent with ID ${agentId} not found`);
       }
