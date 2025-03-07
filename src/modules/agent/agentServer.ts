@@ -36,6 +36,7 @@ interface AgentConfig {
   threadId?: string;
   funciones: Funcion[];
   organizationId: number;
+  instruccion: string;
 }
 
 // Factory para crear servicios de agente según su tipo
@@ -49,15 +50,16 @@ type AgentServiceFactory = {
  * @param name nombre del agente
  * @returns configuracion del agente
  */
-function setStartAgentConfig(config: Record<string, any>, name: string, funciones: Funcion[], organizationId: number, agentId: number): AgentConfig {
+function setStartAgentConfig(config: Record<string, any>, funciones: Funcion[], organizationId: number, agentId: number, instruccion: string): AgentConfig {
   if (!config.agentId) {
     throw new Error('No se pudo obtener una de las propiedades necesarias del agente: instruccion, agentId, threadId o name');
   }
   return {
     agentId: config.agentId,
-    funciones: funciones,
-    organizationId: organizationId,
+    funciones,
+    organizationId,
     DBagentId: agentId,
+    instruccion,
   };
 }
 
@@ -111,7 +113,8 @@ export class AgentService {
       const result = await queryBuilder.getOne();
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
       if (!result.departamento?.organizacion) throw new Error('No se pudo obtener la organizacion');
-      agenteConfig = setStartAgentConfig(result.config, result.name, result.funciones, result.departamento.organizacion.id, agentId);
+      console.log('result', result.config);
+      agenteConfig = setStartAgentConfig(result.config, result.funciones, result.departamento.organizacion.id, agentId, (result.config.instruccion as string) ?? '');
     }
 
     if (identifier.type === AgentIdentifierType.TEST) {

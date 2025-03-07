@@ -59,14 +59,16 @@ export class ClaudeSonetService extends BaseAgent {
     this.anthropic = new Anthropic({
       apiKey: process.env.CLAUDE_API_KEY,
     });
-  }
-
-  async _initializeAgent(): Promise<void> {
     const config = this.agenteConfig as CreateAgentConfig;
+    console.log('agenteConfig', JSON.stringify(config));
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     this.system = config.instruccion;
+    console.log('system', this.system);
+  }
+
+  async _initializeAgent(): Promise<void> {
     return;
   }
 
@@ -168,14 +170,16 @@ export class ClaudeSonetService extends BaseAgent {
             },
           };
         }) || [];
-      console.log('tools', JSON.stringify(tools));
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-7-sonnet-20250219',
+      const messagesObject = {
         messages: messages as any,
         system: this.system,
         tools: tools as any,
+        model: 'claude-3-7-sonnet-20250219',
         max_tokens: 1024,
-      });
+      };
+      console.log('messagesObject', JSON.stringify(messagesObject));
+
+      const response = await this.anthropic.messages.create(messagesObject);
 
       // Verificar si hay contenido de herramientas en la respuesta
       const toolUses = response.content.filter(
