@@ -90,8 +90,13 @@ export class AgentService {
     private readonly integrationRouterService: IntegrationRouterService,
   ) {
     this.agentServiceFactory = {
-      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) =>
-        new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) => {
+        // Asegurar que DBagentId esté presente
+        if (!config.DBagentId) {
+          throw new Error('DBagentId debe estar definido cuando se crea SofiaLLMService');
+        }
+        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
+      },
       [AgenteType.CLAUDE]: (identifier, config) => new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
     };
   }

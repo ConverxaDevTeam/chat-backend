@@ -36,8 +36,13 @@ export class AgentManagerService {
     private readonly integrationRouterService: IntegrationRouterService,
   ) {
     this.agentServiceFactory = {
-      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) =>
-        new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) => {
+        // Validar que DBagentId esté presente
+        if (!config.DBagentId) {
+          throw new Error('DBagentId debe estar definido cuando se crea SofiaLLMService');
+        }
+        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
+      },
       [AgenteType.CLAUDE]: (identifier, config) => new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
     };
   }
@@ -220,19 +225,27 @@ export class AgentManagerService {
       throw new BadRequestException(`Tipo de agente no soportado: ${agente.type}`);
     }
 
+    // Asegurar que DBagentId se pase correctamente
+    if (!config.DBagentId) {
+      throw new Error('DBagentId es requerido para update escalate to human');
+    }
+
     const llmService = createAgentService(identifier, config);
     await llmService.updateFunctions(agente.funciones, config.agentId, !!agente.config.vectorStoreId, canEscalateToHuman);
     agente.canEscalateToHuman = canEscalateToHuman;
     return this.agenteRepository.save(agente);
   }
 
-  async updateFunctions(functions: Funcion[], agentId: string, hasVectorStore: boolean, canEscalateToHuman: boolean, organizationId: number): Promise<void> {
+  async updateFunctions(functions: Funcion[], agentId: string, hasVectorStore: boolean, canEscalateToHuman: boolean, organizationId: number, DBagentId: number): Promise<void> {
+    if (!DBagentId) {
+      throw new Error('DBagentId debe estar definido para actualizar funciones');
+    }
     const llmService = new SofiaLLMService(
       this.functionCallService,
       this.systemEventsService,
       this.integrationRouterService,
       { type: AgentIdentifierType.CHAT, agentId },
-      { agentId, organizationId },
+      { agentId, organizationId, DBagentId },
     );
     return llmService.updateFunctions(functions, agentId, hasVectorStore, canEscalateToHuman);
   }
