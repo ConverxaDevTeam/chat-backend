@@ -113,7 +113,6 @@ export class AgentService {
       const result = await queryBuilder.getOne();
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
       if (!result.departamento?.organizacion) throw new Error('No se pudo obtener la organizacion');
-      console.log('result', result.config);
       agenteConfig = setStartAgentConfig(result.config, result.funciones, result.departamento.organizacion.id, agentId, (result.config.instruccion as string) ?? '');
     }
 
@@ -123,6 +122,7 @@ export class AgentService {
       agenteConfig = {
         agentId: identifier.LLMAgentId ?? agenteConfig?.agentId,
         DBagentId: agentId,
+        instruccion: agenteConfig?.instruccion ?? '',
         threadId: identifier.threatId,
         funciones: functions.map((f) => {
           f.name = f.normalizedName;
@@ -134,7 +134,6 @@ export class AgentService {
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
-    console.log('Configurando agente...', agenteConfig, identifier);
 
     // Obtener el tipo de agente de la consulta
     const agentType = await this.getAgentType(agentId);

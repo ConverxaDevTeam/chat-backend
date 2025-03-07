@@ -60,12 +60,10 @@ export class ClaudeSonetService extends BaseAgent {
       apiKey: process.env.CLAUDE_API_KEY,
     });
     const config = this.agenteConfig as CreateAgentConfig;
-    console.log('agenteConfig', JSON.stringify(config));
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     this.system = config.instruccion;
-    console.log('system', this.system);
   }
 
   async _initializeAgent(): Promise<void> {
@@ -180,6 +178,7 @@ export class ClaudeSonetService extends BaseAgent {
       console.log('messagesObject', JSON.stringify(messagesObject));
 
       const response = await this.anthropic.messages.create(messagesObject);
+      console.log('response', JSON.stringify(response.content));
 
       // Verificar si hay contenido de herramientas en la respuesta
       const toolUses = response.content.filter(

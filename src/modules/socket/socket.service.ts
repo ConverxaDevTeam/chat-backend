@@ -126,7 +126,6 @@ export class SocketService {
     }
     const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls, userId });
     if (!agentResponse) return;
-    console.log('new execution', message);
     const { message: response, ...conf } = agentResponse;
     this.socketServer.to(room).emit('message', { sender: 'agent', text: response, conf });
   }
