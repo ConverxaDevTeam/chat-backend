@@ -134,7 +134,6 @@ export class ClaudeSonetService extends BaseAgent {
 
           const requestBody = func.config?.requestBody || [];
           if (Array.isArray(requestBody) && requestBody.length > 0) {
-            // Usar Array en lugar de object vacío para las propiedades
             for (const param of requestBody) {
               properties[param.name] = {
                 type: param.type,
@@ -143,7 +142,7 @@ export class ClaudeSonetService extends BaseAgent {
             }
           }
 
-          // Para evitar el error de iteración, aseguramos que properties tenga al menos una propiedad
+          // Evitar objeto vacío para properties
           if (Object.keys(properties).length === 0) {
             properties['_empty'] = { type: 'string', description: 'No parameters' };
           }
@@ -158,28 +157,23 @@ export class ClaudeSonetService extends BaseAgent {
             }
           }
 
-          // El error sugiere que falta 'name' en el nivel superior, aunque parece ser parte de 'function'
+          // Formato correcto para tools según la API de Claude
           return {
-            type: 'function' as const,
-            function: {
-              name: func.name,
-              description: func.description || '',
-              parameters: {
-                type: 'object' as const,
-                properties,
-                required: required.length > 0 ? required : undefined,
-              },
+            name: func.name.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64),
+            description: func.description || '',
+            input_schema: {
+              type: 'object',
+              properties: Object.fromEntries(Object.entries(properties).map(([key, value]) => [key.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64), value])),
+              required: required.length > 0 ? required : undefined,
             },
           };
         }) || [];
-
-      // Llamar a la API de Claude
-      // Corregimos la llamada para adaptarla a los tipos esperados
+      console.log('tools', JSON.stringify(tools));
       const response = await this.anthropic.messages.create({
         model: 'claude-3-7-sonnet-20250219',
-        messages: messages as any, // Forzamos el tipo para evitar error de compilación
+        messages: messages as any,
         system: this.system,
-        tools: tools as any, // Forzamos el tipo para evitar error de compilación
+        tools: tools as any,
         max_tokens: 1024,
       });
 
@@ -297,16 +291,9 @@ export class ClaudeSonetService extends BaseAgent {
       return await this._executeWithStateValidation(
         async () => {
           const start = performance.now();
-          // Ejecutar el agente con el nuevo mensaje
-          await this._runAgent(this.threadId!, conversationId);
-
-          // Obtener la respuesta del asistente (último mensaje)
-          const assistantResponse = this.messages.filter((msg) => msg.role === 'assistant').pop();
-
-          const responseText = typeof assistantResponse?.content === 'string' ? assistantResponse.content : '';
 
           console.log(`Total time: ${((performance.now() - start) / 1000).toFixed(2)}s`);
-          return responseText;
+          return '';
         },
         stateDate,
         userId,
