@@ -7,10 +7,7 @@ import { UserOrganization } from '../../models/UserOrganization.entity';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([DashboardCard, UserOrganization]),
-    AuthModule,
-  ],
+  imports: [TypeOrmModule.forFeature([DashboardCard, UserOrganization]), AuthModule],
   controllers: [DashboardCardController],
   providers: [DashboardCardService],
 })

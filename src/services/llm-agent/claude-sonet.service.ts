@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { BaseAgent } from './base-agent';
 import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
+import { Message, MessageType } from '@models/Message.entity';
 import { FunctionCallService } from '@modules/agent/function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
@@ -43,6 +44,41 @@ interface MessageParam {
 
 @Injectable()
 export class ClaudeSonetService extends BaseAgent {
+  /**
+   * Convierte los mensajes de la entidad Message a formato MessageParam
+   * @param messages Mensajes de la base de datos
+   * @returns Mensajes en formato MessageParam requerido por Anthropic
+   */
+  private convertMessagesToMessageParams(messages: Message[]): MessageParam[] {
+    // Eliminar el último mensaje para evitar duplicados
+
+    return messages.map((message) => {
+      const role = message.type === MessageType.USER ? 'user' : 'assistant';
+
+      // Crear el content según si tiene imágenes o no
+      let content: string | MessageContent;
+
+      if (message.images && message.images.length > 0) {
+        content = [
+          { type: 'text' as const, text: message.text || '' },
+          ...message.images.map((img) => ({
+            type: 'image' as const,
+            source: {
+              type: 'url' as const,
+              url: img,
+            },
+          })),
+        ];
+      } else {
+        content = message.text || '';
+      }
+
+      return {
+        role,
+        content,
+      };
+    });
+  }
   private anthropic: Anthropic;
   protected threadId: string | null = null;
   private messages: MessageParam[] = [];
@@ -64,6 +100,9 @@ export class ClaudeSonetService extends BaseAgent {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     this.system = config.instruccion;
+    if (config.messages) {
+      this.messages = this.convertMessagesToMessageParams(config.messages);
+    }
   }
 
   async _initializeAgent(): Promise<void> {
@@ -175,22 +214,22 @@ export class ClaudeSonetService extends BaseAgent {
         model: 'claude-3-7-sonnet-20250219',
         max_tokens: 1024,
       };
-      console.log('messagesObject', JSON.stringify(messagesObject));
 
       const response = await this.anthropic.messages.create(messagesObject);
       console.log('response', JSON.stringify(response.content));
 
       // Verificar si hay contenido de herramientas en la respuesta
       const toolUses = response.content.filter(
-        (block): block is { type: 'tool_use'; id: string; name: string; input: string } => block.type === 'tool_use' && 'id' in block && 'name' in block && 'input' in block,
+        (block): block is { type: 'tool_use'; id: string; name: string; input: Record<string, any> } =>
+          block.type === 'tool_use' && 'id' in block && 'name' in block && 'input' in block,
       );
 
       if (toolUses.length > 0) {
         // Procesar las llamadas a herramientas
         const results = await Promise.allSettled(
           toolUses.map((toolUse) => {
-            const toolArgs = JSON.parse(toolUse.input);
-            return this.functionCallService.executeFunctionCall(toolUse.name, this.agentId!, toolArgs, conversationId);
+            // No es necesario parsear input ya que ya viene como objeto
+            return this.functionCallService.executeFunctionCall(toolUse.name, this.agentId!, toolUse.input, conversationId);
           }),
         );
 

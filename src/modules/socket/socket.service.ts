@@ -122,7 +122,7 @@ export class SocketService {
     const imageUrls = images?.length ? await this.saveImages(images) : [];
     let userId: number | undefined;
     if (room.startsWith('test-chat-')) {
-      userId = parseInt(room.split('-')[1]);
+      userId = parseInt(room.split('-')[2]);
     }
     const agentResponse = await this.agentService.getAgentResponse({ message, identifier, agentId, conversationId, images: imageUrls, userId });
     if (!agentResponse) return;

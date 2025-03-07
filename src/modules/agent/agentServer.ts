@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { Message, MessageType, MessageFormatType } from '../../models/Message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
 import { SofiaLLMService } from '../../services/llm-agent/sofia-llm.service';
@@ -37,12 +38,15 @@ interface AgentConfig {
   funciones: Funcion[];
   organizationId: number;
   instruccion: string;
+  messages?: Message[];
 }
 
 // Factory para crear servicios de agente según su tipo
 type AgentServiceFactory = {
   [key in AgenteType]: (identifier: agentIdentifier, config: AgentConfig) => BaseAgent;
 };
+
+const tempMessagesTestAgent = new Map<number, Message[] | undefined>();
 
 /**
  * Funcion que setea la configuracion del agente
@@ -98,7 +102,7 @@ export class AgentService {
    * @returns respuesta del agente
    */
   async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse | null> {
-    const { message, identifier, agentId, conversationId, images, chatUserId } = props;
+    const { message, identifier, agentId, conversationId, images, chatUserId, userId } = props;
     console.time('configure-agent');
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
@@ -116,27 +120,18 @@ export class AgentService {
       agenteConfig = setStartAgentConfig(result.config, result.funciones, result.departamento.organizacion.id, agentId, (result.config.instruccion as string) ?? '');
     }
 
-    if (identifier.type === AgentIdentifierType.TEST) {
-      const functions = await this.funcionRepository.createQueryBuilder('funcion').where('funcion.agent_id = :agentId', { agentId }).getMany();
-
-      agenteConfig = {
-        agentId: identifier.LLMAgentId ?? agenteConfig?.agentId,
-        DBagentId: agentId,
-        instruccion: agenteConfig?.instruccion ?? '',
-        threadId: identifier.threatId,
-        funciones: functions.map((f) => {
-          f.name = f.normalizedName;
-          return f;
-        }),
-      } as AgentConfig;
-    }
-
     if (!agenteConfig) {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
 
     // Obtener el tipo de agente de la consulta
     const agentType = await this.getAgentType(agentId);
+    if (agentType === AgenteType.CLAUDE) {
+      if ([AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
+        agenteConfig = await this.configureTestAgent(userId, message, images, identifier, agentId, agenteConfig);
+      }
+      agenteConfig = await this.configureClaudeAgent(conversationId, agenteConfig);
+    }
 
     // Usar el factory para crear el servicio de agente según el tipo
     const createAgentService = this.agentServiceFactory[agentType];
@@ -148,20 +143,91 @@ export class AgentService {
     console.timeEnd('configure-agent');
     const response = await llmService.response(message, conversationId, images, chatUserId);
     if (response === '') return null;
+
+    // Si es TEST, guardar la respuesta del agente también como Message
+    if ([AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type) && userId) {
+      const existingMessages = tempMessagesTestAgent.get(userId) || [];
+      const agentResponseMsg = new Message();
+      agentResponseMsg.text = response;
+      agentResponseMsg.type = MessageType.AGENT;
+      agentResponseMsg.format = MessageFormatType.TEXT;
+      agentResponseMsg.images = images;
+      agentResponseMsg.created_at = new Date();
+      agentResponseMsg.updated_at = new Date();
+      tempMessagesTestAgent.set(userId, [...existingMessages, agentResponseMsg]);
+    }
+
     return { message: response, threadId: llmService.getThreadId(), agentId: llmService.getAgentId() };
   }
 
   /**
-   * Procesa un mensaje para una conversación específica
-   * @param message mensaje a procesar
-   * @param conversationId id de la conversación
-   * @returns respuesta del agente
-   */
-  /**
-   * Obtiene el tipo de agente por su ID
+   * Configura un agente de prueba
+   * @param userId ID del usuario
+   * @param message Mensaje del usuario
+   * @param images Imágenes adjuntas
+   * @param identifier Identificador del agente
    * @param agentId ID del agente
-   * @returns tipo de agente
+   * @param baseConfig Configuración base del agente
+   * @returns Configuración del agente
    */
+  private async configureTestAgent(
+    userId?: number,
+    message?: string,
+    images?: string[],
+    identifier?: agentIdentifier,
+    agentId?: number,
+    baseConfig?: AgentConfig | null,
+  ): Promise<AgentConfig> {
+    if (!userId) throw new Error('No se pudo obtener el userId');
+    if (!message || !identifier || !agentId) throw new Error('Faltan parámetros para configurar el agente de prueba');
+
+    const existingMessages = tempMessagesTestAgent.get(userId) || [];
+    const messageObj = new Message();
+    messageObj.text = message;
+    messageObj.type = MessageType.USER;
+    messageObj.format = MessageFormatType.TEXT;
+    messageObj.images = images || [];
+    messageObj.created_at = new Date();
+    messageObj.updated_at = new Date();
+    tempMessagesTestAgent.set(userId, [...existingMessages, messageObj]);
+
+    const functions = await this.funcionRepository.createQueryBuilder('funcion').where('funcion.agent_id = :agentId', { agentId }).getMany();
+
+    return {
+      agentId: (identifier.type === AgentIdentifierType.TEST ? identifier.LLMAgentId : '') ?? baseConfig?.agentId ?? '',
+      DBagentId: agentId,
+      messages: existingMessages,
+      instruccion: baseConfig?.instruccion ?? '',
+      threadId: identifier.type === AgentIdentifierType.TEST || identifier.type === AgentIdentifierType.THREAT ? (identifier as any).threatId : undefined,
+      organizationId: baseConfig?.organizationId ?? 0,
+      funciones: functions.map((f) => {
+        f.name = f.normalizedName;
+        return f;
+      }),
+    };
+  }
+
+  /**
+   * Configura un agente Claude
+   * @param conversationId ID de la conversación
+   * @param baseConfig Configuración base del agente
+   * @returns Configuración del agente
+   */
+  private async configureClaudeAgent(conversationId: number, baseConfig: AgentConfig): Promise<AgentConfig> {
+    const dbConversation = await this.conversationRepository
+      .createQueryBuilder('conversation')
+      .leftJoin('conversation.messages', 'messages')
+      .leftJoin('messages.chatSession', 'session')
+      .where('conversation.id = :conversationId', { conversationId })
+      .getOne();
+
+    if (dbConversation?.messages) {
+      baseConfig.messages = dbConversation.messages.slice(0, -1);
+    }
+
+    return baseConfig;
+  }
+
   private async getAgentType(agentId: number): Promise<AgenteType> {
     const agent = await this.agenteRepository.findOne({
       where: { id: agentId },

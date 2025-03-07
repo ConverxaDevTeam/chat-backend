@@ -1,3 +1,4 @@
+import { Message } from '@models/Message.entity';
 import { FunctionResponse } from './function.interface';
 
 export const UserFunctionPrefix = 'user__';
@@ -56,6 +57,7 @@ export interface CreateAgentConfig {
   DBagentId: number;
   funciones?: FunctionResponse[];
   organizationId: number;
+  messages?: Message[];
 }
 
 export interface AgentConfig {
