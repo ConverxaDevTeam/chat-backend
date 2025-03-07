@@ -7,6 +7,7 @@ import { FunctionCallService } from '@modules/agent/function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { Funcion } from '@models/agent/Function.entity';
+import { ContentBlock } from '@anthropic-ai/sdk/resources';
 
 const tempMemory = new Map<string, Date>();
 const tempMemoryConversation = new Map<number, string>();
@@ -26,11 +27,23 @@ type MessageContent = Array<
             data: string;
           };
     }
+  | {
+      type: 'tool_result';
+      tool_use_id: string;
+      content: string;
+      is_error?: boolean;
+    }
+  | {
+      type: 'tool_use';
+      id: string;
+      name: string;
+      input: Record<string, any>;
+    }
 >;
 
 interface MessageParam {
   role: 'user' | 'assistant' | 'system';
-  content: string | MessageContent;
+  content: string | MessageContent | ContentBlock[];
   tool_calls?: Array<{
     id: string;
     type: string;
@@ -151,14 +164,20 @@ export class ClaudeSonetService extends BaseAgent {
             role,
             content: msg.content,
           };
+        } else if (Array.isArray(msg.content)) {
+          // Manejo de contenido como array (MessageContent)
+          return {
+            role,
+            content: msg.content,
+          };
         } else {
-          // Manejo de contenido no textual
+          // Fallback para otros tipos de contenido
           return {
             role,
             content: [
               {
                 type: 'text' as const,
-                text: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+                text: JSON.stringify(msg.content),
               },
             ],
           };
@@ -216,13 +235,18 @@ export class ClaudeSonetService extends BaseAgent {
       };
 
       const response = await this.anthropic.messages.create(messagesObject);
-      console.log('response', JSON.stringify(response.content));
+      console.log('response', JSON.stringify(response));
 
       // Verificar si hay contenido de herramientas en la respuesta
       const toolUses = response.content.filter(
         (block): block is { type: 'tool_use'; id: string; name: string; input: Record<string, any> } =>
           block.type === 'tool_use' && 'id' in block && 'name' in block && 'input' in block,
       );
+
+      this.messages.push({
+        role: 'assistant',
+        content: response.content,
+      });
 
       if (toolUses.length > 0) {
         // Procesar las llamadas a herramientas
@@ -232,43 +256,30 @@ export class ClaudeSonetService extends BaseAgent {
             return this.functionCallService.executeFunctionCall(toolUse.name, this.agentId!, toolUse.input, conversationId);
           }),
         );
+        console.log('tools results', JSON.stringify(results));
 
-        // Almacenar la respuesta con los resultados de las herramientas
+        // Crear un nuevo mensaje con los resultados de las herramientas
+        const toolResultsContent: MessageContent = toolUses.map((toolUse, i) => {
+          const result = results[i];
+          return {
+            type: 'tool_result' as const,
+            tool_use_id: toolUse.id,
+            content: result.status === 'fulfilled' ? JSON.stringify(result.value) : JSON.stringify({ error: String((result as PromiseRejectedResult).reason) }),
+            is_error: result.status !== 'fulfilled',
+          };
+        });
+
+        // Agregar el mensaje con los resultados de las herramientas
         this.messages.push({
-          role: 'assistant',
-          content: response.content
-            .filter((block) => block.type === 'text')
-            .map((block) => {
-              if (block.type === 'text') return block.text;
-              return '';
-            })
-            .join(''),
-          tool_calls: toolUses.map((toolUse, i) => ({
-            id: toolUse.id,
-            type: 'function',
-            function: {
-              name: toolUse.name,
-              arguments: toolUse.input,
-              output: results[i].status === 'fulfilled' ? JSON.stringify(results[i].value) : JSON.stringify({ error: String((results[i] as PromiseRejectedResult).reason) }),
-            },
-          })),
+          role: 'user',
+          content: toolResultsContent,
         });
 
         // Continuar la conversación para obtener la respuesta final
         return this._runAgent(threadId, conversationId);
       }
 
-      // Si no hay llamadas a herramientas, guardar la respuesta final
-      this.messages.push({
-        role: 'assistant',
-        content: response.content
-          .filter((block) => block.type === 'text')
-          .map((block) => {
-            if (block.type === 'text') return block.text;
-            return '';
-          })
-          .join(''),
-      });
+      // No necesitamos guardar la respuesta final aquí, ya la guardamos arriba
 
       return true;
     } catch (error) {
