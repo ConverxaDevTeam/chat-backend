@@ -1,7 +1,10 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { join } from 'path';
 import * as fs from 'fs';
+import * as mammoth from 'mammoth';
+import * as pdfParse from 'pdf-parse';
+import * as pptx2json from 'pptx2json';
 
 @Injectable()
 export class FileService {
@@ -124,6 +127,47 @@ export class FileService {
       }
     } catch (error) {
       throw new InternalServerErrorException(`Failed to delete files with pattern ${fileNamePattern}`);
+    }
+  }
+
+  async extractTextFromPdf(fileBuffer: Buffer): Promise<string> {
+    const data = await pdfParse(fileBuffer);
+    return data.text;
+  }
+
+  async extractTextFromPptx(fileBuffer: Buffer): Promise<string> {
+    const presentation = await pptx2json(fileBuffer);
+    return presentation.slides.map((slide) => slide.text).join('\n');
+  }
+
+  async extractTextFromDocx(fileBuffer: Buffer): Promise<string> {
+    const result = await mammoth.extractRawText({ buffer: fileBuffer });
+    return result.value;
+  }
+
+  async findAndExtractText(directory: string, fileNamePattern: string): Promise<string> {
+    if (!fs.existsSync(directory)) throw new NotFoundException('Directory not found');
+
+    const files = fs.readdirSync(directory);
+    const file = files.find((f) => f.startsWith(fileNamePattern + '.'));
+    if (!file) throw new NotFoundException('File not found');
+
+    const extension = file.split('.').pop();
+    const fileBuffer = await fs.promises.readFile(join(directory, file));
+
+    switch (extension) {
+      case 'pdf':
+        return this.extractTextFromPdf(fileBuffer);
+      case 'pptx':
+        return this.extractTextFromPptx(fileBuffer);
+      case 'docx':
+        return this.extractTextFromDocx(fileBuffer);
+      default:
+        try {
+          return fileBuffer.toString('utf-8');
+        } catch {
+          throw new BadRequestException('Unsupported file format');
+        }
     }
   }
 }

@@ -13,6 +13,7 @@ import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
 import { FunctionCallService } from './function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { FileService } from '../file/file.service'; // Correct import path
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -80,6 +81,7 @@ export class AgentService {
    * @param agenteRepository repositorio de agentes
    */
   constructor(
+    private readonly fileService: FileService, // Inject FileService
     @InjectRepository(Agente)
     private readonly agenteRepository: Repository<Agente>,
     @InjectRepository(Funcion)
@@ -134,22 +136,36 @@ export class AgentService {
     const agent = await this.agenteRepository
       .createQueryBuilder('agent')
       .leftJoinAndSelect('agent.knowledgeBases', 'knowledgeBases')
+      .leftJoinAndSelect('agent.departamento', 'departamento')
+      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
       .where('agent.id = :agentId', { agentId })
       .getOne();
-
-    const fileIds = agent?.knowledgeBases?.map((kb) => kb.fileId) || [];
 
     if (!agent) {
       throw new Error(`Agente con ID ${agentId} no encontrado`);
     }
+
+    const fileIds = agent.knowledgeBases?.map((kb) => kb.fileId) || [];
+
     const agentType = agent.type as AgenteType;
     if (agentType === AgenteType.CLAUDE) {
+      // Obtener el organizationId desde el agente
+      const organizationId = agent.departamento?.organizacion?.id;
+      if (!organizationId) {
+        console.warn(`No se pudo obtener organizationId para el agente ${agentId}`);
+      }
       // Procesar archivos de knowledge base si existen
       if (fileIds.length > 0) {
         try {
-          console.log('Archivos de knowledge base no soportados para Claude');
+          for (const fileId of fileIds) {
+            const filePath = `uploads/organizations/${organizationId}/files/${fileId}`;
+            console.log(`Procesando archivo: ${filePath}`);
+
+            const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
+            console.log('Texto extraído:', text.slice(0, 100)); // Mostrar primeros 100 caracteres
+          }
         } catch (error) {
-          console.error('Error al obtener archivos de knowledge base:', error);
+          console.error('Error al generar embeddings:', error);
         }
       }
 
