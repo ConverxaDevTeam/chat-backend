@@ -39,6 +39,7 @@ interface AgentConfig {
   organizationId: number;
   instruccion: string;
   messages?: Message[];
+  fileIds?: string[];
 }
 
 // Factory para crear servicios de agente según su tipo
@@ -129,9 +130,29 @@ export class AgentService {
       throw new Error('No se pudo obtener la configuracion del agente');
     }
 
-    // Obtener el tipo de agente de la consulta
-    const agentType = await this.getAgentType(agentId);
+    // Obtener el tipo de agente y sus bases de conocimiento
+    const agent = await this.agenteRepository
+      .createQueryBuilder('agent')
+      .leftJoinAndSelect('agent.knowledgeBases', 'knowledgeBases')
+      .where('agent.id = :agentId', { agentId })
+      .getOne();
+
+    const fileIds = agent?.knowledgeBases?.map((kb) => kb.fileId) || [];
+
+    if (!agent) {
+      throw new Error(`Agente con ID ${agentId} no encontrado`);
+    }
+    const agentType = agent.type as AgenteType;
     if (agentType === AgenteType.CLAUDE) {
+      // Procesar archivos de knowledge base si existen
+      if (fileIds.length > 0) {
+        try {
+          console.log('Archivos de knowledge base no soportados para Claude');
+        } catch (error) {
+          console.error('Error al obtener archivos de knowledge base:', error);
+        }
+      }
+
       if ([AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
         agenteConfig = await this.configureTestAgent(userId, message, images, identifier, agentId, agenteConfig);
       }
@@ -233,22 +254,23 @@ export class AgentService {
       baseConfig.messages = messages.slice(0, -1);
     }
 
-    return baseConfig;
-  }
+    // Obtener los embeddings del knowledge base, si existen
+    if (baseConfig.DBagentId) {
+      const agent = await this.agenteRepository.findOne({
+        where: { id: baseConfig.DBagentId },
+        relations: ['knowledgeBases'],
+      });
 
-  private async getAgentType(agentId: number): Promise<AgenteType> {
-    const agent = await this.agenteRepository.findOne({
-      where: { id: agentId },
-      relations: ['knowledgeBases'],
-      select: ['type', 'knowledgeBases'],
-    });
-
-    if (!agent) {
-      throw new Error(`Agente con ID ${agentId} no encontrado`);
+      if (agent && agent.knowledgeBases && agent.knowledgeBases.length > 0) {
+        // Obtener los índices de vectores de las bases de conocimiento
+        const fileIds = agent.knowledgeBases.map((kb) => kb.fileId).filter(Boolean);
+        if (fileIds.length > 0) {
+          baseConfig.fileIds = fileIds;
+        }
+      }
     }
-    console.log('agent', agent.knowledgeBases);
 
-    return agent.type as AgenteType;
+    return baseConfig;
   }
 
   async processMessageWithConversation(message: string, conversation: Conversation, images: string[], chatUserId?: number): Promise<AgentResponse | null> {

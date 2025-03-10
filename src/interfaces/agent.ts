@@ -58,6 +58,7 @@ export interface CreateAgentConfig {
   funciones?: FunctionResponse[];
   organizationId: number;
   messages?: Message[];
+  fileIds?: string[];
 }
 
 export interface AgentConfig {

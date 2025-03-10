@@ -506,7 +506,6 @@ export class SofiaLLMService extends BaseAgent {
       // Sort by creation date (newest first) and find first completed file
       const vectorFile = filesResponse.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
 
-
       if (!vectorFile) {
         const errors = filesResponse.data.filter((f) => f.status === 'failed').map((f) => f.last_error);
 
