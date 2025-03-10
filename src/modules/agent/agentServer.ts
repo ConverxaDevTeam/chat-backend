@@ -14,6 +14,7 @@ import { FunctionCallService } from './function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { FileService } from '../file/file.service'; // Correct import path
+import { VoyageService } from '../agent-knowledgebase/voyage.service'; // Correct import path
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -82,6 +83,7 @@ export class AgentService {
    */
   constructor(
     private readonly fileService: FileService, // Inject FileService
+    private readonly voyageService: VoyageService, // Inject VoyageService
     @InjectRepository(Agente)
     private readonly agenteRepository: Repository<Agente>,
     @InjectRepository(Funcion)
@@ -162,7 +164,8 @@ export class AgentService {
             console.log(`Procesando archivo: ${filePath}`);
 
             const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
-            console.log('Texto extraído:', text.slice(0, 100)); // Mostrar primeros 100 caracteres
+            const embedding = await this.voyageService.getEmbedding([text]);
+            console.log('Embedding generado:', embedding.slice(0, 5));
           }
         } catch (error) {
           console.error('Error al generar embeddings:', error);

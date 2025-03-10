@@ -6,11 +6,12 @@ import { AgentKnowledgebaseController } from './agent-knowledgebase.controller';
 import { AgentKnowledgebaseService } from './agent-knowledgebase.service';
 import { AuthModule } from '@modules/auth/auth.module';
 import { AgentManagerModule } from '@modules/agent-manager/agent-manager.module';
+import { VoyageService } from './voyage.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([KnowledgeBase, Agente]), AuthModule, AgentManagerModule],
   controllers: [AgentKnowledgebaseController],
-  providers: [AgentKnowledgebaseService],
+  providers: [AgentKnowledgebaseService, VoyageService],
   exports: [AgentKnowledgebaseService],
 })
 export class AgentKnowledgebaseModule {}
