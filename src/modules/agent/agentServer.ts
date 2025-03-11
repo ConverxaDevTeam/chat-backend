@@ -288,30 +288,31 @@ export class AgentService {
    * @returns Array con textos y embeddings generados
    */
   private async extractTextAndGenerateEmbeddings(fileIds: string[], organizationId: number): Promise<{ documentEmbeddings: number[][]; documentTexts: string[] }> {
-    const documentEmbeddings: number[][] = [];
-    const documentTexts: string[] = [];
+    const allParagraphs: string[] = [];
+    const fileIndexMap: Record<number, string> = {};
+    let currentIndex = 0;
 
-    const processFile = async (fileId: string): Promise<void> => {
+    const extractTextPromises = fileIds.map(async (fileId) => {
       const filePath = `uploads/organizations/${organizationId}/files/${fileId}`;
       console.log(`Procesando archivo: ${filePath}`);
-
       const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
       const paragraphs = this.fileService.splitTextIntoParagraphs(text);
-      const embeddings = await this.voyageService.getEmbedding(paragraphs, InputType.Document);
 
-      if (embeddings.length > 0) {
-        console.log('Embeddings generados:', embeddings.length);
+      paragraphs.forEach((paragraph) => {
+        allParagraphs.push(paragraph);
+        fileIndexMap[currentIndex++] = fileId;
+      });
+    });
 
-        embeddings.forEach((embedding, index) => {
-          documentEmbeddings.push(embedding);
-          documentTexts.push(paragraphs[index]);
-        });
-      }
+    await Promise.all(extractTextPromises);
+
+    const allEmbeddings = await this.voyageService.getEmbedding(allParagraphs, InputType.Document);
+    console.log('Total embeddings generados:', allEmbeddings.length);
+
+    return {
+      documentEmbeddings: allEmbeddings,
+      documentTexts: allParagraphs,
     };
-
-    await Promise.all(fileIds.map(processFile));
-
-    return { documentEmbeddings, documentTexts };
   }
 
   /**
