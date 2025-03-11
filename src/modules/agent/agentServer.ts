@@ -158,8 +158,12 @@ export class AgentService {
         console.warn(`No se pudo obtener organizationId para el agente ${agentId}`);
       }
       // Procesar archivos de knowledge base si existen
-      if (fileIds.length > 0) {
-        await this.processKnowledgeBaseFiles(message, fileIds, organizationId);
+      if (fileIds.length > 0 && organizationId) {
+        const contextInfo = await this.processKnowledgeBaseFiles(message, fileIds, organizationId);
+        if (contextInfo) {
+          // Guardar el contexto en agenteConfig para ser utilizado por Claude
+          agenteConfig.instruccion = `${agenteConfig.instruccion}\n${contextInfo}`;
+        }
       }
       if ([AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
         agenteConfig = await this.configureTestAgent(userId, message, images, identifier, agentId, agenteConfig);
@@ -262,23 +266,70 @@ export class AgentService {
       baseConfig.messages = messages.slice(0, -1);
     }
 
-    // Obtener los embeddings del knowledge base, si existen
-    if (baseConfig.DBagentId) {
-      const agent = await this.agenteRepository.findOne({
-        where: { id: baseConfig.DBagentId },
-        relations: ['knowledgeBases'],
-      });
-
-      if (agent && agent.knowledgeBases && agent.knowledgeBases.length > 0) {
-        // Obtener los índices de vectores de las bases de conocimiento
-        const fileIds = agent.knowledgeBases.map((kb) => kb.fileId).filter(Boolean);
-        if (fileIds.length > 0) {
-          baseConfig.fileIds = fileIds;
-        }
-      }
-    }
-
     return baseConfig;
+  }
+
+  /**
+   * Procesa archivos de knowledge base para obtener contenido relevante
+   * @param message Mensaje del usuario
+   * @param fileIds IDs de archivos de knowledge base
+   * @param organizationId ID de la organización
+   * @returns Documentos relevantes encontrados
+   */
+  private async processKnowledgeBaseFiles(message: string, fileIds: string[], organizationId: number): Promise<string> {
+    try {
+      // Obtener embedding del mensaje
+      const messageEmbedding = await this.voyageService.getEmbedding([message], InputType.Query);
+      if (!messageEmbedding.length) {
+        console.warn('No se pudo generar embedding para el mensaje del usuario');
+        return '';
+      }
+
+      const queryEmbedding = messageEmbedding[0];
+
+      // Extraer texto y generar embeddings
+      const documentData = await this.extractTextAndGenerateEmbeddings(fileIds, organizationId);
+
+      // Calcular similitud y ordenar documentos
+      const allDocumentsSorted = this.calculateDocumentSimilarity(queryEmbedding, documentData);
+
+      // Seleccionar documentos relevantes
+      const top3Documents = allDocumentsSorted.slice(0, 3);
+      const threshold = 0.7;
+      const additionalRelevantDocs = allDocumentsSorted.slice(3).filter((doc) => doc.similarity > threshold);
+
+      // Combinar resultados
+      const relevantDocuments = [...top3Documents, ...additionalRelevantDocs];
+
+      // Mostrar documentos relevantes en consola
+      if (relevantDocuments.length > 0) {
+        console.log('Documentos relevantes:');
+        relevantDocuments.forEach((doc) => {
+          console.log(`Similitud: ${doc.similarity.toFixed(4)}, Texto: "${doc.text.substring(0, 100)}..."`);
+        });
+      }
+
+      // Formatear documentos para Claude
+      return this.formatDocumentsForClaude(relevantDocuments);
+    } catch (error) {
+      console.error('Error al generar embeddings o calcular similitud:', error);
+      return '';
+    }
+  }
+
+  /**
+   * Formatea documentos relevantes para Claude
+   * @param documents Documentos relevantes ordenados por similitud
+   * @returns String formateado para incluir en el prompt de Claude
+   */
+  private formatDocumentsForClaude(documents: { similarity: number; text: string; index: number }[]): string {
+    if (!documents.length) return '';
+
+    const formattedDocs = documents.map((doc, idx) => {
+      return `Documento ${idx + 1} (Relevancia: ${doc.similarity.toFixed(4)}):\n${doc.text.trim()}\n`;
+    });
+
+    return `\n\nReferencias relevantes para la consulta:\n\n${formattedDocs.join('\n')}`;
   }
 
   /**
@@ -338,53 +389,6 @@ export class AgentService {
         index,
       }))
       .sort((a, b) => b.similarity - a.similarity);
-  }
-
-  /**
-   * Procesa archivos de knowledge base para obtener contenido relevante
-   * @param message Mensaje del usuario
-   * @param fileIds IDs de archivos de knowledge base
-   * @param organizationId ID de la organización
-   * @returns Documentos relevantes encontrados
-   */
-  private async processKnowledgeBaseFiles(message: string, fileIds: string[], organizationId: number): Promise<{ similarity: number; text: string; index: number }[]> {
-    try {
-      // Obtener embedding del mensaje
-      const messageEmbedding = await this.voyageService.getEmbedding([message], InputType.Query);
-      if (!messageEmbedding.length) {
-        console.warn('No se pudo generar embedding para el mensaje del usuario');
-        return [];
-      }
-
-      const queryEmbedding = messageEmbedding[0];
-
-      // Extraer texto y generar embeddings
-      const documentData = await this.extractTextAndGenerateEmbeddings(fileIds, organizationId);
-
-      // Calcular similitud y ordenar documentos
-      const allDocumentsSorted = this.calculateDocumentSimilarity(queryEmbedding, documentData);
-
-      // Seleccionar documentos relevantes
-      const top3Documents = allDocumentsSorted.slice(0, 3);
-      const threshold = 0.7;
-      const additionalRelevantDocs = allDocumentsSorted.slice(3).filter((doc) => doc.similarity > threshold);
-
-      // Combinar resultados
-      const relevantDocuments = [...top3Documents, ...additionalRelevantDocs];
-
-      // Mostrar documentos relevantes en consola
-      if (relevantDocuments.length > 0) {
-        console.log('Documentos relevantes:');
-        relevantDocuments.forEach((doc) => {
-          console.log(`Similitud: ${doc.similarity.toFixed(4)}, Texto: "${doc.text.substring(0, 100)}..."`);
-        });
-      }
-
-      return relevantDocuments;
-    } catch (error) {
-      console.error('Error al generar embeddings o calcular similitud:', error);
-      return [];
-    }
   }
 
   /**
