@@ -159,64 +159,8 @@ export class AgentService {
       }
       // Procesar archivos de knowledge base si existen
       if (fileIds.length > 0) {
-        try {
-          // Obtener el embedding del mensaje del usuario
-          const messageEmbedding = await this.voyageService.getEmbedding([message], InputType.Query);
-          if (!messageEmbedding.length) {
-            console.warn('No se pudo generar embedding para el mensaje del usuario');
-          } else {
-            const queryEmbedding = messageEmbedding[0];
-            const documentEmbeddings: number[][] = [];
-            const documentTexts: string[] = [];
-
-            for (const fileId of fileIds) {
-              const filePath = `uploads/organizations/${organizationId}/files/${fileId}`;
-              console.log(`Procesando archivo: ${filePath}`);
-
-              const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
-              const paragraphs = this.fileService.splitTextIntoParagraphs(text);
-              const embeddings = await this.voyageService.getEmbedding(paragraphs, InputType.Document);
-
-              if (embeddings.length > 0) {
-                console.log('Embeddings generados:', embeddings.length);
-
-                // Guardar embeddings y textos correspondientes
-                embeddings.forEach((embedding, index) => {
-                  documentEmbeddings.push(embedding);
-                  documentTexts.push(paragraphs[index]);
-                });
-              }
-            }
-
-            // Calcular similitud de coseno entre el mensaje y cada documento directamente sin normalización
-            const similarities = documentEmbeddings.map((docEmbedding) => this.calculateDotProduct(docEmbedding, queryEmbedding));
-
-            // Ordenar todos los documentos por similitud
-            const allDocumentsSorted = similarities.map((similarity, index) => ({ similarity, text: documentTexts[index], index })).sort((a, b) => b.similarity - a.similarity);
-
-            // Seleccionar los 3 con máxima similitud
-            const top3Documents = allDocumentsSorted.slice(0, 3);
-
-            // De los restantes, agregar los que estén arriba del umbral
-            const threshold = 0.7;
-            const additionalRelevantDocs = allDocumentsSorted.slice(3).filter((doc) => doc.similarity > threshold);
-
-            // Combinar los resultados
-            const relevantDocuments = [...top3Documents, ...additionalRelevantDocs];
-
-            // Mostrar los documentos relevantes
-            if (relevantDocuments.length > 0) {
-              console.log('Documentos relevantes:');
-              relevantDocuments.forEach((doc) => {
-                console.log(`Similitud: ${doc.similarity.toFixed(4)}, Texto: "${doc.text.substring(0, 100)}..."`);
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error al generar embeddings o calcular similitud:', error);
-        }
+        await this.processKnowledgeBaseFiles(message, fileIds, organizationId);
       }
-
       if ([AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
         agenteConfig = await this.configureTestAgent(userId, message, images, identifier, agentId, agenteConfig);
       }
@@ -337,6 +281,127 @@ export class AgentService {
     return baseConfig;
   }
 
+  /**
+   * Extrae texto de archivos y genera embeddings para documentos
+   * @param fileIds IDs de los archivos a procesar
+   * @param organizationId ID de la organización
+   * @returns Array con textos y embeddings generados
+   */
+  private async extractTextAndGenerateEmbeddings(fileIds: string[], organizationId: number): Promise<{ documentEmbeddings: number[][]; documentTexts: string[] }> {
+    const documentEmbeddings: number[][] = [];
+    const documentTexts: string[] = [];
+
+    const processFile = async (fileId: string): Promise<void> => {
+      const filePath = `uploads/organizations/${organizationId}/files/${fileId}`;
+      console.log(`Procesando archivo: ${filePath}`);
+
+      const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
+      const paragraphs = this.fileService.splitTextIntoParagraphs(text);
+      const embeddings = await this.voyageService.getEmbedding(paragraphs, InputType.Document);
+
+      if (embeddings.length > 0) {
+        console.log('Embeddings generados:', embeddings.length);
+
+        embeddings.forEach((embedding, index) => {
+          documentEmbeddings.push(embedding);
+          documentTexts.push(paragraphs[index]);
+        });
+      }
+    };
+
+    await Promise.all(fileIds.map(processFile));
+
+    return { documentEmbeddings, documentTexts };
+  }
+
+  /**
+   * Calcula similitud entre query y documentos y ordena por relevancia
+   * @param queryEmbedding Embedding de la consulta
+   * @param documentData Datos de los documentos (embeddings y textos)
+   * @returns Documentos ordenados por relevancia
+   */
+  private calculateDocumentSimilarity(
+    queryEmbedding: number[],
+    documentData: { documentEmbeddings: number[][]; documentTexts: string[] },
+  ): { similarity: number; text: string; index: number }[] {
+    const { documentEmbeddings, documentTexts } = documentData;
+
+    // Calcular similitud usando el producto punto
+    const similarities = documentEmbeddings.map((docEmbedding) => this.calculateDotProduct(docEmbedding, queryEmbedding));
+
+    // Mapear y ordenar documentos por similitud
+    return similarities
+      .map((similarity, index) => ({
+        similarity,
+        text: documentTexts[index],
+        index,
+      }))
+      .sort((a, b) => b.similarity - a.similarity);
+  }
+
+  /**
+   * Procesa archivos de knowledge base para obtener contenido relevante
+   * @param message Mensaje del usuario
+   * @param fileIds IDs de archivos de knowledge base
+   * @param organizationId ID de la organización
+   * @returns Documentos relevantes encontrados
+   */
+  private async processKnowledgeBaseFiles(message: string, fileIds: string[], organizationId: number): Promise<{ similarity: number; text: string; index: number }[]> {
+    try {
+      // Obtener embedding del mensaje
+      const messageEmbedding = await this.voyageService.getEmbedding([message], InputType.Query);
+      if (!messageEmbedding.length) {
+        console.warn('No se pudo generar embedding para el mensaje del usuario');
+        return [];
+      }
+
+      const queryEmbedding = messageEmbedding[0];
+
+      // Extraer texto y generar embeddings
+      const documentData = await this.extractTextAndGenerateEmbeddings(fileIds, organizationId);
+
+      // Calcular similitud y ordenar documentos
+      const allDocumentsSorted = this.calculateDocumentSimilarity(queryEmbedding, documentData);
+
+      // Seleccionar documentos relevantes
+      const top3Documents = allDocumentsSorted.slice(0, 3);
+      const threshold = 0.7;
+      const additionalRelevantDocs = allDocumentsSorted.slice(3).filter((doc) => doc.similarity > threshold);
+
+      // Combinar resultados
+      const relevantDocuments = [...top3Documents, ...additionalRelevantDocs];
+
+      // Mostrar documentos relevantes en consola
+      if (relevantDocuments.length > 0) {
+        console.log('Documentos relevantes:');
+        relevantDocuments.forEach((doc) => {
+          console.log(`Similitud: ${doc.similarity.toFixed(4)}, Texto: "${doc.text.substring(0, 100)}..."`);
+        });
+      }
+
+      return relevantDocuments;
+    } catch (error) {
+      console.error('Error al generar embeddings o calcular similitud:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Calcula el producto punto entre dos vectores (similitud de coseno para vectores normalizados)
+   * usando mathjs para mayor eficiencia
+   * @param vector1 Primer vector
+   * @param vector2 Segundo vector
+   * @returns Valor de similitud entre 0 y 1
+   */
+  private calculateDotProduct(vector1: number[], vector2: number[]): number {
+    if (vector1.length !== vector2.length) {
+      throw new Error('Los vectores deben tener la misma longitud');
+    }
+    const v1 = math.matrix(vector1);
+    const v2 = math.matrix(vector2);
+    return math.dot(v1, v2);
+  }
+
   async processMessageWithConversation(message: string, conversation: Conversation, images: string[], chatUserId?: number): Promise<AgentResponse | null> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
@@ -378,31 +443,5 @@ export class AgentService {
       await this.conversationRepository.save(conversation);
     }
     return response;
-  }
-
-  /**
-   * Calcula el producto punto entre dos vectores (similitud de coseno para vectores normalizados)
-   * usando mathjs para mayor eficiencia
-   * @param vector1 Primer vector
-   * @param vector2 Segundo vector
-   * @returns Valor de similitud entre 0 y 1
-   */
-  private calculateDotProduct(vector1: number[], vector2: number[]): number {
-    if (vector1.length !== vector2.length) {
-      throw new Error('Los vectores deben tener la misma longitud');
-    }
-    const v1 = math.matrix(vector1);
-    const v2 = math.matrix(vector2);
-    return math.dot(v1, v2);
-  }
-
-  /**
-   * Normaliza un vector para cálculos de similitud
-   * @param vector Vector a normalizar
-   * @returns Vector normalizado
-   */
-  private normalizeVector(vector: number[]): number[] {
-    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-    return magnitude === 0 ? vector : vector.map((value) => value / magnitude);
   }
 }
