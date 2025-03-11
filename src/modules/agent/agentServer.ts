@@ -14,7 +14,8 @@ import { FunctionCallService } from './function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { FileService } from '../file/file.service'; // Correct import path
-import { VoyageService } from '../agent-knowledgebase/voyage.service'; // Correct import path
+import { InputType, VoyageService } from '../agent-knowledgebase/voyage.service'; // Correct import path
+import * as math from 'mathjs';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {
@@ -159,16 +160,60 @@ export class AgentService {
       // Procesar archivos de knowledge base si existen
       if (fileIds.length > 0) {
         try {
-          for (const fileId of fileIds) {
-            const filePath = `uploads/organizations/${organizationId}/files/${fileId}`;
-            console.log(`Procesando archivo: ${filePath}`);
+          // Obtener el embedding del mensaje del usuario
+          const messageEmbedding = await this.voyageService.getEmbedding([message], InputType.Query);
+          if (!messageEmbedding.length) {
+            console.warn('No se pudo generar embedding para el mensaje del usuario');
+          } else {
+            const queryEmbedding = messageEmbedding[0];
+            const documentEmbeddings: number[][] = [];
+            const documentTexts: string[] = [];
 
-            const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
-            const embedding = await this.voyageService.getEmbedding([text]);
-            console.log('Embedding generado:', embedding.slice(0, 5));
+            for (const fileId of fileIds) {
+              const filePath = `uploads/organizations/${organizationId}/files/${fileId}`;
+              console.log(`Procesando archivo: ${filePath}`);
+
+              const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
+              const paragraphs = this.fileService.splitTextIntoParagraphs(text);
+              const embeddings = await this.voyageService.getEmbedding(paragraphs, InputType.Document);
+
+              if (embeddings.length > 0) {
+                console.log('Embeddings generados:', embeddings.length);
+
+                // Guardar embeddings y textos correspondientes
+                embeddings.forEach((embedding, index) => {
+                  documentEmbeddings.push(embedding);
+                  documentTexts.push(paragraphs[index]);
+                });
+              }
+            }
+
+            // Calcular similitud de coseno entre el mensaje y cada documento directamente sin normalización
+            const similarities = documentEmbeddings.map((docEmbedding) => this.calculateDotProduct(docEmbedding, queryEmbedding));
+
+            // Ordenar todos los documentos por similitud
+            const allDocumentsSorted = similarities.map((similarity, index) => ({ similarity, text: documentTexts[index], index })).sort((a, b) => b.similarity - a.similarity);
+
+            // Seleccionar los 3 con máxima similitud
+            const top3Documents = allDocumentsSorted.slice(0, 3);
+
+            // De los restantes, agregar los que estén arriba del umbral
+            const threshold = 0.7;
+            const additionalRelevantDocs = allDocumentsSorted.slice(3).filter((doc) => doc.similarity > threshold);
+
+            // Combinar los resultados
+            const relevantDocuments = [...top3Documents, ...additionalRelevantDocs];
+
+            // Mostrar los documentos relevantes
+            if (relevantDocuments.length > 0) {
+              console.log('Documentos relevantes:');
+              relevantDocuments.forEach((doc) => {
+                console.log(`Similitud: ${doc.similarity.toFixed(4)}, Texto: "${doc.text.substring(0, 100)}..."`);
+              });
+            }
           }
         } catch (error) {
-          console.error('Error al generar embeddings:', error);
+          console.error('Error al generar embeddings o calcular similitud:', error);
         }
       }
 
@@ -333,5 +378,31 @@ export class AgentService {
       await this.conversationRepository.save(conversation);
     }
     return response;
+  }
+
+  /**
+   * Calcula el producto punto entre dos vectores (similitud de coseno para vectores normalizados)
+   * usando mathjs para mayor eficiencia
+   * @param vector1 Primer vector
+   * @param vector2 Segundo vector
+   * @returns Valor de similitud entre 0 y 1
+   */
+  private calculateDotProduct(vector1: number[], vector2: number[]): number {
+    if (vector1.length !== vector2.length) {
+      throw new Error('Los vectores deben tener la misma longitud');
+    }
+    const v1 = math.matrix(vector1);
+    const v2 = math.matrix(vector2);
+    return math.dot(v1, v2);
+  }
+
+  /**
+   * Normaliza un vector para cálculos de similitud
+   * @param vector Vector a normalizar
+   * @returns Vector normalizado
+   */
+  private normalizeVector(vector: number[]): number[] {
+    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+    return magnitude === 0 ? vector : vector.map((value) => value / magnitude);
   }
 }

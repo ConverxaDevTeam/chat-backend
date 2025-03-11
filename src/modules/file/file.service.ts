@@ -170,4 +170,67 @@ export class FileService {
         }
     }
   }
+
+  /**
+   * Estima la cantidad de tokens en un texto
+   * @param text Texto a analizar
+   * @returns Número estimado de tokens
+   */
+  private estimateTokens(text: string): number {
+    const wordCount = text.split(/\s+/).length;
+    return Math.ceil(wordCount * 1.5); // Factor de seguridad para no exceder límite
+  }
+
+  /**
+   * Divide un texto en párrafos manejables para procesamiento
+   * @param text Texto a dividir
+   * @param maxTokens Máximo de tokens por párrafo
+   * @param overlap Cantidad de caracteres que se solapan entre párrafos
+   * @returns Array de párrafos
+   */
+  splitTextIntoParagraphs(text: string, maxTokens = 1536, overlap = 100): string[] {
+    // Aproximadamente 1536 tokens (2/3 del límite) para evitar errores
+    const paragraphs = text.split(/\n+/).filter((p) => p.trim().length > 0);
+    const result: string[] = [];
+    let currentChunk = '';
+    let lastAddedText = '';
+    let currentTokenCount = 0;
+
+    for (const paragraph of paragraphs) {
+      const sentences = paragraph.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
+      for (const sentence of sentences) {
+        const sentenceTokens = this.estimateTokens(sentence);
+        if (currentTokenCount + sentenceTokens > maxTokens) {
+          this.addChunkToResult(result, currentChunk);
+          lastAddedText = currentChunk.slice(-overlap);
+          currentChunk = lastAddedText;
+          currentTokenCount = this.estimateTokens(lastAddedText);
+        }
+        currentChunk += sentence + ' ';
+        currentTokenCount += sentenceTokens;
+      }
+      currentChunk += '\n';
+      if (currentTokenCount > maxTokens) {
+        this.addChunkToResult(result, currentChunk);
+        lastAddedText = currentChunk.slice(-overlap);
+        currentChunk = lastAddedText;
+        currentTokenCount = this.estimateTokens(lastAddedText);
+      }
+    }
+    if (currentChunk.trim().length > 0 && currentChunk !== lastAddedText) {
+      result.push(currentChunk.trim());
+    }
+    return result;
+  }
+
+  /**
+   * Agrega un fragmento de texto al resultado
+   * @param result Array de resultados
+   * @param chunk Fragmento a agregar
+   */
+  private addChunkToResult(result: string[], chunk: string): void {
+    if (chunk.trim().length > 0) {
+      result.push(chunk.trim());
+    }
+  }
 }
