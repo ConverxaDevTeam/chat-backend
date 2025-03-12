@@ -289,9 +289,11 @@ export class AgentService {
       }
 
       const queryEmbedding = messageEmbedding[0];
+      // Filtrar archivos no existentes
+      const existingFileIds = await this.vectorStoreService.getFileIdsByAgentId(agentId, fileIds);
 
       // Extraer texto y generar embeddings
-      await this.extractTextAndGenerateEmbeddings(fileIds, organizationId, agentId);
+      await this.extractTextAndGenerateEmbeddings(existingFileIds, organizationId, agentId);
 
       // Calcular similitud y ordenar documentos
       const allDocumentsSorted = await this.vectorStoreService.findSimilarDocumentsByAgentId(queryEmbedding, agentId);

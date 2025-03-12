@@ -40,6 +40,22 @@ export class VectorStoreService {
     await this.dataSource.query('DELETE FROM knowledge_base_documents WHERE fileId = $1', [fileId]);
   }
 
+  async getFileIdsByAgentId(agentId: number, fileIds: string[]): Promise<string[]> {
+    // Execute query with error handling
+    try {
+      const existingIds = await this.dataSource
+        .query<{ fileid: string }[]>('SELECT DISTINCT fileId FROM knowledge_base_documents WHERE agentid = $1', [agentId])
+        .then((results) => {
+          return results.map((r) => r.fileid).filter(Boolean);
+        });
+
+      return [...new Set(fileIds)].filter((id) => !existingIds.includes(id));
+    } catch (error) {
+      console.error('Error executing query:', error);
+      throw error;
+    }
+  }
+
   /**
    * Busca documentos similares a una consulta por agentId
    * @param queryEmbedding Embedding de la consulta
