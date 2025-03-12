@@ -188,37 +188,35 @@ export class FileService {
    * @param overlap Cantidad de caracteres que se solapan entre párrafos
    * @returns Array de párrafos
    */
-  splitTextIntoParagraphs(text: string, maxTokens = 1536, overlap = 100): string[] {
-    // Aproximadamente 1536 tokens (2/3 del límite) para evitar errores
-    const paragraphs = text.split(/\n+/).filter((p) => p.trim().length > 0);
+  splitTextIntoParagraphs(text: string, minWords = 50): string[] {
+    const sentences = text.split(/(?<=\.{1,})\s*/).filter((s) => s.trim().length > 0);
     const result: string[] = [];
     let currentChunk = '';
-    let lastAddedText = '';
-    let currentTokenCount = 0;
+    let currentWordCount = 0;
 
-    for (const paragraph of paragraphs) {
-      const sentences = paragraph.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
-      for (const sentence of sentences) {
-        const sentenceTokens = this.estimateTokens(sentence);
-        if (currentTokenCount + sentenceTokens > maxTokens) {
-          this.addChunkToResult(result, currentChunk);
-          lastAddedText = currentChunk.slice(-overlap);
-          currentChunk = lastAddedText;
-          currentTokenCount = this.estimateTokens(lastAddedText);
+    for (let i = 0; i < sentences.length; i++) {
+      const sentence = sentences[i];
+      const words = sentence.split(' ').filter((w) => w.trim().length > 0);
+
+      if (words.length === 0) continue;
+
+      if (words.length >= minWords) {
+        if (currentChunk.trim().length > 0) {
+          result.push(currentChunk.trim());
+          currentChunk = '';
+          currentWordCount = 0;
         }
-        currentChunk += sentence + ' ';
-        currentTokenCount += sentenceTokens;
+        result.push(sentence.trim());
+      } else {
+        if (currentChunk.trim().length > 0) currentChunk += ' ';
+        currentChunk += sentence;
+        currentWordCount += words.length;
+        if (currentWordCount >= minWords || i === sentences.length - 1) {
+          result.push(currentChunk.trim());
+          currentChunk = '';
+          currentWordCount = 0;
+        }
       }
-      currentChunk += '\n';
-      if (currentTokenCount > maxTokens) {
-        this.addChunkToResult(result, currentChunk);
-        lastAddedText = currentChunk.slice(-overlap);
-        currentChunk = lastAddedText;
-        currentTokenCount = this.estimateTokens(lastAddedText);
-      }
-    }
-    if (currentChunk.trim().length > 0 && currentChunk !== lastAddedText) {
-      result.push(currentChunk.trim());
     }
     return result;
   }
