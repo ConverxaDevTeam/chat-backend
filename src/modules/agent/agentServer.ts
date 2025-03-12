@@ -15,6 +15,7 @@ import { SystemEventsService } from '@modules/system-events/system-events.servic
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { FileService } from '../file/file.service'; // Correct import path
 import { InputType, VoyageService } from '../agent-knowledgebase/voyage.service'; // Correct import path
+import { VectorStoreService } from '../agent-knowledgebase/vector-store.service'; // Correct import path
 import * as math from 'mathjs';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
@@ -85,6 +86,7 @@ export class AgentService {
   constructor(
     private readonly fileService: FileService, // Inject FileService
     private readonly voyageService: VoyageService, // Inject VoyageService
+    private readonly vectorStoreService: VectorStoreService, // Inject VectorStoreService
     @InjectRepository(Agente)
     private readonly agenteRepository: Repository<Agente>,
     @InjectRepository(Funcion)
@@ -159,7 +161,7 @@ export class AgentService {
       }
       // Procesar archivos de knowledge base si existen
       if (fileIds.length > 0 && organizationId) {
-        const contextInfo = await this.processKnowledgeBaseFiles(message, fileIds, organizationId);
+        const contextInfo = await this.processKnowledgeBaseFiles(message, fileIds, organizationId, agentId);
         if (contextInfo) {
           // Guardar el contexto en agenteConfig para ser utilizado por Claude
           agenteConfig.instruccion = `${agenteConfig.instruccion}\n${contextInfo}`;
@@ -274,9 +276,10 @@ export class AgentService {
    * @param message Mensaje del usuario
    * @param fileIds IDs de archivos de knowledge base
    * @param organizationId ID de la organización
+   * @param agentId ID del agente
    * @returns Documentos relevantes encontrados
    */
-  private async processKnowledgeBaseFiles(message: string, fileIds: string[], organizationId: number): Promise<string> {
+  private async processKnowledgeBaseFiles(message: string, fileIds: string[], organizationId: number, agentId: number): Promise<string> {
     try {
       // Obtener embedding del mensaje
       const messageEmbedding = await this.voyageService.getEmbedding([message], InputType.Query);
@@ -288,7 +291,7 @@ export class AgentService {
       const queryEmbedding = messageEmbedding[0];
 
       // Extraer texto y generar embeddings
-      const documentData = await this.extractTextAndGenerateEmbeddings(fileIds, organizationId);
+      const documentData = await this.extractTextAndGenerateEmbeddings(fileIds, organizationId, agentId);
 
       // Calcular similitud y ordenar documentos
       const allDocumentsSorted = this.calculateDocumentSimilarity(queryEmbedding, documentData);
@@ -336,11 +339,16 @@ export class AgentService {
    * Extrae texto de archivos y genera embeddings para documentos
    * @param fileIds IDs de los archivos a procesar
    * @param organizationId ID de la organización
+   * @param agentId ID del agente (opcional)
    * @returns Array con textos y embeddings generados
    */
-  private async extractTextAndGenerateEmbeddings(fileIds: string[], organizationId: number): Promise<{ documentEmbeddings: number[][]; documentTexts: string[] }> {
+  private async extractTextAndGenerateEmbeddings(
+    fileIds: string[],
+    organizationId: number,
+    agentId?: number,
+  ): Promise<{ documentEmbeddings: number[][]; documentTexts: string[] }> {
     const allParagraphs: string[] = [];
-    const fileIndexMap: Record<number, string> = {};
+    const fileParaMap: Record<number, string> = {};
     let currentIndex = 0;
 
     const extractTextPromises = fileIds.map(async (fileId) => {
@@ -351,7 +359,7 @@ export class AgentService {
 
       paragraphs.forEach((paragraph) => {
         allParagraphs.push(paragraph);
-        fileIndexMap[currentIndex++] = fileId;
+        fileParaMap[currentIndex++] = fileId;
       });
     });
 
@@ -359,6 +367,25 @@ export class AgentService {
 
     const allEmbeddings = await this.voyageService.getEmbedding(allParagraphs, InputType.Document);
     console.log('Total embeddings generados:', allEmbeddings.length);
+
+    // Guardar los documentos con sus embeddings en la base de datos si se proporciona un agentId
+    if (agentId) {
+      // Preparar todos los documentos, embeddings y fileIds para una sola llamada
+      const allDocuments: string[] = [];
+      const embeddingsToSave: number[][] = [];
+      const allFileIds: string[] = [];
+      const metadata: Record<string, any> = {};
+
+      Object.entries(fileParaMap).forEach(([index, fileId]) => {
+        const idx = Number(index);
+        allDocuments.push(allParagraphs[idx]);
+        embeddingsToSave.push(allEmbeddings[idx]);
+        allFileIds.push(fileId);
+        metadata[`${fileId}_${idx}`] = { fileId };
+      });
+
+      await this.vectorStoreService.saveDocumentsWithEmbeddings(allDocuments, embeddingsToSave, allFileIds, agentId, metadata);
+    }
 
     return {
       documentEmbeddings: allEmbeddings,
