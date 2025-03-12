@@ -50,7 +50,7 @@ async function testPgVector() {
     // Crear tabla para pruebas
     await AppDataSource.query('DROP TABLE IF EXISTS typeorm_items');
     await AppDataSource.query(
-      'CREATE TABLE typeorm_items (id bigserial PRIMARY KEY, embedding vector(3), half_embedding halfvec(3), binary_embedding bit(3), sparse_embedding sparsevec(3))'
+      'CREATE TABLE typeorm_items (id bigserial PRIMARY KEY, embedding vector(3), half_embedding halfvec(3), binary_embedding bit(3), sparse_embedding sparsevec(3))',
     );
     console.log('Tabla de prueba creada');
 

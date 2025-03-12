@@ -220,15 +220,4 @@ export class FileService {
     }
     return result;
   }
-
-  /**
-   * Agrega un fragmento de texto al resultado
-   * @param result Array de resultados
-   * @param chunk Fragmento a agregar
-   */
-  private addChunkToResult(result: string[], chunk: string): void {
-    if (chunk.trim().length > 0) {
-      result.push(chunk.trim());
-    }
-  }
 }

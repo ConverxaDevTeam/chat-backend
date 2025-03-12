@@ -1,15 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { KnowledgeBaseDocument } from '@models/agent/KnowledgeBaseDocument.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { toSql } from 'pgvector';
+import { DataSource } from 'typeorm';
 
 @Injectable()
 export class VectorStoreService {
-  constructor(
-    @InjectRepository(KnowledgeBaseDocument)
-    private readonly knowledgeBaseDocumentRepository: Repository<KnowledgeBaseDocument>,
-  ) {}
+  constructor(private readonly dataSource: DataSource) {}
 
   /**
    * Guarda documentos con sus embeddings en la base de datos
@@ -20,29 +16,19 @@ export class VectorStoreService {
    * @param metadata Metadatos adicionales
    * @returns Array de documentos guardados
    */
-  async saveDocumentsWithEmbeddings(
-    documents: string[],
-    embeddings: number[][],
-    fileIds: string[],
-    agentId: number,
-    metadata: Record<string, any> = {},
-  ): Promise<KnowledgeBaseDocument[]> {
-    if (documents.length !== embeddings.length || documents.length !== fileIds.length) {
-      throw new Error('La cantidad de documentos, embeddings y fileIds debe ser igual');
-    }
+  async saveDocumentsWithEmbeddings(documents: string[], embeddings: number[][], fileIds: string[], agentId: number, metadata: Record<string, any> = {}): Promise<void> {
+    const query = `
+      INSERT INTO knowledge_base_documents 
+      (id, content, embedding, fileId, agentId, metadata)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `;
 
-    const documentsToSave = documents.map((content, index) => {
-      const doc = new KnowledgeBaseDocument();
-      doc.id = uuidv4();
-      doc.content = content;
-      doc.fileId = fileIds[index];
-      doc.agentId = agentId;
-      doc.embedding = JSON.stringify(embeddings[index]);
-      doc.metadata = { ...metadata, index };
-      return doc;
-    });
-
-    return this.knowledgeBaseDocumentRepository.save(documentsToSave);
+    await Promise.all(
+      documents.map((content, index) => {
+        const params = [uuidv4(), content, `[${embeddings[index].join(',')}]`, fileIds[index], agentId, JSON.stringify({ ...metadata, index })];
+        return this.dataSource.query(query, params);
+      }),
+    );
   }
 
   /**
@@ -51,25 +37,7 @@ export class VectorStoreService {
    * @returns Resultado de la operación
    */
   async deleteDocumentsByFileId(fileId: string): Promise<void> {
-    await this.knowledgeBaseDocumentRepository.delete({ fileId });
-  }
-
-  /**
-   * Obtiene documentos por fileId
-   * @param fileId ID del archivo
-   * @returns Array de documentos
-   */
-  async getDocumentsByFileId(fileId: string): Promise<KnowledgeBaseDocument[]> {
-    return this.knowledgeBaseDocumentRepository.find({ where: { fileId } });
-  }
-
-  /**
-   * Obtiene documentos por agentId
-   * @param agentId ID del agente
-   * @returns Array de documentos
-   */
-  async getDocumentsByAgentId(agentId: number): Promise<KnowledgeBaseDocument[]> {
-    return this.knowledgeBaseDocumentRepository.find({ where: { agentId } });
+    await this.dataSource.query('DELETE FROM knowledge_base_documents WHERE fileId = $1', [fileId]);
   }
 
   /**
@@ -79,10 +47,14 @@ export class VectorStoreService {
    * @param limit Número máximo de resultados
    * @returns Array de documentos
    */
-  async findSimilarDocumentsByAgentId(queryEmbedding: number[], agentId: number, limit: number = 5): Promise<KnowledgeBaseDocument[]> {
-    const documents = await this.getDocumentsByAgentId(agentId);
-    // En una implementación futura, aquí se podría calcular la similitud
-    // entre queryEmbedding y los embeddings de los documentos
-    return documents.slice(0, limit);
+  async findSimilarDocumentsByAgentId(queryEmbedding: number[], agentId: number, limit: number = 5): Promise<any[]> {
+    const query = `
+      SELECT *, embedding <-> $1 AS distance
+      FROM knowledge_base_documents
+      WHERE agentId = $2
+      ORDER BY distance
+      LIMIT $3
+    `;
+    return this.dataSource.query(query, [toSql(queryEmbedding), agentId, limit]);
   }
 }

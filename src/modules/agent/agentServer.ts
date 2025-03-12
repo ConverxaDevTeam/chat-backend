@@ -291,48 +291,30 @@ export class AgentService {
       const queryEmbedding = messageEmbedding[0];
 
       // Extraer texto y generar embeddings
-      const documentData = await this.extractTextAndGenerateEmbeddings(fileIds, organizationId, agentId);
+      await this.extractTextAndGenerateEmbeddings(fileIds, organizationId, agentId);
 
       // Calcular similitud y ordenar documentos
-      const allDocumentsSorted = this.calculateDocumentSimilarity(queryEmbedding, documentData);
+      const allDocumentsSorted = await this.vectorStoreService.findSimilarDocumentsByAgentId(queryEmbedding, agentId);
 
       // Seleccionar documentos relevantes
       const top3Documents = allDocumentsSorted.slice(0, 3);
-      const threshold = 0.7;
-      const additionalRelevantDocs = allDocumentsSorted.slice(3).filter((doc) => doc.similarity > threshold);
 
-      // Combinar resultados
-      const relevantDocuments = [...top3Documents, ...additionalRelevantDocs];
+      // Construir contexto
+      const context = top3Documents.map((doc, index) => `Documento ${index + 1}: ${doc.content}`).join('\n\n');
 
       // Mostrar documentos relevantes en consola
-      if (relevantDocuments.length > 0) {
+      if (top3Documents.length > 0) {
         console.log('Documentos relevantes:');
-        relevantDocuments.forEach((doc) => {
-          console.log(`Similitud: ${doc.similarity.toFixed(4)}, Texto: "${doc.text.substring(0, 100)}..."`);
+        top3Documents.forEach((doc) => {
+          console.log(`Texto: "${doc.content.substring(0, 100)}..."`);
         });
       }
 
-      // Formatear documentos para Claude
-      return this.formatDocumentsForClaude(relevantDocuments);
+      return context;
     } catch (error) {
       console.error('Error al generar embeddings o calcular similitud:', error);
       return '';
     }
-  }
-
-  /**
-   * Formatea documentos relevantes para Claude
-   * @param documents Documentos relevantes ordenados por similitud
-   * @returns String formateado para incluir en el prompt de Claude
-   */
-  private formatDocumentsForClaude(documents: { similarity: number; text: string; index: number }[]): string {
-    if (!documents.length) return '';
-
-    const formattedDocs = documents.map((doc, idx) => {
-      return `Documento ${idx + 1} (Relevancia: ${doc.similarity.toFixed(4)}):\n${doc.text.trim()}\n`;
-    });
-
-    return `\n\nReferencias relevantes para la consulta:\n\n${formattedDocs.join('\n')}`;
   }
 
   /**
