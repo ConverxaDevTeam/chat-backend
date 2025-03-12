@@ -7,6 +7,7 @@ import { Funcion } from '@models/agent/Function.entity';
 import { AgentManagerService } from '@modules/agent-manager/agent-manager.service';
 import { FileService } from '@modules/file/file.service';
 import { join } from 'path';
+import { VectorStoreService } from './vector-store.service';
 
 @Injectable()
 export class AgentKnowledgebaseService {
@@ -19,6 +20,7 @@ export class AgentKnowledgebaseService {
     private agenteRepository: Repository<Agente>,
     private readonly agentManagerService: AgentManagerService,
     private readonly fileService: FileService,
+    private readonly vectorStoreService: VectorStoreService,
   ) {}
 
   private async ensureVectorStore(agent: Agente) {
@@ -161,6 +163,8 @@ export class AgentKnowledgebaseService {
         add: false,
         hitl: agent.canEscalateToHuman,
       };
+      console.log('fileId to delete', knowledgeBase.fileId);
+      await this.vectorStoreService.deleteDocumentsByFileId(knowledgeBase.fileId);
       await this.agentManagerService.updateAssistantToolResources(agent.config.agentId as string, null, updateToolResourcesData);
 
       return { message: 'Knowledge base deleted successfully' };

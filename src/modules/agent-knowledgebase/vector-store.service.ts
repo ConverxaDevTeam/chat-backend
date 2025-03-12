@@ -37,7 +37,7 @@ export class VectorStoreService {
    * @returns Resultado de la operación
    */
   async deleteDocumentsByFileId(fileId: string): Promise<void> {
-    await this.dataSource.query('DELETE FROM knowledge_base_documents WHERE fileId = $1', [fileId]);
+    await this.dataSource.query('DELETE FROM knowledge_base_documents WHERE fileid = $1', [fileId]);
   }
 
   async getFileIdsByAgentId(agentId: number, fileIds: string[]): Promise<string[]> {
