@@ -377,47 +377,6 @@ export class AgentService {
     };
   }
 
-  /**
-   * Calcula similitud entre query y documentos y ordena por relevancia
-   * @param queryEmbedding Embedding de la consulta
-   * @param documentData Datos de los documentos (embeddings y textos)
-   * @returns Documentos ordenados por relevancia
-   */
-  private calculateDocumentSimilarity(
-    queryEmbedding: number[],
-    documentData: { documentEmbeddings: number[][]; documentTexts: string[] },
-  ): { similarity: number; text: string; index: number }[] {
-    const { documentEmbeddings, documentTexts } = documentData;
-
-    // Calcular similitud usando el producto punto
-    const similarities = documentEmbeddings.map((docEmbedding) => this.calculateDotProduct(docEmbedding, queryEmbedding));
-
-    // Mapear y ordenar documentos por similitud
-    return similarities
-      .map((similarity, index) => ({
-        similarity,
-        text: documentTexts[index],
-        index,
-      }))
-      .sort((a, b) => b.similarity - a.similarity);
-  }
-
-  /**
-   * Calcula el producto punto entre dos vectores (similitud de coseno para vectores normalizados)
-   * usando mathjs para mayor eficiencia
-   * @param vector1 Primer vector
-   * @param vector2 Segundo vector
-   * @returns Valor de similitud entre 0 y 1
-   */
-  private calculateDotProduct(vector1: number[], vector2: number[]): number {
-    if (vector1.length !== vector2.length) {
-      throw new Error('Los vectores deben tener la misma longitud');
-    }
-    const v1 = math.matrix(vector1);
-    const v2 = math.matrix(vector2);
-    return math.dot(v1, v2);
-  }
-
   async processMessageWithConversation(message: string, conversation: Conversation, images: string[], chatUserId?: number): Promise<AgentResponse | null> {
     let config = conversation.config as SofiaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
