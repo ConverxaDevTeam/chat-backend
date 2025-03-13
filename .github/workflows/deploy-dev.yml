@@ -74,6 +74,8 @@ jobs:
             MAILGUN_API_KEY=${{ secrets.DEV_MAILGUN_API_KEY }}
             MAILGUN_DOMAIN=${{ secrets.DEV_MAILGUN_DOMAIN }}
             MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
+            VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
+            CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
             EOF
             node src/config/install-pgvector.js
             docker-compose build

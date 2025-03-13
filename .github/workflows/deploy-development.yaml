@@ -64,6 +64,8 @@ jobs:
             SLACK_CLIENT_ID=${{ secrets.SLACK_CLIENT_ID }}
             SLACK_CLIENT_SECRET=${{ secrets.SLACK_CLIENT_SECRET }}
             SLACK_REDIRECT_URI=${{ secrets.SLACK_REDIRECT_URI }}
+            VOYAGE_API_KEY=${{ secrets.VOYAGE_API_KEY }}
+            CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
             EOF
             docker-compose build
             docker-compose down -v
