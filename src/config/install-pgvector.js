@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+const { DataSource } = require('typeorm');
 
 const installPgVector = async () => {
   const dataSource = new DataSource({

@@ -23,6 +23,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install pgvector
+        run: node src/config/install-pgvector.js
+
       - name: Deploy using ssh
         uses: appleboy/ssh-action@master
         with:
