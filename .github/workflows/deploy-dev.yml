@@ -26,6 +26,16 @@ jobs:
       - name: Install dependencies
         run: npm install pg
 
+      - name: Install pgvector on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USERNAME }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            sudo apt-get update && sudo apt-get install -y postgresql-16-pgvector
+
       - name: Install pgvector
         run: |
           TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }} \
