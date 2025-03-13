@@ -23,6 +23,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install dependencies
+        run: npm install pg
+
       - name: Install pgvector
         run: |
           TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }} \
