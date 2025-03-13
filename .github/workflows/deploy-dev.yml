@@ -24,7 +24,13 @@ jobs:
           fetch-depth: 0
 
       - name: Install pgvector
-        run: node src/config/install-pgvector.js
+        run: |
+          TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }} \
+          TYPEORM_PORT=${{ secrets.DEV_TYPEORM_PORT }} \
+          TYPEORM_USERNAME=${{ secrets.DEV_TYPEORM_USERNAME }} \
+          TYPEORM_PASSWORD=${{ secrets.DEV_TYPEORM_PASSWORD }} \
+          TYPEORM_DB_NAME=${{ secrets.DEV_TYPEORM_DB_NAME }} \
+          node src/config/install-pgvector.js
 
       - name: Deploy using ssh
         uses: appleboy/ssh-action@master

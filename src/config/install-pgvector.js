@@ -1,21 +1,17 @@
-const { DataSource } = require('typeorm');
+const { Client } = require('pg');
 
-const installPgVector = async () => {
-  const dataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.DB_HOST,
-    port: parseInt(process.env.DB_PORT),
-    username: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-  });
-
-  await dataSource.initialize();
-  await dataSource.query('CREATE EXTENSION IF NOT EXISTS vector;');
-  await dataSource.destroy();
-};
-
-installPgVector().catch((error) => {
-  console.error('Error installing pgvector:', error);
-  process.exit(1);
+const client = new Client({
+  user: process.env.TYPEORM_USERNAME || 'postgres',
+  host: process.env.TYPEORM_HOST || 'localhost',
+  database: process.env.TYPEORM_DB_NAME || 'postgres',
+  password: process.env.TYPEORM_PASSWORD || 'postgres',
+  port: parseInt(process.env.TYPEORM_PORT) || 5432,
 });
+
+client.connect()
+  .then(() => client.query('CREATE EXTENSION IF NOT EXISTS vector;'))
+  .catch((error) => {
+    console.error('Error installing pgvector:', error);
+    process.exit(1);
+  })
+  .finally(() => client.end());
