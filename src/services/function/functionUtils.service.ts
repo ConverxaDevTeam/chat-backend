@@ -33,7 +33,7 @@ export class FunctionUtilsService {
       organizationId: agent.departamento.organizacion.id,
     };
 
-    await this.agentManagerService.updateFunctions(functions, agentConfig.agentId!, !!agentConfig.vectorStoreId, agent.canEscalateToHuman, agentConfig.organizationId);
+    await this.agentManagerService.updateFunctions(functions, agentConfig.agentId!, !!agentConfig.vectorStoreId, agent.canEscalateToHuman, agentConfig.organizationId, agent.id);
   }
 
   async testFunction(functionId: number, params: Record<string, any>): Promise<any> {

@@ -138,7 +138,6 @@ export class IntegrationRouterService {
 
   async sendEventToUser(conversationId: number, event: EventType, conversationType?: ConversationType, chatUserId?: number) {
     if (conversationType === ConversationType.CHAT_WEB && chatUserId) {
-      console.log(event, conversationId);
       if (this.socketService.hasWebChatClient(chatUserId)) {
         this.socketService.sendEventToWebChatUser(chatUserId, event, conversationId);
       }

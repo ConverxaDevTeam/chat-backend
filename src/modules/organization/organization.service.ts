@@ -1,7 +1,7 @@
 import { Organization } from '@models/Organization.entity';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UserService } from '@modules/user/user.service';
 import { UserOrganizationService } from './UserOrganization.service';
@@ -9,6 +9,8 @@ import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization
 import { User } from '@models/User.entity';
 import { EmailService } from '../email/email.service';
 import { FileService } from '@modules/file/file.service';
+import { AgenteType } from 'src/interfaces/agent';
+import { Agente } from '@models/agent/Agente.entity';
 
 @Injectable()
 export class OrganizationService {
@@ -17,6 +19,8 @@ export class OrganizationService {
     private readonly organizationRepository: Repository<Organization>,
     @InjectRepository(UserOrganization)
     private readonly userOrganizationRepository: Repository<UserOrganization>,
+    @InjectRepository(Agente)
+    private readonly agentRepository: Repository<Agente>,
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
     private readonly emailService: EmailService,
@@ -28,6 +32,9 @@ export class OrganizationService {
       relations: {
         userOrganizations: {
           user: true,
+        },
+        departamentos: {
+          agente: true,
         },
       },
       select: {
@@ -42,6 +49,14 @@ export class OrganizationService {
           user: {
             id: true,
             email: true,
+          },
+        },
+        departamentos: {
+          id: true,
+          name: true,
+          agente: {
+            id: true,
+            type: true,
           },
         },
       },
@@ -151,5 +166,18 @@ export class OrganizationService {
   async updateOrganization(organizationId: number, updateData: Partial<Organization>): Promise<Organization> {
     await this.organizationRepository.update(organizationId, updateData as any);
     return this.organizationRepository.findOneOrFail({ where: { id: organizationId } });
+  }
+
+  async updateAgentType(organizationId: number, agentType: AgenteType): Promise<void> {
+    const agentes = await this.agentRepository
+      .createQueryBuilder('agente')
+      .innerJoin('agente.departamento', 'departamento')
+      .innerJoin('departamento.organizacion', 'organization')
+      .where('organization.id = :organizationId', { organizationId })
+      .getMany();
+
+    if (agentes.length > 0) {
+      await this.agentRepository.update({ id: In(agentes.map((agente) => agente.id)) }, { type: agentType });
+    }
   }
 }
