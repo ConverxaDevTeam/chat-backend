@@ -36,15 +36,6 @@ jobs:
           script: |
             sudo apt-get update && sudo apt-get install -y postgresql-16-pgvector
 
-      - name: Install pgvector
-        run: |
-          TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }} \
-          TYPEORM_PORT=${{ secrets.DEV_TYPEORM_PORT }} \
-          TYPEORM_USERNAME=${{ secrets.DEV_TYPEORM_USERNAME }} \
-          TYPEORM_PASSWORD=${{ secrets.DEV_TYPEORM_PASSWORD }} \
-          TYPEORM_DB_NAME=${{ secrets.DEV_TYPEORM_DB_NAME }} \
-          node src/config/install-pgvector.js
-
       - name: Deploy using ssh
         uses: appleboy/ssh-action@master
         with:
@@ -84,6 +75,7 @@ jobs:
             MAILGUN_DOMAIN=${{ secrets.DEV_MAILGUN_DOMAIN }}
             MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
             EOF
+            node src/config/install-pgvector.js
             docker-compose build
             docker-compose down -v
             docker-compose up -d
