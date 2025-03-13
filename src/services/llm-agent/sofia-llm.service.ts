@@ -48,11 +48,13 @@ const createFunctionTool = (func: FunctionResponse) => {
   const requestBody = (func.config as HttpRequestConfig).requestBody || [];
   const properties = buildParameterProperties(requestBody);
   const required = requestBody.filter((param) => param.required).map((param) => param.name);
+  // Sanitizar el nombre de la función para cumplir con el patrón requerido por OpenAI
+  const sanitizedName = `${UserFunctionPrefix}${func.name.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
   return {
     type: 'function' as const,
     function: {
-      name: `${UserFunctionPrefix}${func.name}`, // Evitar múltiples guiones bajos seguidos
+      name: sanitizedName,
       description: func.description,
       parameters: {
         type: 'object',
@@ -576,7 +578,13 @@ export class SofiaLLMService extends BaseAgent {
       });
       const updateData: { tools?: OpenAI.Beta.Assistants.AssistantTool[]; tool_resources?: { file_search: { vector_store_ids: string[] } } } = {};
 
-      updateData.tools = buildToolsArray({ funciones: updateToolFunction.funciones });
+      // Validar y sanitizar nombres de funciones
+      const sanitizedFunctions = updateToolFunction.funciones.map((func) => ({
+        ...func,
+        name: func.name.replace(/[^a-zA-Z0-9_-]/g, '_'),
+      }));
+
+      updateData.tools = buildToolsArray({ funciones: sanitizedFunctions });
 
       // Render HITL
       if (updateToolFunction.hitl) {

@@ -16,7 +16,6 @@ import { IntegrationRouterService } from '@modules/integration-router/integratio
 import { FileService } from '../file/file.service'; // Correct import path
 import { InputType, VoyageService } from '../agent-knowledgebase/voyage.service'; // Correct import path
 import { VectorStoreService } from '../agent-knowledgebase/vector-store.service'; // Correct import path
-import * as math from 'mathjs';
 
 /*** puede venir con departamento_id o con threat_id uno de los dos es necesario */
 interface AgentResponse {

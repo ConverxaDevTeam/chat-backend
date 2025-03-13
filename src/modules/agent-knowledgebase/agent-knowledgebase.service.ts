@@ -130,7 +130,6 @@ export class AgentKnowledgebaseService {
     const knowledgeBase = await this.findOne(id, ['agente', 'agente.funciones', 'agente.departamento.organizacion']);
     const agent = knowledgeBase.agente;
 
-    if (!agent.config?.vectorStoreId) throw new Error('Vector store ID not found in agent config');
     if (!agent.config?.agentId) throw new Error('Agent ID not found in agent config');
 
     try {
@@ -150,13 +149,16 @@ export class AgentKnowledgebaseService {
       // Verificar si quedan archivos en el vector store
       if (hasKnowledgeBases) return { message: 'Knowledge base deleted successfully' };
 
-      // Si no quedan archivos, eliminar el vector store y actualizar el agente
-      await this.agentManagerService.deleteVectorStore(agent.config.vectorStoreId as string);
+      if (agent.config?.vectorStoreId) {
+        // Si no quedan archivos, eliminar el vector store y actualizar el agente
+        await this.agentManagerService.deleteVectorStore(agent.config.vectorStoreId as string);
 
-      agent.config = {
-        ...agent.config,
-        vectorStoreId: null,
-      };
+        agent.config = {
+          ...agent.config,
+          vectorStoreId: null,
+        };
+      }
+
       await this.agenteRepository.save(agent);
       const updateToolResourcesData = {
         funciones: agent.funciones,
