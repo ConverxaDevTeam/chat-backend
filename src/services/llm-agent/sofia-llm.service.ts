@@ -430,9 +430,14 @@ export class SofiaLLMService extends BaseAgent {
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     this.renderHITL(hasHitl, tools);
-    await this.openai.beta.assistants.update(assistantId, {
-      tools,
-    });
+    try {
+      await this.openai.beta.assistants.update(assistantId, {
+        tools,
+      });
+    } catch (error) {
+      console.error('Error updating functions:', error);
+      throw error;
+    }
   }
 
   private renderHITL(hasHitl: boolean, tools: OpenAI.Beta.Assistants.AssistantTool[]) {
