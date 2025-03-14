@@ -97,12 +97,12 @@ export class FunctionService {
   }
 
   async remove(id: number): Promise<void> {
-    const result = await this.functionRepository.delete(id);
-    console.log('removing', result, id);
-    if (result.affected === 0) {
+    const functionData = await this.functionRepository.findOne({ where: { id }, select: ['agente'] });
+    if (!functionData) {
       throw new NotFoundException(`Function with ID ${id} not found`);
     }
-    await this.functionUtilsService.updateLLMFunctions(result.raw.agenteId);
+    await this.functionRepository.delete(id);
+    await this.functionUtilsService.updateLLMFunctions(functionData.agente.id);
   }
 
   async testFunction(functionId: number, params: Record<string, any>): Promise<any> {
