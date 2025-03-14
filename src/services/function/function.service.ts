@@ -97,7 +97,7 @@ export class FunctionService {
   }
 
   async remove(id: number): Promise<void> {
-    const functionData = await this.functionRepository.findOne({ where: { id }, select: ['agente'] });
+    const functionData = await this.functionRepository.findOne({ where: { id }, relations: ['agente'] });
     if (!functionData) {
       throw new NotFoundException(`Function with ID ${id} not found`);
     }
