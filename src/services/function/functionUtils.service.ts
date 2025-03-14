@@ -17,10 +17,10 @@ export class FunctionUtilsService {
   async updateLLMFunctions(agentId: number): Promise<void> {
     const functions = await this.functionRepository.find({
       where: { agente: { id: agentId } },
-      relations: ['agente', 'agente.departamento', 'agente.departamento.organizacion'],
+      relations: ['agente', 'agente.departamento', 'agente.departamento.organizacion', 'agente.config'],
     });
 
-    if (!functions[0]?.agente?.config?.agentId) throw new Error('No se pudo obtener la configuración del agente');
+    if (!functions[0]?.agente?.config?.agentId) throw new Error(`No se pudo obtener la configuración del agente ${functions[0]?.agente}`);
     const agent = functions[0].agente;
     if (!agent.config.instruccion) throw new Error('No se encontró la instrucción del agente');
 
