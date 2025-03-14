@@ -431,6 +431,7 @@ export class SofiaLLMService extends BaseAgent {
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     this.renderHITL(hasHitl, tools);
     try {
+      console.log('Updating functions...');
       await this.openai.beta.assistants.update(assistantId, {
         tools,
       });
