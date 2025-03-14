@@ -98,6 +98,7 @@ export class FunctionService {
 
   async remove(id: number): Promise<void> {
     const result = await this.functionRepository.delete(id);
+    console.log('removing', result);
     if (result.affected === 0) {
       throw new NotFoundException(`Function with ID ${id} not found`);
     }

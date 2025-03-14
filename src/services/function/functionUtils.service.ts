@@ -20,7 +20,7 @@ export class FunctionUtilsService {
       relations: ['agente', 'agente.departamento', 'agente.departamento.organizacion'],
     });
 
-    if (!functions[0]?.agente?.config?.agentId) throw new Error(`No se pudo obtener la configuración del agente ${functions[0]?.agente}`);
+    if (!functions[0]?.agente?.config?.agentId) throw new Error(`No se pudo obtener la configuración del agente ${functions[0]}, ${agentId}`);
     const agent = functions[0].agente;
     if (!agent.config.instruccion) throw new Error('No se encontró la instrucción del agente');
 
