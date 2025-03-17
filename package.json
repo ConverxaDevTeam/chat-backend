@@ -52,7 +52,7 @@
     "nest-winston": "^1.9.4",
     "openai": "4.73.1",
     "pdf-parse": "^1.1.1",
-    "pg": "^8.11.3",
+    "pg": "^8.14.0",
     "pgvector": "^0.2.0",
     "pptx2json": "^0.0.10",
     "reflect-metadata": "^0.1.13",

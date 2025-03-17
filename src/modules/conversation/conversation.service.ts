@@ -137,6 +137,7 @@ export class ConversationService {
         'lm.text as message_text',
         'lm.type as message_type',
         'COALESCE(uc.unread_count, 0) as unread_messages',
+        'd.name as department',
       ])
       .leftJoin(
         (qb) =>
