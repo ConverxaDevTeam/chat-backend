@@ -130,6 +130,7 @@ export class AgentService {
       if (!result) throw new Error('No se pudo obtener la configuracion del agente');
       if (!result.departamento?.organizacion) throw new Error('No se pudo obtener la organizacion');
       agenteConfig = setStartAgentConfig(result.config, result.funciones, result.departamento.organizacion.id, agentId, (result.config.instruccion as string) ?? '');
+      agenteConfig.threadId = (identifier as any).threatId;
     }
 
     if (!agenteConfig) {
