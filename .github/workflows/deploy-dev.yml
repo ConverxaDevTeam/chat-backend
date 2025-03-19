@@ -23,6 +23,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install dependencies
+        run: npm install pg
+
+      - name: Install pgvector on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USERNAME }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            sudo apt-get update && sudo apt-get install -y postgresql-16-pgvector
+
       - name: Deploy using ssh
         uses: appleboy/ssh-action@master
         with:
@@ -61,7 +74,10 @@ jobs:
             MAILGUN_API_KEY=${{ secrets.DEV_MAILGUN_API_KEY }}
             MAILGUN_DOMAIN=${{ secrets.DEV_MAILGUN_DOMAIN }}
             MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
+            VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
+            CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
             EOF
+            node src/config/install-pgvector.js
             docker-compose build
             docker-compose down -v
             docker-compose up -d

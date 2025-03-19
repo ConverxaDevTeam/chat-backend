@@ -66,7 +66,7 @@ export class IntegrationService {
         url_assets: this.configService.get<string>('url.files'),
         name: 'SOF.IA',
         title: 'SOF.IA LLM',
-        cors: ['http://localhost:4000', 'http://localhost:3000'],
+        cors: [],
         sub_title: 'Descubre todo lo que SOFIA puede hacer por ti.',
         description: '¡Hola y bienvenido a SOFIA! Estoy aquí para ayudarte a encontrar respuestas y soluciones de manera rápida y sencilla. ¿En qué puedo asistirte hoy?',
         logo: this.DEFAULT_LOGO,

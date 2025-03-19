@@ -48,11 +48,13 @@ const createFunctionTool = (func: FunctionResponse) => {
   const requestBody = (func.config as HttpRequestConfig).requestBody || [];
   const properties = buildParameterProperties(requestBody);
   const required = requestBody.filter((param) => param.required).map((param) => param.name);
+  // Sanitizar el nombre de la función para cumplir con el patrón requerido por OpenAI
+  const sanitizedName = `${UserFunctionPrefix}${func.name.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
   return {
     type: 'function' as const,
     function: {
-      name: `${UserFunctionPrefix}${func.name}`, // Evitar múltiples guiones bajos seguidos
+      name: sanitizedName,
       description: func.description,
       parameters: {
         type: 'object',
@@ -428,9 +430,15 @@ export class SofiaLLMService extends BaseAgent {
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     this.renderHITL(hasHitl, tools);
-    await this.openai.beta.assistants.update(assistantId, {
-      tools,
-    });
+    try {
+      console.log('Updating functions...');
+      await this.openai.beta.assistants.update(assistantId, {
+        tools,
+      });
+    } catch (error) {
+      console.error('Error updating functions:', error);
+      throw error;
+    }
   }
 
   private renderHITL(hasHitl: boolean, tools: OpenAI.Beta.Assistants.AssistantTool[]) {
@@ -475,6 +483,17 @@ export class SofiaLLMService extends BaseAgent {
     });
 
     try {
+      // Verificar si el vector store existe antes de intentar subir el archivo
+      try {
+        await openai.beta.vectorStores.retrieve(vectorStoreId);
+      } catch (error) {
+        console.error(`Vector store ${vectorStoreId} no existe, creando uno nuevo`);
+        const newVectorStore = await openai.beta.vectorStores.create({
+          name: `agent_knowledge_${Date.now()}`,
+        });
+        vectorStoreId = newVectorStore.id;
+      }
+
       // Create unique temp file name
       const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
       const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -484,15 +503,21 @@ export class SofiaLLMService extends BaseAgent {
       await fs.promises.writeFile(tempPath, file.buffer);
 
       // Upload to vector store
+      const fileStream = fs.createReadStream(tempPath);
       await openai.beta.vectorStores.fileBatches.uploadAndPoll(vectorStoreId, {
-        files: [fs.createReadStream(tempPath)],
+        files: [fileStream],
       });
 
       // Get file ID from vector store
-      const files = await openai.beta.vectorStores.files.list(vectorStoreId);
-      const vectorFile = files.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
+      const filesResponse = await openai.beta.vectorStores.files.list(vectorStoreId);
+
+      // Sort by creation date (newest first) and find first completed file
+      const vectorFile = filesResponse.data.sort((a, b) => b.created_at - a.created_at).find((f) => f.status === 'completed');
 
       if (!vectorFile) {
+        const errors = filesResponse.data.filter((f) => f.status === 'failed').map((f) => f.last_error);
+
+        console.error('File upload completed but vector store processing failed', errors);
         throw new Error('File upload completed but vector store processing failed');
       }
 
@@ -559,7 +584,13 @@ export class SofiaLLMService extends BaseAgent {
       });
       const updateData: { tools?: OpenAI.Beta.Assistants.AssistantTool[]; tool_resources?: { file_search: { vector_store_ids: string[] } } } = {};
 
-      updateData.tools = buildToolsArray({ funciones: updateToolFunction.funciones });
+      // Validar y sanitizar nombres de funciones
+      const sanitizedFunctions = updateToolFunction.funciones.map((func) => ({
+        ...func,
+        name: func.name.replace(/[^a-zA-Z0-9_-]/g, '_'),
+      }));
+
+      updateData.tools = buildToolsArray({ funciones: sanitizedFunctions });
 
       // Render HITL
       if (updateToolFunction.hitl) {

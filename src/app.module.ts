@@ -29,6 +29,8 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
 import { FileModule } from './modules/file/file.module';
 import { SlackModule } from '@modules/slack/slack.module';
 import { NotificationModule } from '@modules/notification/notification.module';
+import { DataSource } from 'typeorm';
+import { createKnowledgeBaseTableSQL } from '@models/agent/KnowledgeBaseDocument.entity';
 
 @Module({
   imports: [
@@ -108,4 +110,14 @@ import { NotificationModule } from '@modules/notification/notification.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  constructor(private dataSource: DataSource) {
+    this.initializeVectorSupport();
+  }
+
+  // app.module.ts
+  async initializeVectorSupport() {
+    await this.dataSource.query('CREATE EXTENSION IF NOT EXISTS vector');
+    await this.dataSource.query(createKnowledgeBaseTableSQL());
+  }
+}

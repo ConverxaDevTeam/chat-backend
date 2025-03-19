@@ -1,3 +1,4 @@
+import { Message } from '@models/Message.entity';
 import { FunctionResponse } from './function.interface';
 
 export const UserFunctionPrefix = 'user__';
@@ -6,8 +7,7 @@ export const HitlName = 'sofia__hitl';
 
 export enum AgenteType {
   SOFIA_ASISTENTE = 'sofia_asistente',
-  LLAMA = 'llama',
-  GROK = 'grok',
+  CLAUDE = 'claude',
 }
 
 export interface SofiaLLMConfig {
@@ -57,6 +57,8 @@ export interface CreateAgentConfig {
   DBagentId: number;
   funciones?: FunctionResponse[];
   organizationId: number;
+  messages?: Message[];
+  fileIds?: string[];
 }
 
 export interface AgentConfig {

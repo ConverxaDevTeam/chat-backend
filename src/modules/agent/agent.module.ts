@@ -9,14 +9,18 @@ import { FunctionCallService } from './function-call.service';
 import { SystemEventsModule } from '@modules/system-events/system-events.module';
 import { NotificationModule } from '../notification/notification.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
+import { VoyageModule } from '@modules/agent-knowledgebase/voyage.module';
+import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-knowledgebase.module';
 
 @Module({
   imports: [
+    VoyageModule,
     TypeOrmModule.forFeature([Agente, Funcion, Conversation]),
     forwardRef(() => SocketModule),
     SystemEventsModule,
     NotificationModule,
     forwardRef(() => IntegrationRouterModule),
+    AgentKnowledgebaseModule,
   ],
   providers: [AgentService, FunctionCallService],
   exports: [AgentService, FunctionCallService],
