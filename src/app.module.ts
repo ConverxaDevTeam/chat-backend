@@ -78,7 +78,7 @@ import { DataSource } from 'typeorm';
         database: configService.get<string>('database.name'),
         entities: [join(__dirname, '**', '*.entity.{ts,js}')],
         migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
-        migrationsRun: true,
+        migrationsRun: false,
         useUTC: true,
         timezone: 'UTC',
       }),
