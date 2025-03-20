@@ -122,8 +122,15 @@ export class WebChatSocketGateway implements OnModuleInit {
           }
           departamentoActual = departamento;
           const integrationConfig = JSON.parse(integration.config);
-          if (!integrationConfig?.cors?.includes(origin)) {
-            socket.send(JSON.stringify({ action: 'error', message: 'Origin not allowed' }));
+          if (
+            !integrationConfig?.cors?.some((corsUrl: string) => {
+              const url = new URL(corsUrl);
+              const originUrl = new URL(origin);
+
+              return url.origin === originUrl.origin;
+            })
+          ) {
+            socket.send(JSON.stringify({ action: 'error', message: 'CORS not allowed' }));
             socket.close();
             return;
           }
