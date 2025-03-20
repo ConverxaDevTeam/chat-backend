@@ -1,9 +1,12 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
 export class InitialSchema1742486080661 implements MigrationInterface {
-    name = 'InitialSchema1742486080661'
+    name = 'InitialSchema1742486080661';
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // Crear extensión vector primero
+        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS vector`);
+        
         await queryRunner.query(`CREATE TABLE "Sessions" ("id" SERIAL NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "expiredAt" TIMESTAMP NOT NULL, "ip" character varying NOT NULL, "browser" character varying NOT NULL, "operatingSystem" character varying NOT NULL, "userId" integer, CONSTRAINT "PK_0ff5532d98863bc618809d2d401" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TYPE "public"."ChatUsers_type_enum" AS ENUM('chat_web', 'whatsapp', 'messenger', 'slack')`);
         await queryRunner.query(`CREATE TABLE "ChatUsers" ("id" SERIAL NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "secret" character varying(128), "identified" character varying, "type" "public"."ChatUsers_type_enum" NOT NULL DEFAULT 'chat_web', "phone" character varying, "web" character varying, "name" character varying, "last_login" TIMESTAMP, "address" character varying, "avatar" character varying, "email" character varying, "browser" character varying, "operating_system" character varying, "ip" character varying, CONSTRAINT "PK_85852187b9e3a4144b436663d78" PRIMARY KEY ("id"))`);
@@ -60,6 +63,20 @@ export class InitialSchema1742486080661 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "system_events" ADD CONSTRAINT "FK_226fafc4fadce76691317e072f1" FOREIGN KEY ("organization_id") REFERENCES "Organizations"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "system_events" ADD CONSTRAINT "FK_7c5e1be4579b00f5c7eab73fafa" FOREIGN KEY ("conversation_id") REFERENCES "Conversations"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "DashboardCards" ADD CONSTRAINT "FK_1ca6bde5fd0b0f4feb8115f2b96" FOREIGN KEY ("userOrganizationId") REFERENCES "UserOrganizations"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        
+        // Crear tabla knowledge_base_documents
+        await queryRunner.query(`
+            CREATE TABLE IF NOT EXISTS knowledge_base_documents (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                content TEXT NOT NULL,
+                embedding vector(1024) NOT NULL,
+                fileId TEXT NOT NULL,
+                agentId INTEGER NOT NULL,
+                metadata JSONB DEFAULT '{}'::jsonb,
+                createdAt TIMESTAMP DEFAULT NOW(),
+                updatedAt TIMESTAMP DEFAULT NOW()
+            )
+        `);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -119,6 +136,8 @@ export class InitialSchema1742486080661 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE "ChatUsers"`);
         await queryRunner.query(`DROP TYPE "public"."ChatUsers_type_enum"`);
         await queryRunner.query(`DROP TABLE "Sessions"`);
+        await queryRunner.query(`DROP TABLE "knowledge_base_documents"`);
+        await queryRunner.query(`DROP EXTENSION IF EXISTS vector`);
     }
 
 }
