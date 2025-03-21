@@ -131,7 +131,7 @@ export class IntegrationRouterService {
 
     // Notificar al usuario del chat
     if (conversation.chat_user?.id) {
-      this.socketService.sendMessageToUser(conversation, message, MessageFormatType.TEXT, MessageType.HITL, conversation.departamento.organizacion.id, savedImages);
+      this.socketService.sendMessageToUser(conversation, message ?? '', MessageFormatType.TEXT, MessageType.HITL, conversation.departamento.organizacion.id, savedImages);
     }
     return { message, images: savedImages };
   }
