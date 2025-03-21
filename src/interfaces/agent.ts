@@ -57,6 +57,7 @@ export interface CreateAgentConfig {
   DBagentId: number;
   funciones?: FunctionResponse[];
   organizationId: number;
+  organizationName?: string;
   messages?: Message[];
   fileIds?: string[];
 }
