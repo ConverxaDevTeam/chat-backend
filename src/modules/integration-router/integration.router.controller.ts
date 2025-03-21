@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Post, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiConsumes } from '@nestjs/swagger';
 import { IntegrationRouterService } from './integration.router.service';
 import { SendAgentMessageDto } from './dto/send-agent-message.dto';
@@ -19,6 +19,9 @@ export class IntegrationRouterController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FilesInterceptor('images'))
   async sendAgentMessage(@GetUser() user: User, @Body() sendMessageDto: SendAgentMessageDto, @UploadedFiles() images?: Array<Express.Multer.File>) {
+    if (!sendMessageDto.message && !images) {
+      throw new BadRequestException('Se requiere al menos un mensaje o una imagen');
+    }
     const message = await this.integrationRouterService.sendAgentMessage(user, { ...sendMessageDto, images });
     return { ok: true, message };
   }
