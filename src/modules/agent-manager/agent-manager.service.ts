@@ -47,7 +47,7 @@ export class AgentManagerService {
     };
   }
 
-  private buildAgentConfig(agente: SofiaAgente, organizationId: number): CreateAgentConfig {
+  private buildAgentConfig(agente: SofiaAgente, organizationId: number, organizationName: string): CreateAgentConfig {
     if (!agente.config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
@@ -56,7 +56,8 @@ export class AgentManagerService {
       instruccion: agente.config.instruccion,
       agentId: agente.config.agentId ?? '',
       DBagentId: agente.id,
-      organizationId: organizationId,
+      organizationId,
+      organizationName,
     };
   }
 
@@ -99,10 +100,21 @@ export class AgentManagerService {
       }
     }
 
+    // Cargar el agente con relaciones para obtener datos de la organización
+    if (departamento_id) {
+      const fullAgente = await this.agenteRepository.findOne({
+        where: { id: agente.id },
+        relations: ['departamento', 'departamento.organizacion'],
+      });
+      if (fullAgente) {
+        agente.departamento = fullAgente.departamento;
+      }
+    }
+
     // Inicializar el agente según su tipo
     const sofiaAgent = agente as Agente<SofiaLLMConfig>;
     console.log('on create agent', sofiaAgent);
-    const sofiaConfig = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id);
+    const sofiaConfig = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id, agente.departamento?.organizacion?.name || 'DefaultOrg');
     const identifier: ChatAgentIdentifier = {
       type: AgentIdentifierType.CHAT,
       agentId: sofiaConfig.agentId,
@@ -170,7 +182,7 @@ export class AgentManagerService {
 
     // Actualizar el asistente si cambió la configuración
     if (JSON.stringify(previousConfig) !== JSON.stringify(sofiaAgent.config)) {
-      const config = this.buildAgentConfig(sofiaAgent, agente.departamento?.organizacion?.id);
+      const config = this.buildAgentConfig(sofiaAgent, agente.departamento?.organizacion?.id, agente.departamento?.organizacion?.name || 'DefaultOrg');
       const identifier: ChatAgentIdentifier = {
         type: AgentIdentifierType.CHAT,
         agentId: previousConfig.agentId,
@@ -213,7 +225,7 @@ export class AgentManagerService {
       throw new BadRequestException('Agente sin organización asignada');
     }
 
-    const config = this.buildAgentConfig(agente, agente.departamento.organizacion.id);
+    const config = this.buildAgentConfig(agente, agente.departamento.organizacion.id, agente.departamento.organizacion.name || 'DefaultOrg');
     const identifier: ChatAgentIdentifier = {
       type: AgentIdentifierType.CHAT,
       agentId: config.agentId,
