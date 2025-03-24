@@ -9,6 +9,7 @@ import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { AddUserInOrganizationDto } from '@modules/socket/dto/add-user-in-organization.dto';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 import { UpdateUserDto } from './update-user.dto';
+import { ForbiddenException } from '@nestjs/common';
 
 @Controller('user')
 @ApiTags('user')
@@ -156,5 +157,31 @@ export class UserController {
   @Post('change-password/:userId')
   async changePasswordAsAdmin(@Param('userId') userId: number, @Body() changePasswordDto: { newPassword: string }) {
     return this.userService.changePasswordAsAdmin(userId, changePasswordDto.newPassword);
+  }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Obtiene usuarios por organización para superadministradores' })
+  @ApiBearerAuth()
+  @Get('organization/:organizationId/users')
+  async getUsersByOrganizationForSuperAdmin(@Param('organizationId') organizationId: number, @GetUser() user: User) {
+    // Verificar que el usuario sea superadministrador
+    if (!user.is_super_admin) {
+      throw new ForbiddenException('Solo los superadministradores pueden acceder a este recurso');
+    }
+
+    const users = await this.userService.getUsersByOrganizationForSuperAdmin(organizationId);
+
+    // Formatear la respuesta para enfatizar los emails
+    const formattedUsers = users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      name: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+      role: user.userOrganizations?.[0]?.role || 'user',
+    }));
+
+    return {
+      ok: true,
+      users: formattedUsers,
+    };
   }
 }
