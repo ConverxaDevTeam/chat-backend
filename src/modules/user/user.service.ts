@@ -234,6 +234,23 @@ export class UserService {
       throw new UnauthorizedException('Password actual incorrecto');
     }
 
+    return this.updateUserPassword(userId, newPassword);
+  }
+
+  async changePasswordAsAdmin(userId: number, newPassword: string) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: ['id'],
+    });
+
+    if (!user) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    return this.updateUserPassword(userId, newPassword);
+  }
+
+  private async updateUserPassword(userId: number, newPassword: string) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.userRepository.update(userId, { password: hashedPassword });
 

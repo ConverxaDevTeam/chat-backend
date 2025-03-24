@@ -149,4 +149,12 @@ export class UserController {
   async changePassword(@GetUser() user: User, @Body() changePasswordDto: { currentPassword: string; newPassword: string }) {
     return this.userService.changePassword(user.id, changePasswordDto);
   }
+
+  @UseGuards(JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Cambiar contraseña de usuario (solo superadmin)' })
+  @ApiBearerAuth()
+  @Post('change-password/:userId')
+  async changePasswordAsAdmin(@Param('userId') userId: number, @Body() changePasswordDto: { newPassword: string }) {
+    return this.userService.changePasswordAsAdmin(userId, changePasswordDto.newPassword);
+  }
 }
