@@ -98,7 +98,9 @@ export class MessageService {
 
     // Verificar si la conversación esta asignada a un agente
     if (userId) {
-      await this.notificationService.createNotificationForUser(userId, NotificationType.USER, `Tienes un nuevo mensaje: ${message.text}`, organizationId);
+      await this.notificationService.createNotificationForUser(userId, NotificationType.USER, `Tienes un nuevo mensaje: ${message.text}`, organizationId, {
+        metadata: { conversationId: conversation.id },
+      });
     }
 
     return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
@@ -120,7 +122,9 @@ export class MessageService {
     message.conversation = conversation;
     message.audio = audio;
     if (userId) {
-      await this.notificationService.createNotificationForUser(userId, NotificationType.USER, `Tienes un nuevo mensaje: ${message.text}`, organizationId);
+      await this.notificationService.createNotificationForUser(userId, NotificationType.USER, `Tienes un nuevo mensaje: ${message.text}`, organizationId, {
+        metadata: { conversationId: conversation.id },
+      });
     }
     return this.sessionService.attachMessageToSession(await this.messageRepository.save(message), conversation.id);
   }

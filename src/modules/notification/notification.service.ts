@@ -50,14 +50,21 @@ export class NotificationService {
     return this.notificationRepository.save(notification);
   }
 
-  async createNotificationForUser(userId: number, type: NotificationType, title: string, organizationId: number): Promise<Notification> {
+  async createNotificationForUser(
+    userId: number,
+    type: NotificationType,
+    title: string,
+    organizationId: number,
+    options: { metadata: { conversationId: number } },
+  ): Promise<Notification> {
     const notification = this.notificationRepository.create({
       user: { id: userId },
       type,
       title,
       organizationId,
       status: NotificationStatus.UNREAD,
-      link: `${this.configService.get('url.frontend')}/conversation/detail/${organizationId}`,
+      link: `${this.configService.get('url.frontend')}/conversation/detail/${options?.metadata?.conversationId}`,
+      metadata: options?.metadata,
     });
     return this.notificationRepository.save(notification);
   }

@@ -45,7 +45,7 @@ export class EmailService {
       email,
       password,
       link: this.configService.get<string>('url.frontend'),
-      baseUrl: this.configService.get<string>('url.frontend'),
+      frontendBaseUrl: this.configService.get<string>('url.frontend'),
     });
 
     const messageData = {
@@ -68,7 +68,7 @@ export class EmailService {
       password,
       organization_name: organizationName,
       link: frontendUrl,
-      baseUrl: frontendUrl,
+      frontendBaseUrl: frontendUrl,
     });
 
     await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), {

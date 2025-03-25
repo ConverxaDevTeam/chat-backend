@@ -30,7 +30,6 @@ import { FileModule } from './modules/file/file.module';
 import { SlackModule } from '@modules/slack/slack.module';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { DataSource } from 'typeorm';
-import { createKnowledgeBaseTableSQL } from '@models/agent/KnowledgeBaseDocument.entity';
 
 @Module({
   imports: [
@@ -78,8 +77,8 @@ import { createKnowledgeBaseTableSQL } from '@models/agent/KnowledgeBaseDocument
         password: configService.get<string>('database.pass'),
         database: configService.get<string>('database.name'),
         entities: [join(__dirname, '**', '*.entity.{ts,js}')],
-        synchronize: true,
-        force: true,
+        migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
+        migrationsRun: false,
         useUTC: true,
         timezone: 'UTC',
       }),
@@ -111,13 +110,5 @@ import { createKnowledgeBaseTableSQL } from '@models/agent/KnowledgeBaseDocument
   providers: [AppService],
 })
 export class AppModule {
-  constructor(private dataSource: DataSource) {
-    this.initializeVectorSupport();
-  }
-
-  // app.module.ts
-  async initializeVectorSupport() {
-    await this.dataSource.query('CREATE EXTENSION IF NOT EXISTS vector');
-    await this.dataSource.query(createKnowledgeBaseTableSQL());
-  }
+  constructor(private dataSource: DataSource) {}
 }

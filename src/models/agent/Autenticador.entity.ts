@@ -2,7 +2,7 @@ import { BaseEntity } from '../Base.entity';
 import { Funcion } from './Function.entity';
 import { Entity, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { AutenticadorType, Autenticador as IAutenticador } from 'src/interfaces/function.interface';
+import { AutenticadorType, Autenticador as IAutenticador } from '../../../src/interfaces/function.interface';
 import { Organization } from '../Organization.entity';
 
 @Entity({ name: 'autenticador' })

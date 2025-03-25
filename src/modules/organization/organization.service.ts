@@ -81,8 +81,11 @@ export class OrganizationService {
       user: responseCreateUser.user,
       role: OrganizationRoleType.OWNER,
     });
-    await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, responseCreateUser.user.password, organization.name);
-
+    let password = 'created before';
+    if (responseCreateUser.password) {
+      password = responseCreateUser.password;
+    }
+    await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, password, organization.name);
     return organization;
   }
 

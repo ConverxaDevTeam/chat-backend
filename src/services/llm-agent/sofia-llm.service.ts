@@ -121,17 +121,26 @@ export class SofiaLLMService extends BaseAgent {
     if (!config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
-    const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
-    this.renderHITL(true, tools);
-    const assistant = await this.openai.beta.assistants.create({
-      name: config.name || 'Sofia Assistant',
-      instructions: config.instruccion,
-      tools,
-      model: 'gpt-4o-mini',
-    });
+    const environment = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
+    // Usar el nombre de la organización si está disponible, o el ID como fallback
+    const organizationName = config.organizationName || `org_${config.organizationId}`;
+    try {
+      const assistantName = `${environment}_${config.name || 'Sofia Assistant'}_${organizationName}`;
+      const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
+      this.renderHITL(true, tools);
+      const assistant = await this.openai.beta.assistants.create({
+        name: assistantName,
+        instructions: config.instruccion,
+        tools,
+        model: 'gpt-4o-mini',
+      });
 
-    this.assistantId = assistant.id;
-    return;
+      this.assistantId = assistant.id;
+      return;
+    } catch (error) {
+      console.error('Error initializing agent:', error);
+      throw error;
+    }
   }
 
   protected async _createThread(conversationId: number): Promise<string> {
@@ -380,6 +389,7 @@ export class SofiaLLMService extends BaseAgent {
     try {
       const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
+        organization: process.env.OPENAI_ORGANIZATION_ID,
       });
       const pathFileAudio = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio', audioName);
       const transcription = await openai.audio.transcriptions.create({
