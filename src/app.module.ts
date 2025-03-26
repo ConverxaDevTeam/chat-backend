@@ -29,6 +29,7 @@ import { AnalyticsModule } from '@modules/analytics/analytics.module';
 import { FileModule } from './modules/file/file.module';
 import { SlackModule } from '@modules/slack/slack.module';
 import { NotificationModule } from '@modules/notification/notification.module';
+import { TemplateModule } from './modules/template/template.module';
 import { DataSource } from 'typeorm';
 
 @Module({
@@ -65,6 +66,10 @@ import { DataSource } from 'typeorm';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'organizations'),
       serveRoot: '/organizations',
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'uploads', 'templates'),
+      serveRoot: '/templates',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -105,6 +110,7 @@ import { DataSource } from 'typeorm';
     FileModule,
     SlackModule,
     NotificationModule,
+    TemplateModule,
   ],
   controllers: [AppController],
   providers: [AppService],
