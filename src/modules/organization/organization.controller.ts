@@ -39,6 +39,7 @@ export class OrganizationController {
         ...organization,
         logo: organization.logo,
         users: uniqueEmails.size,
+        departments: organization.departamentos?.length || 0,
         owner: userOrganizations.find((userOrganization) => userOrganization.role === 'owner'),
         agentType,
       };
