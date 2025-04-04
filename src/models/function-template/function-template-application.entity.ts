@@ -11,12 +11,12 @@ export class FunctionTemplateApplication {
   @Column({ nullable: true })
   description: string;
 
-  @Column({ nullable: true })
-  image: string;
-
-  @Column({ nullable: true })
-  domain: string;
-
   @Column({ default: false })
-  isDynamicDomain: boolean;
+  isActive: boolean;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  createdAt: Date;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
+  updatedAt: Date;
 }
