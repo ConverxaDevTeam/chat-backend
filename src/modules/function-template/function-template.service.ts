@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FunctionTemplate } from '@models/function-template/function-template.entity';
-import { FunctionTemplateCategory } from '@models/function-template-category.entity';
-import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto } from './dto/template.dto';
+import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
+import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto, FunctionTemplateResponseDto } from './dto/template.dto';
 import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
 
 @Injectable()
@@ -17,17 +17,46 @@ export class FunctionTemplateService {
     private readonly applicationRepository: Repository<FunctionTemplateApplication>,
   ) {}
 
-  async getTemplates(organizationId: number): Promise<FunctionTemplate[]> {
-    return this.templateRepository.find({
-      where: { organizationId },
-      relations: ['category', 'application', 'authenticator'],
-    });
+  async getTemplates(searchDto: FunctionTemplateSearchDto): Promise<FunctionTemplateResponseDto> {
+    const { page = 1, limit = 10, search, tags, categoryId, applicationId } = searchDto;
+
+    const query = this.templateRepository
+      .createQueryBuilder('template')
+      .leftJoinAndSelect('template.category', 'category')
+      .leftJoinAndSelect('template.application', 'application')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (search) {
+      query.where('(template.name LIKE :search OR template.description LIKE :search)', { search: `%${search}%` });
+    }
+
+    if (tags?.length) {
+      query.andWhere('template.tags @> :tags', { tags });
+    }
+
+    if (categoryId) {
+      query.andWhere('template.categoryId = :categoryId', { categoryId });
+    }
+
+    if (applicationId) {
+      query.andWhere('template.applicationId = :applicationId', { applicationId });
+    }
+
+    const [items, total] = await query.getManyAndCount();
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+    };
   }
 
   async getTemplateById(id: number): Promise<FunctionTemplate | null> {
     return this.templateRepository.findOne({
       where: { id },
-      relations: ['category', 'application', 'authenticator'],
+      relations: ['category', 'application'],
     });
   }
 

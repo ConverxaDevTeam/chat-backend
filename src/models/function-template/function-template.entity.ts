@@ -65,7 +65,4 @@ export class FunctionTemplate {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', onUpdate: 'CURRENT_TIMESTAMP' })
   updatedAt: Date;
-
-  @Column()
-  organizationId: number;
 }

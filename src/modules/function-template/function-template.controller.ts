@@ -2,9 +2,9 @@ import { Controller, Get, Post, Body, Param, Put, Delete, Query, UseGuards } fro
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { FunctionTemplateService } from './function-template.service';
-import { FunctionTemplateCategory } from '@models/function-template-category.entity';
+import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
 import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
-import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto } from './dto/template.dto';
+import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto } from './dto/template.dto';
 
 @ApiTags('Function Templates')
 @ApiBearerAuth()
@@ -15,8 +15,8 @@ export class FunctionTemplateController {
 
   @ApiOperation({ summary: 'Get all function templates' })
   @Get()
-  getTemplates(@Query('organizationId') organizationId: number) {
-    return this.service.getTemplates(Number(organizationId));
+  getTemplates(@Query() searchDto: FunctionTemplateSearchDto) {
+    return this.service.getTemplates(searchDto);
   }
 
   @ApiOperation({ summary: 'Get template by ID' })

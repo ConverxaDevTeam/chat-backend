@@ -1,6 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiExtraModels } from '@nestjs/swagger';
 import { ParamType } from 'src/interfaces/function-param.interface';
 import { FunctionTemplateParam } from 'src/interfaces/template.interface';
+import { FunctionTemplate } from '@models/function-template/function-template.entity';
 
 class FunctionTemplateParamDto implements FunctionTemplateParam {
   @ApiProperty()
@@ -58,9 +59,6 @@ export class CreateFunctionTemplateDto {
 
   @ApiProperty({ type: () => FunctionTemplateParamDto, isArray: true })
   params: FunctionTemplateParam[];
-
-  @ApiProperty()
-  organizationId: number;
 }
 
 export class UpdateFunctionTemplateDto {
@@ -93,4 +91,39 @@ export class UpdateFunctionTemplateDto {
 
   @ApiProperty({ type: () => FunctionTemplateParamDto, isArray: true, required: false })
   params?: FunctionTemplateParam[];
+}
+
+export class FunctionTemplateSearchDto {
+  @ApiProperty({ required: false })
+  search?: string;
+
+  @ApiProperty({ required: false })
+  tags?: string[];
+
+  @ApiProperty({ required: false })
+  categoryId?: number;
+
+  @ApiProperty({ required: false })
+  applicationId?: number;
+
+  @ApiProperty({ required: false, default: 1 })
+  page?: number = 1;
+
+  @ApiProperty({ required: false, default: 10 })
+  limit?: number = 10;
+}
+
+@ApiExtraModels(FunctionTemplateSearchDto)
+export class FunctionTemplateResponseDto {
+  @ApiProperty({ type: () => FunctionTemplate, isArray: true })
+  items: FunctionTemplate[];
+
+  @ApiProperty()
+  total: number;
+
+  @ApiProperty()
+  page: number;
+
+  @ApiProperty()
+  limit: number;
 }
