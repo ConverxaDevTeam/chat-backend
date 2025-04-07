@@ -63,7 +63,7 @@ export class FunctionTemplateService {
   async getTemplateById(id: number): Promise<FunctionTemplate | null> {
     return this.templateRepository.findOne({
       where: { id },
-      relations: ['category', 'application'],
+      relations: ['category', 'application', 'tags'],
     });
   }
 
@@ -124,13 +124,47 @@ export class FunctionTemplateService {
     if (!template) return null;
 
     if (dto.tags) {
-      template.tags = await Promise.all(dto.tags.map((tag) => (tag.id ? tag : this.tagRepository.save(tag))));
+      // Get current tags and normalize to names
+      const currentTags = template.tags || [];
+      const currentTagNames = currentTags.map((tag) => tag.name);
+
+      // Normalize dto tags to names
+      const newTagNames = dto.tags.map((tag) => (typeof tag === 'string' ? tag : tag.name));
+
+      // Tags to remove (in current but not in new)
+      const tagsToRemove = currentTags.filter((tag) => !newTagNames.includes(tag.name));
+
+      // Remove relations for tags that should no longer be associated
+      if (tagsToRemove.length > 0) {
+        await this.templateRepository.createQueryBuilder().relation(FunctionTemplate, 'tags').of(template).remove(tagsToRemove);
+      }
+
+      // Tags to add (in new but not in current)
+      const tagsToAdd = await Promise.all(
+        dto.tags
+          .filter((tag) => {
+            const name = typeof tag === 'string' ? tag : tag.name;
+            return !currentTagNames.includes(name);
+          })
+          .map(async (tag) => {
+            if (typeof tag === 'string') {
+              const existing = await this.tagRepository.findOneBy({ name: tag });
+              return existing || this.tagRepository.save({ name: tag });
+            }
+            return tag;
+          }),
+      );
+
+      // Add relations for new tags
+      if (tagsToAdd.length > 0) {
+        await this.templateRepository.createQueryBuilder().relation(FunctionTemplate, 'tags').of(template).add(tagsToAdd);
+      }
+
+      // Update template tags
+      template.tags = [...currentTags.filter((tag) => !tagsToRemove.includes(tag)), ...tagsToAdd];
     }
 
-    Object.assign(template, {
-      ...dto,
-      tags: undefined,
-    });
+    Object.assign(template, { ...dto, tags: undefined });
 
     return this.templateRepository.save(template);
   }
