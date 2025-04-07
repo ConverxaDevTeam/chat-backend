@@ -64,11 +64,39 @@ export class FunctionTemplateService {
   }
 
   async createTemplate(dto: CreateFunctionTemplateDto): Promise<FunctionTemplate> {
+    // Convertir el array de parámetros a un objeto donde el nombre es la clave
+    const paramsObj: Record<string, any> = {};
+    if (Array.isArray(dto.params)) {
+      dto.params.forEach((param) => {
+        if (param.name) {
+          // Procesar propiedades anidadas si existen
+          if (param.properties && Array.isArray(param.properties)) {
+            const propertiesObj: Record<string, any> = {};
+            param.properties.forEach((prop) => {
+              if (prop.name) {
+                propertiesObj[prop.name] = prop;
+              }
+            });
+            param.properties = propertiesObj;
+          }
+          // Usar el nombre como clave
+          paramsObj[param.name] = param;
+        }
+      });
+    }
+
+    // Crear el template con valores por defecto
     const template = this.templateRepository.create({
       ...dto,
       method: dto.method || 'GET',
       bodyType: dto.bodyType || 'json',
+      // No asignamos params aquí, lo haremos después
     });
+
+    // Asignar los parámetros como un objeto
+    template.params = paramsObj;
+
+    // Guardar el template
     return this.templateRepository.save(template);
   }
 

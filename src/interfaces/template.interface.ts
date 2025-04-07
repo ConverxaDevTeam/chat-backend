@@ -27,7 +27,7 @@ export interface FunctionTemplateParam {
   required?: boolean;
   enumValues?: string[];
   defaultValue?: any;
-  properties?: FunctionTemplateParam[];
+  properties?: Record<string, FunctionTemplateParam>;
 }
 
 export interface FunctionTemplate {
@@ -44,7 +44,7 @@ export interface FunctionTemplate {
   url: string;
   method: string;
   bodyType: string;
-  params: FunctionTemplateParam[];
+  params: Record<string, FunctionTemplateParam>;
   headers: Record<string, string>;
   isActive: boolean;
   createdAt: Date;
@@ -62,7 +62,7 @@ export interface CreateFunctionTemplateDto {
   url: string;
   method?: string;
   bodyType?: string;
-  params: FunctionTemplateParam[];
+  params: Record<string, FunctionTemplateParam>;
   organizationId: number;
 }
 
@@ -76,5 +76,5 @@ export interface UpdateFunctionTemplateDto {
   url?: string;
   method?: string;
   bodyType?: string;
-  params?: FunctionTemplateParam[];
+  params?: Record<string, FunctionTemplateParam>;
 }

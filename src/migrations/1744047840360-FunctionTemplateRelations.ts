@@ -1,12 +1,12 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class FunctionTemplateEntities1744041628428 implements MigrationInterface {
-    name = 'FunctionTemplateEntities1744041628428'
+export class FunctionTemplateRelations1744047840360 implements MigrationInterface {
+    name = 'FunctionTemplateRelations1744047840360'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`CREATE TABLE "function_template_category" ("id" SERIAL NOT NULL, "name" character varying NOT NULL, "description" text, CONSTRAINT "PK_6478ee539f326e9e5dd01528e64" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "function_template_application" ("id" SERIAL NOT NULL, "name" character varying NOT NULL, "description" character varying, "imageUrl" character varying, "domain" character varying, "isDynamicDomain" boolean NOT NULL DEFAULT false, "isActive" boolean NOT NULL DEFAULT true, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_7277abc4987f4d28585e288c636" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "function_template" ("id" SERIAL NOT NULL, "name" character varying NOT NULL, "description" character varying, "categoryId" integer NOT NULL, "applicationId" integer NOT NULL, "tags" text NOT NULL, "url" character varying NOT NULL, "method" character varying NOT NULL DEFAULT 'GET', "bodyType" character varying NOT NULL DEFAULT 'json', "params" json NOT NULL, "headers" json NOT NULL, "isActive" boolean NOT NULL DEFAULT false, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b3aa1946221bbeadb4cd1866b8b" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE TABLE "function_template" ("id" SERIAL NOT NULL, "name" character varying NOT NULL, "description" character varying, "categoryId" integer NOT NULL, "applicationId" integer NOT NULL, "tags" text NOT NULL, "url" character varying NOT NULL, "method" character varying NOT NULL DEFAULT 'GET', "bodyType" character varying NOT NULL DEFAULT 'json', "params" text, "isActive" boolean NOT NULL DEFAULT true, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b3aa1946221bbeadb4cd1866b8b" PRIMARY KEY ("id"))`);
         await queryRunner.query(`ALTER TABLE "function_template_category" ADD "isActive" boolean NOT NULL DEFAULT true`);
         await queryRunner.query(`ALTER TABLE "function_template_category" ADD "createdAt" TIMESTAMP NOT NULL DEFAULT now()`);
         await queryRunner.query(`ALTER TABLE "function_template_category" ADD "updatedAt" TIMESTAMP NOT NULL DEFAULT now()`);

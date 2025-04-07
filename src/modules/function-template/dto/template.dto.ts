@@ -25,8 +25,8 @@ class FunctionTemplateParamDto implements FunctionTemplateParam {
   @ApiProperty({ required: false })
   defaultValue?: any;
 
-  @ApiProperty({ type: () => FunctionTemplateParamDto, isArray: true, required: false })
-  properties?: FunctionTemplateParamDto[];
+  @ApiProperty({ type: () => FunctionTemplateParamDto, required: false })
+  properties?: Record<string, FunctionTemplateParamDto>;
 }
 
 export class CreateFunctionTemplateDto {
@@ -57,8 +57,8 @@ export class CreateFunctionTemplateDto {
   @ApiProperty({ default: 'json' })
   bodyType?: string;
 
-  @ApiProperty({ type: () => FunctionTemplateParamDto, isArray: true })
-  params: FunctionTemplateParam[];
+  @ApiProperty({ type: () => FunctionTemplateParamDto })
+  params: Record<string, FunctionTemplateParam>;
 }
 
 export class UpdateFunctionTemplateDto {
@@ -89,8 +89,8 @@ export class UpdateFunctionTemplateDto {
   @ApiProperty({ required: false })
   bodyType?: string;
 
-  @ApiProperty({ type: () => FunctionTemplateParamDto, isArray: true, required: false })
-  params?: FunctionTemplateParam[];
+  @ApiProperty({ type: () => FunctionTemplateParamDto, required: false })
+  params?: Record<string, FunctionTemplateParam>;
 }
 
 export class FunctionTemplateSearchDto {

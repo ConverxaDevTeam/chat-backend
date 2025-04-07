@@ -11,7 +11,7 @@ interface FunctionTemplateParam {
   required?: boolean;
   enumValues?: string[];
   defaultValue?: any;
-  properties?: FunctionTemplateParam[];
+  properties?: Record<string, FunctionTemplateParam>;
 }
 
 @Entity()
@@ -51,13 +51,10 @@ export class FunctionTemplate {
   @Column({ default: 'json' })
   bodyType: string;
 
-  @Column('json')
-  params: FunctionTemplateParam[];
+  @Column({ type: 'simple-json', nullable: true })
+  params: Record<string, FunctionTemplateParam>;
 
-  @Column('json')
-  headers: Record<string, string>;
-
-  @Column({ default: false })
+  @Column({ default: true })
   isActive: boolean;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
