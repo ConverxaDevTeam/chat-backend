@@ -3,8 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FunctionTemplate } from '@models/function-template/function-template.entity';
 import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
-import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto, FunctionTemplateResponseDto } from './dto/template.dto';
 import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
+import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto, FunctionTemplateResponseDto } from './dto/template.dto';
+import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplicationDto } from './dto/application.dto';
+import { FileService } from '@modules/file/file.service';
 
 @Injectable()
 export class FunctionTemplateService {
@@ -15,6 +17,7 @@ export class FunctionTemplateService {
     private readonly categoryRepository: Repository<FunctionTemplateCategory>,
     @InjectRepository(FunctionTemplateApplication)
     private readonly applicationRepository: Repository<FunctionTemplateApplication>,
+    private readonly fileService: FileService,
   ) {}
 
   async getTemplates(searchDto: FunctionTemplateSearchDto): Promise<FunctionTemplateResponseDto> {
@@ -111,7 +114,48 @@ export class FunctionTemplateService {
     return this.categoryRepository.save(this.categoryRepository.create(dto));
   }
 
-  async createApplication(dto: Omit<FunctionTemplateApplication, 'id'>): Promise<FunctionTemplateApplication> {
-    return this.applicationRepository.save(this.applicationRepository.create(dto));
+  async createApplication(dto: CreateFunctionTemplateApplicationDto, file?: Express.Multer.File) {
+    // Crear la aplicación primero para obtener el ID
+    const application = this.applicationRepository.create({
+      ...dto,
+      isActive: true,
+    });
+    const savedApplication = await this.applicationRepository.save(application);
+
+    // Si hay un archivo de imagen, guardarlo
+    if (file) {
+      // Guardar la imagen en la carpeta /uploads/templates/<id_template>
+      const filePath = `templates/${savedApplication.id}`;
+      const fileName = `app_${savedApplication.id}`;
+      const imageUrl = await this.fileService.saveFile(file, filePath, fileName);
+
+      // Actualizar la URL de la imagen en la entidad
+      savedApplication.imageUrl = imageUrl;
+      await this.applicationRepository.save(savedApplication);
+    }
+
+    return {
+      ok: true,
+      data: savedApplication,
+    };
+  }
+
+  async updateApplication(id: number, dto: UpdateFunctionTemplateApplicationDto) {
+    const application = await this.applicationRepository.findOne({
+      where: { id },
+    });
+
+    if (!application) {
+      return null;
+    }
+
+    // Actualizar los campos proporcionados
+    Object.assign(application, dto);
+    await this.applicationRepository.save(application);
+
+    return {
+      ok: true,
+      data: application,
+    };
   }
 }

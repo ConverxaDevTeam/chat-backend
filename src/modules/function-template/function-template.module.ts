@@ -6,9 +6,10 @@ import { FunctionTemplate } from '@models/function-template/function-template.en
 import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
 import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
 import { AuthModule } from '@modules/auth/auth.module';
+import { FileModule } from '@modules/file/file.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FunctionTemplate, FunctionTemplateCategory, FunctionTemplateApplication]), AuthModule],
+  imports: [TypeOrmModule.forFeature([FunctionTemplate, FunctionTemplateCategory, FunctionTemplateApplication]), AuthModule, FileModule],
   controllers: [FunctionTemplateController],
   providers: [FunctionTemplateService],
   exports: [FunctionTemplateService],

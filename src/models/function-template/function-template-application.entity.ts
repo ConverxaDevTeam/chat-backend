@@ -11,6 +11,15 @@ export class FunctionTemplateApplication {
   @Column({ nullable: true })
   description: string;
 
+  @Column({ nullable: true })
+  imageUrl: string;
+
+  @Column({ nullable: true })
+  domain: string;
+
+  @Column({ default: false })
+  isDynamicDomain: boolean;
+
   @Column({ default: true })
   isActive: boolean;
 

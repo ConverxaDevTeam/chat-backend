@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Query, HttpException, HttpStatus, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Query, HttpException, HttpStatus, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { LoggingInterceptor } from '@infrastructure/interceptors/logging.interceptor';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { FunctionTemplateService } from './function-template.service';
 import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
-import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
 import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto } from './dto/template.dto';
+import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplicationDto } from './dto/application.dto';
 
 @ApiTags('Function Templates')
 @ApiBearerAuth()
@@ -87,7 +88,44 @@ export class FunctionTemplateController {
 
   @ApiOperation({ summary: 'Create template application' })
   @Post('applications')
-  createApplication(@Body() dto: Omit<FunctionTemplateApplication, 'id'>) {
-    return this.service.createApplication(dto);
+  @UseInterceptors(FileInterceptor('image'))
+  async createApplication(@Body() dto: CreateFunctionTemplateApplicationDto, @UploadedFile() file: Express.Multer.File) {
+    try {
+      return await this.service.createApplication(dto, file);
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al crear la aplicación',
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @ApiOperation({ summary: 'Update template application' })
+  @Put('applications/:id')
+  async updateApplication(@Param('id') id: number, @Body() dto: UpdateFunctionTemplateApplicationDto) {
+    try {
+      const result = await this.service.updateApplication(Number(id), dto);
+      if (!result) {
+        throw new HttpException(
+          {
+            ok: false,
+            message: 'Aplicación no encontrada',
+          },
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      return result;
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al actualizar la aplicación',
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }
