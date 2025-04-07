@@ -80,11 +80,31 @@ export class FunctionTemplateService {
   }
 
   async getCategories(): Promise<FunctionTemplateCategory[]> {
-    return this.categoryRepository.find();
+    try {
+      // Usar find() con opciones explícitas para evitar problemas de NaN
+      return await this.categoryRepository.find({
+        where: { isActive: true },
+        select: ['id', 'name', 'description'],
+      });
+    } catch (error) {
+      console.error('Error en getCategories:', error);
+      // En caso de error, devolver un array vacío
+      return [];
+    }
   }
 
   async getApplications(): Promise<FunctionTemplateApplication[]> {
-    return this.applicationRepository.find();
+    try {
+      // Usar find() con opciones explícitas para evitar problemas de NaN
+      return await this.applicationRepository.find({
+        where: { isActive: true },
+        select: ['id', 'name', 'description'],
+      });
+    } catch (error) {
+      console.error('Error en getApplications:', error);
+      // En caso de error, devolver un array vacío
+      return [];
+    }
   }
 
   async createCategory(dto: Omit<FunctionTemplateCategory, 'id'>): Promise<FunctionTemplateCategory> {

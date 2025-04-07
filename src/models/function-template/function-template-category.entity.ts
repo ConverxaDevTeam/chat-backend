@@ -11,7 +11,7 @@ export class FunctionTemplateCategory {
   @Column({ nullable: true })
   description: string;
 
-  @Column({ default: false })
+  @Column({ default: true })
   isActive: boolean;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
