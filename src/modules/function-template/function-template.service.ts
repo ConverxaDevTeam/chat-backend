@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { FunctionTemplate } from '@models/function-template/function-template.entity';
 import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
 import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
+import { FunctionTemplateTag } from '@models/function-template/function-template-tag.entity';
 import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto, FunctionTemplateResponseDto } from './dto/template.dto';
 import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplicationDto } from './dto/application.dto';
 import { FileService } from '@modules/file/file.service';
@@ -17,6 +18,8 @@ export class FunctionTemplateService {
     private readonly categoryRepository: Repository<FunctionTemplateCategory>,
     @InjectRepository(FunctionTemplateApplication)
     private readonly applicationRepository: Repository<FunctionTemplateApplication>,
+    @InjectRepository(FunctionTemplateTag)
+    private readonly tagRepository: Repository<FunctionTemplateTag>,
     private readonly fileService: FileService,
   ) {}
 
@@ -27,6 +30,7 @@ export class FunctionTemplateService {
       .createQueryBuilder('template')
       .leftJoinAndSelect('template.category', 'category')
       .leftJoinAndSelect('template.application', 'application')
+      .leftJoinAndSelect('template.tags', 'tags')
       .skip((page - 1) * limit)
       .take(limit);
 
@@ -35,7 +39,7 @@ export class FunctionTemplateService {
     }
 
     if (tags?.length) {
-      query.andWhere('template.tags @> :tags', { tags });
+      query.andWhere('tags.name IN (:...tags)', { tags });
     }
 
     if (categoryId) {
@@ -85,9 +89,25 @@ export class FunctionTemplateService {
       });
     }
 
+    let tags: FunctionTemplateTag[] = [];
+
+    // Manejar tags si existen
+    if (dto.tags?.length) {
+      tags = await Promise.all(
+        dto.tags.map(async (tag) => {
+          if (typeof tag === 'string') {
+            const foundTag = await this.tagRepository.findOneBy({ name: tag });
+            return foundTag || this.tagRepository.save({ name: tag });
+          }
+          return tag;
+        }),
+      );
+    }
+
     // Crear el template con valores por defecto
     const template = this.templateRepository.create({
       ...dto,
+      tags,
       method: dto.method || 'GET',
       bodyType: dto.bodyType || 'json',
       // No asignamos params aquí, lo haremos después
@@ -96,14 +116,23 @@ export class FunctionTemplateService {
     // Asignar los parámetros como un objeto
     template.params = paramsObj;
 
-    // Guardar el template
     return this.templateRepository.save(template);
   }
 
   async updateTemplate(id: number, dto: UpdateFunctionTemplateDto): Promise<FunctionTemplate | null> {
-    const result = await this.templateRepository.update(id, dto);
-    if (result.affected === 0) return null;
-    return this.getTemplateById(id);
+    const template = await this.getTemplateById(id);
+    if (!template) return null;
+
+    if (dto.tags) {
+      template.tags = await Promise.all(dto.tags.map((tag) => (tag.id ? tag : this.tagRepository.save(tag))));
+    }
+
+    Object.assign(template, {
+      ...dto,
+      tags: undefined,
+    });
+
+    return this.templateRepository.save(template);
   }
 
   async deleteTemplate(id: number): Promise<void> {

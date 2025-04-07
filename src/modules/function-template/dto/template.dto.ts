@@ -2,6 +2,7 @@ import { ApiProperty, ApiExtraModels } from '@nestjs/swagger';
 import { ParamType } from 'src/interfaces/function-param.interface';
 import { FunctionTemplateParam } from 'src/interfaces/template.interface';
 import { FunctionTemplate } from '@models/function-template/function-template.entity';
+import { FunctionTemplateTag } from '@models/function-template/function-template-tag.entity';
 
 class FunctionTemplateParamDto implements FunctionTemplateParam {
   @ApiProperty()
@@ -33,8 +34,8 @@ export class CreateFunctionTemplateDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty()
-  description: string;
+  @ApiProperty({ required: false })
+  description?: string;
 
   @ApiProperty()
   categoryId: number;
@@ -42,11 +43,8 @@ export class CreateFunctionTemplateDto {
   @ApiProperty()
   applicationId: number;
 
-  @ApiProperty()
-  tags: string[];
-
-  @ApiProperty({ required: false })
-  authenticatorId?: number;
+  @ApiProperty({ type: () => FunctionTemplateTag, isArray: true, required: false })
+  tags?: FunctionTemplateTag[];
 
   @ApiProperty()
   url: string;
@@ -57,8 +55,11 @@ export class CreateFunctionTemplateDto {
   @ApiProperty({ default: 'json' })
   bodyType?: string;
 
-  @ApiProperty({ type: () => FunctionTemplateParamDto })
-  params: Record<string, FunctionTemplateParam>;
+  @ApiProperty({ type: () => FunctionTemplateParamDto, required: false })
+  params?: Record<string, FunctionTemplateParamDto>;
+
+  @ApiProperty({ required: false })
+  authenticatorId?: number;
 }
 
 export class UpdateFunctionTemplateDto {
@@ -74,11 +75,8 @@ export class UpdateFunctionTemplateDto {
   @ApiProperty({ required: false })
   applicationId?: number;
 
-  @ApiProperty({ required: false })
-  tags?: string[];
-
-  @ApiProperty({ required: false })
-  authenticatorId?: number;
+  @ApiProperty({ type: () => FunctionTemplateTag, isArray: true, required: false })
+  tags?: FunctionTemplateTag[];
 
   @ApiProperty({ required: false })
   url?: string;
@@ -90,7 +88,10 @@ export class UpdateFunctionTemplateDto {
   bodyType?: string;
 
   @ApiProperty({ type: () => FunctionTemplateParamDto, required: false })
-  params?: Record<string, FunctionTemplateParam>;
+  params?: Record<string, FunctionTemplateParamDto>;
+
+  @ApiProperty({ required: false })
+  isActive?: boolean;
 }
 
 export class FunctionTemplateSearchDto {

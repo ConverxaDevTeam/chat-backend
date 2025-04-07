@@ -1,6 +1,7 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
 import { FunctionTemplateCategory } from './function-template-category.entity';
 import { FunctionTemplateApplication } from './function-template-application.entity';
+import { FunctionTemplateTag } from './function-template-tag.entity';
 import { ParamType } from 'src/interfaces/function-param.interface';
 
 interface FunctionTemplateParam {
@@ -39,8 +40,9 @@ export class FunctionTemplate {
   @Column()
   applicationId: number;
 
-  @Column('simple-array')
-  tags: string[];
+  @ManyToMany(() => FunctionTemplateTag, (tag) => tag.templates)
+  @JoinTable()
+  tags: FunctionTemplateTag[];
 
   @Column()
   url: string;

@@ -5,11 +5,12 @@ import { FunctionTemplateService } from './function-template.service';
 import { FunctionTemplate } from '@models/function-template/function-template.entity';
 import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
 import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
+import { FunctionTemplateTag } from '@models/function-template/function-template-tag.entity';
 import { AuthModule } from '@modules/auth/auth.module';
 import { FileModule } from '@modules/file/file.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FunctionTemplate, FunctionTemplateCategory, FunctionTemplateApplication]), AuthModule, FileModule],
+  imports: [TypeOrmModule.forFeature([FunctionTemplate, FunctionTemplateCategory, FunctionTemplateApplication, FunctionTemplateTag]), AuthModule, FileModule],
   controllers: [FunctionTemplateController],
   providers: [FunctionTemplateService],
   exports: [FunctionTemplateService],
