@@ -53,3 +53,4 @@ uploads/images/*
 !uploads/images/index.html
 .windsurfrules
 uploads/organizations/*
+uploads/templates/*
