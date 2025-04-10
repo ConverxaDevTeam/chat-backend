@@ -4,9 +4,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { FunctionTemplateService } from './function-template.service';
+import { TemplateGeneratorService } from './template-generator.service';
 import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
 import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto } from './dto/template.dto';
 import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplicationDto } from './dto/application.dto';
+import { GenerateTemplateDto, TemplateGenerationResponse, ContinueGenerateTemplateDto } from './dto/generate-template.dto';
 
 @ApiTags('Function Templates')
 @ApiBearerAuth()
@@ -14,7 +16,10 @@ import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplication
 @UseInterceptors(LoggingInterceptor)
 @Controller('function-templates')
 export class FunctionTemplateController {
-  constructor(private readonly service: FunctionTemplateService) {}
+  constructor(
+    private readonly service: FunctionTemplateService,
+    private readonly generatorService: TemplateGeneratorService,
+  ) {}
 
   @ApiOperation({ summary: 'Get template categories' })
   @Get('categories')
@@ -123,6 +128,42 @@ export class FunctionTemplateController {
         {
           ok: false,
           message: error.message || 'Error al actualizar la aplicación',
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @ApiOperation({ summary: 'Generate template from URL using AI' })
+  @Post('generate-with-ai')
+  async generateTemplateWithAI(@Body() dto: GenerateTemplateDto): Promise<TemplateGenerationResponse> {
+    try {
+      // Primera llamada, isNewTemplate = true
+      return await this.generatorService.generateFromUrl(dto.url, dto.additionalMessage, 0, true);
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al generar el template con IA',
+          data: { template: null, categories: [], applications: [] },
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @ApiOperation({ summary: 'Continue template generation from URL' })
+  @Post('generate-with-ai/continue')
+  async continueTemplateGeneration(@Body() dto: ContinueGenerateTemplateDto): Promise<TemplateGenerationResponse> {
+    try {
+      // Llamada subsiguiente, isNewTemplate = false
+      return await this.generatorService.generateFromUrl(dto.url, dto.additionalMessage, dto.lastProcessedLine, false, dto.createdIds);
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al continuar la generación del template',
+          data: { template: null, categories: [], applications: [] },
         },
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
