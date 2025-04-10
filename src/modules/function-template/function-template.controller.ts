@@ -134,36 +134,36 @@ export class FunctionTemplateController {
     }
   }
 
-  @ApiOperation({ summary: 'Generate template from URL using AI' })
+  @ApiOperation({ summary: 'Generate template from text content using AI' })
   @Post('generate-with-ai')
   async generateTemplateWithAI(@Body() dto: GenerateTemplateDto): Promise<TemplateGenerationResponse> {
     try {
       // Primera llamada, isNewTemplate = true
-      return await this.generatorService.generateFromUrl(dto.url, dto.additionalMessage, 0, true);
+      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, 0, true, undefined, dto.sourceUrl);
     } catch (error) {
       throw new HttpException(
         {
           ok: false,
-          message: error.message || 'Error al generar el template con IA',
-          data: { template: null, categories: [], applications: [] },
+          message: error.message || 'Error al generar los templates con IA',
+          data: { templates: [], categories: [], applications: [] },
         },
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
-  @ApiOperation({ summary: 'Continue template generation from URL' })
+  @ApiOperation({ summary: 'Continue template generation from text content' })
   @Post('generate-with-ai/continue')
   async continueTemplateGeneration(@Body() dto: ContinueGenerateTemplateDto): Promise<TemplateGenerationResponse> {
     try {
       // Llamada subsiguiente, isNewTemplate = false
-      return await this.generatorService.generateFromUrl(dto.url, dto.additionalMessage, dto.lastProcessedLine, false, dto.createdIds);
+      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, dto.lastProcessedLine, false, dto.createdIds, dto.sourceUrl);
     } catch (error) {
       throw new HttpException(
         {
           ok: false,
-          message: error.message || 'Error al continuar la generación del template',
-          data: { template: null, categories: [], applications: [] },
+          message: error.message || 'Error al continuar la generación de los templates',
+          data: { templates: [], categories: [], applications: [] },
         },
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );

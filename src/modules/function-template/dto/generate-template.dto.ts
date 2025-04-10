@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreatedIdsDto {
   @ApiProperty({
@@ -20,12 +20,12 @@ export class CreatedIdsDto {
 
 export class GenerateTemplateDto {
   @ApiProperty({
-    description: 'URL del sitio para generar el template',
-    example: 'https://ejemplo.com',
+    description: 'Texto HTML o contenido para generar el template',
+    example: '<html><body>Contenido del sitio</body></html>',
   })
-  @IsNotEmpty({ message: 'La URL es requerida' })
-  @IsUrl({}, { message: 'Debe proporcionar una URL válida' })
-  url: string;
+  @IsNotEmpty({ message: 'El contenido es requerido' })
+  @IsString({ message: 'El contenido debe ser un texto válido' })
+  content: string;
 
   @ApiProperty({
     description: 'Mensaje adicional con instrucciones para la IA',
@@ -35,6 +35,15 @@ export class GenerateTemplateDto {
   @IsOptional()
   @IsString()
   additionalMessage?: string;
+
+  @ApiProperty({
+    description: 'URL de origen del contenido',
+    example: 'https://example.com/api-docs',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  sourceUrl?: string;
 }
 
 export class ContinueGenerateTemplateDto extends GenerateTemplateDto {
@@ -68,11 +77,11 @@ export class TemplateGenerationResponse {
   message: string;
 
   @ApiProperty({
-    description: 'Datos del template generado',
+    description: 'Datos de los templates generados',
     type: 'object',
   })
   data: {
-    template: any;
+    templates: any[];
     categories: any[];
     applications: any[];
     lastProcessedLine?: number;

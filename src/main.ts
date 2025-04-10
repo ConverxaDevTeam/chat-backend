@@ -14,6 +14,18 @@ import * as cors from 'cors';
 export const logger = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production' ? winstonLogger : new Logger('backend-chat');
 
 async function bootstrap() {
+  // Verificar variables de entorno críticas
+  const envVars = {
+    NODE_ENV: process.env.NODE_ENV,
+    CLAUDE_API_KEY: process.env.CLAUDE_API_KEY
+      ? `${process.env.CLAUDE_API_KEY.substring(0, 5)}...${process.env.CLAUDE_API_KEY.substring(process.env.CLAUDE_API_KEY.length - 5)}`
+      : undefined,
+    DB_HOST: process.env.DB_HOST,
+    PORT: process.env.PORT || 3001,
+  };
+
+  console.log('Variables de entorno críticas:', envVars);
+
   pg.defaults.parseInputDatesAsUTC = false;
   pg.types.setTypeParser(1114, (stringValue: string) => new Date(`${stringValue}Z`));
 

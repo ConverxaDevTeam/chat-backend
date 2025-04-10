@@ -194,6 +194,12 @@ export class FunctionTemplateService {
     });
   }
 
+  async getTagsByNames(names: string[]): Promise<FunctionTemplateTag[]> {
+    return this.tagRepository.find({
+      where: { name: In(names) },
+    });
+  }
+
   async createCategoriesBulk(categories: Array<Omit<FunctionTemplateCategory, 'id'>>): Promise<FunctionTemplateCategory[]> {
     const entities = categories.map((category) => this.categoryRepository.create(category));
     return this.categoryRepository.save(entities);

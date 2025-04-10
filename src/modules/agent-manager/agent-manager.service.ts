@@ -1,4 +1,5 @@
 import { forwardRef, Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
@@ -34,6 +35,7 @@ export class AgentManagerService {
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly configService: ConfigService,
   ) {
     this.agentServiceFactory = {
       [AgenteType.SOFIA_ASISTENTE]: (identifier, config) => {
@@ -43,7 +45,8 @@ export class AgentManagerService {
         }
         return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       },
-      [AgenteType.CLAUDE]: (identifier, config) => new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+      [AgenteType.CLAUDE]: (identifier, config) =>
+        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config, this.configService),
     };
   }
 

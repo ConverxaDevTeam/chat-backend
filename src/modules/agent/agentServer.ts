@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Message, MessageType, MessageFormatType } from '../../models/Message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
@@ -95,6 +96,7 @@ export class AgentService {
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly configService: ConfigService,
   ) {
     this.agentServiceFactory = {
       [AgenteType.SOFIA_ASISTENTE]: (identifier, config) => {
@@ -104,7 +106,8 @@ export class AgentService {
         }
         return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
       },
-      [AgenteType.CLAUDE]: (identifier, config) => new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config),
+      [AgenteType.CLAUDE]: (identifier, config) =>
+        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config, this.configService),
     };
   }
 

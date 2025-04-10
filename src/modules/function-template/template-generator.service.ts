@@ -7,6 +7,7 @@ import * as cheerio from 'cheerio';
 import * as fs from 'fs/promises';
 import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
 import { FunctionTemplate } from '@models/function-template/function-template.entity';
+import { FunctionTemplateTag } from '@models/function-template/function-template-tag.entity';
 
 @Injectable()
 export class TemplateGeneratorService {
@@ -22,7 +23,6 @@ export class TemplateGeneratorService {
       });
       return response.data;
     } catch (error) {
-      console.error('Error al obtener HTML:', error);
       throw new HttpException(
         {
           ok: false,
@@ -56,7 +56,6 @@ export class TemplateGeneratorService {
 
       return images;
     } catch (error) {
-      console.error('Error al extraer imágenes:', error);
       return [];
     }
   }
@@ -115,7 +114,6 @@ export class TemplateGeneratorService {
 
       return { text, relevantHeaders };
     } catch (error) {
-      console.error('Error al convertir HTML a texto:', error);
       throw new HttpException('Error al procesar el contenido HTML', HttpStatus.BAD_REQUEST);
     }
   }
@@ -225,6 +223,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         }
       },
       "suggestedCategory": "Categoría 1", // Elije una de las categorías sugeridas arriba
+      "tags": ["Tag1", "Tag2", "Tag3"], // Etiquetas relevantes para esta función
       "implementationNotes": "Notas para la implementación",
       "endLine": 123 // Número de línea donde termina esta función
     }
@@ -284,6 +283,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         }
       },
       "suggestedCategory": "Categoría sugerida",
+      "tags": ["Tag1", "Tag2", "Tag3"], // Etiquetas relevantes para esta función
       "implementationNotes": "Notas para la implementación",
       "endLine": 123 // Número de línea donde termina esta función
     }
@@ -320,7 +320,6 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           lastProcessedLine: lastLine,
         };
       } catch (parseError) {
-        console.error('Error al parsear respuesta JSON:', parseError, content);
         throw new HttpException(
           {
             ok: false,
@@ -330,7 +329,6 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         );
       }
     } catch (error) {
-      console.error('Error con la API de Anthropic:', error);
       throw new HttpException(
         {
           ok: false,
@@ -348,6 +346,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
     lastProcessedLine: number = 0,
     isNewTemplate: boolean = true,
     createdIds?: { applicationId?: string; categoryIds?: string[] },
+    sourceUrl?: string,
   ) {
     // Determinar si el contenido es HTML o texto plano
     let text = content;
@@ -360,10 +359,11 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         const result = this.convertHtmlToText(content);
         text = result.text;
         relevantHeaders = result.relevantHeaders;
-        // Para extraer imágenes necesitamos una URL base, usamos una genérica
-        images = this.extractImages(content, 'https://example.com');
+        // Para extraer imágenes usamos la URL proporcionada o una genérica
+        const baseUrl = sourceUrl || 'https://example.com';
+        images = this.extractImages(content, baseUrl);
       } catch (error) {
-        console.warn('Error al procesar HTML, tratando como texto plano:', error);
+        // Tratando como texto plano
       }
     }
 
@@ -373,32 +373,25 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
     // Si es una nueva plantilla, la IA debe generar información de la aplicación
     // Si es una continuación, solo se genera el template
     const isFirstCall = isNewTemplate && lastProcessedLine === 0;
-    console.log('lastProcessedLine', lastProcessedLine);
-    console.log('textChunks', textChunks);
-    console.log('images', images);
-    console.log('additionalMessage', additionalMessage);
 
     // Generar templates con IA (y posiblemente información de la aplicación si es primera llamada)
     const result = await this.generateTemplateFromText(textChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders);
-    console.log('result templates count:', result);
     // Si es la primera vez y tenemos información de aplicación y categorías
     if (isFirstCall && result.applicationInfo && result.categories) {
       // Verificar si ya existe la aplicación por dominio o crear una nueva
       let application: FunctionTemplateApplication;
-      const domain = result.applicationInfo.domain;
+      // Usar sourceUrl como dominio si está disponible, o el dominio proporcionado por la IA
+      const domain = sourceUrl ? new URL(sourceUrl).hostname : result.applicationInfo.domain;
       const existingApp = await this.templateService.getApplicationByDomain(domain);
-      console.log('existingApp', existingApp);
       if (existingApp) {
         application = existingApp;
       } else {
         // Buscar la URL de la imagen de logo
         let logoFile: Express.Multer.File | undefined;
         if (result.applicationInfo.logoImageId) {
-          console.log('logoImageId', result.applicationInfo.logoImageId);
           const logoImage = images.find((img) => img.id === result.applicationInfo.logoImageId);
           if (logoImage) {
             try {
-              console.log('Descargando imagen de:', logoImage.url);
               const response = await axios.get(logoImage.url, {
                 responseType: 'arraybuffer',
                 timeout: 10000, // 10 segundos de timeout
@@ -425,18 +418,15 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
                   filename: 'logo',
                   path: tempFilePath,
                 } as Express.Multer.File;
-
-                console.log('Imagen descargada correctamente, tamaño:', response.data.length, 'bytes');
               } else {
-                console.error('Error al descargar imagen, status:', response.status);
+                // Error al descargar imagen
               }
             } catch (error) {
-              console.error('Error al descargar la imagen del logo:', error.message);
+              // Error al descargar la imagen del logo
             }
           }
         }
 
-        console.log('logoFile', logoFile);
         // Crear la aplicación
         const newAppResult = await this.templateService.createApplication(
           {
@@ -447,7 +437,6 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           },
           logoFile,
         );
-        console.log('newAppResult', newAppResult);
         application = newAppResult.data;
       }
 
@@ -542,14 +531,13 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         const categoryId = template.suggestedCategory && categoryMap.has(template.suggestedCategory) ? categoryMap.get(template.suggestedCategory) : categories[0]?.id;
 
         if (!categoryId) {
-          console.warn('No se encontró categoría para el template:', template.name);
           continue;
         }
 
         // Convertir parámetros al formato esperado por createTemplate (Record<string, param>)
         const paramsArray = template.params || [];
         const params: Record<string, any> = {};
-        
+
         // Convertir el array de parámetros a un objeto donde el nombre es la clave
         paramsArray.forEach((param) => {
           if (param.name) {
@@ -564,6 +552,12 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           }
         });
 
+        // Procesar tags si existen
+        let tags: FunctionTemplateTag[] = [];
+        if (template.tags && Array.isArray(template.tags) && template.tags.length > 0) {
+          tags = await this.templateService.getTagsByNames(template.tags);
+        }
+
         // Crear el template
         const templateDto = {
           name: template.name,
@@ -574,7 +568,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           method: template.method || 'GET',
           bodyType: 'json',
           params,
-          // Agregar campos adicionales si son necesarios
+          tags,
         };
 
         const savedTemplate = await this.templateService.createTemplate(templateDto);
@@ -585,5 +579,25 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
     }
 
     return savedTemplates;
+  }
+
+  /**
+   * Muestra información sobre la línea final procesada
+   * @param lastProcessedLine Número de línea final procesada
+   * @param textChunks Chunks de texto procesados
+   */
+  private logFinalLine(lastProcessedLine: number, textChunks: Array<[number, string]>): void {
+    // Buscar 10 líneas antes y 10 después de la línea final
+    const startLine = Math.max(0, lastProcessedLine - 10);
+    const endLine = lastProcessedLine + 10;
+
+    const relevantChunks = textChunks.filter(([lineNum]) => lineNum >= startLine && lineNum <= endLine);
+
+    console.log(`\nInformación sobre la línea final procesada (${lastProcessedLine}):\n`);
+    relevantChunks.forEach(([lineNum, text]) => {
+      const marker = lineNum === lastProcessedLine ? '>>> ' : '    ';
+      console.log(`${marker}[${lineNum}] ${text}`);
+    });
+    console.log('\n');
   }
 }
