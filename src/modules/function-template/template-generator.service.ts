@@ -5,6 +5,8 @@ import { FunctionTemplateService } from './function-template.service';
 import { ClaudeSonetService } from 'src/services/llm-agent/claude-sonet.service';
 import * as cheerio from 'cheerio';
 import * as fs from 'fs/promises';
+import { FunctionTemplateApplication } from '@models/function-template/function-template-application.entity';
+import { FunctionTemplate } from '@models/function-template/function-template.entity';
 
 @Injectable()
 export class TemplateGeneratorService {
@@ -59,26 +61,62 @@ export class TemplateGeneratorService {
     }
   }
 
-  convertHtmlToText(html: string): string {
+  convertHtmlToText(html: string): { text: string; relevantHeaders: string[] } {
     try {
-      return convert(html, {
+      // Extraer headers relevantes que pueden contener información sobre la aplicación
+      const $ = cheerio.load(html);
+      const allHeaders: string[] = [];
+
+      // Obtener título de la página
+      const title = $('title').text().trim();
+      if (title) allHeaders.push(title);
+
+      // Obtener meta tags relevantes
+      const metaTags = ['og:site_name', 'og:title', 'application-name']
+        .map((name) => {
+          const content = $(`meta[property="${name}"], meta[name="${name}"]`).attr('content');
+          return content ? `${name}: ${content}` : null;
+        })
+        .filter(Boolean) as string[];
+
+      allHeaders.push(...metaTags);
+
+      // Obtener headers principales (h1, h2)
+      const mainHeaders: string[] = [];
+      $('h1, h2')
+        .slice(0, 5)
+        .each((_, elem) => {
+          const text = $(elem).text().trim();
+          if (text && text.length > 2 && text.length < 50) {
+            mainHeaders.push(text);
+          }
+        });
+
+      allHeaders.push(...mainHeaders);
+
+      // Filtrar headers irrelevantes usando regex
+      const irrelevantPatterns = [
+        /login|sign in|register|contact|about|help|support|privacy|terms/i,
+        /cookie|copyright|menu|navigation|search|cart|checkout/i,
+        /account|profile|settings|preferences|faq|blog|news/i,
+      ];
+
+      const relevantHeaders = allHeaders.filter((header) => !irrelevantPatterns.some((pattern) => pattern.test(header)));
+
+      // Convertir HTML a texto
+      const text = convert(html, {
         wordwrap: 130,
         selectors: [
           { selector: 'a', options: { ignoreHref: true } },
-          { selector: 'img', format: 'skip' },
           { selector: 'script', format: 'skip' },
           { selector: 'style', format: 'skip' },
         ],
       });
+
+      return { text, relevantHeaders };
     } catch (error) {
       console.error('Error al convertir HTML a texto:', error);
-      throw new HttpException(
-        {
-          ok: false,
-          message: 'Error al procesar el contenido HTML',
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Error al procesar el contenido HTML', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -93,7 +131,8 @@ export class TemplateGeneratorService {
     additionalMessage: string = '',
     lastProcessedLine: number = 0,
     isFirstCall: boolean = false,
-  ): Promise<{ template: any; applicationInfo?: any; categories?: string[]; lastProcessedLine: number }> {
+    relevantHeaders: string[] = [],
+  ): Promise<{ templates: any[]; applicationInfo?: any; categories?: string[]; lastProcessedLine: number }> {
     // Filtrar chunks a partir de la última línea procesada
     const chunksToProcess = textChunks.filter(([lineNum]) => lineNum > lastProcessedLine);
     // Tomar solo los primeros 400 chunks para evitar exceder límites de tokens
@@ -120,9 +159,12 @@ Imágenes encontradas en la página (potenciales logos):
 ${images.map((img) => `[${img.id}] URL: ${img.url}, Alt: ${img.alt}, Tamaño: ${img.width}x${img.height}`).join('\n')}`
         : '';
 
-    // El prompt cambia dependiendo de si es la primera llamada o no
-    const systemPrompt = isFirstCall
-      ? `
+    // Crear el prompt según sea primera llamada o no
+    let systemPrompt = '';
+
+    if (isFirstCall) {
+      // Prompt para la primera llamada (con información de aplicación y categorías)
+      systemPrompt = `
 Eres un asistente especializado en crear templates de funciones API y aplicaciones a partir de contenido web.
 Tu tarea es analizar el contenido proporcionado y:
 1. Sugerir una aplicación basada en el sitio web analizado
@@ -132,9 +174,23 @@ Tu tarea es analizar el contenido proporcionado y:
 Analiza el siguiente contenido extraído de una página web (cada línea está numerada):
 ${chunksText}
 ${imagesText}
+`;
 
-${additionalMessage ? `Instrucciones adicionales: ${additionalMessage}\n` : ''}
+      if (additionalMessage) {
+        systemPrompt += `
+Instrucciones adicionales: ${additionalMessage}
+`;
+      }
 
+      if (relevantHeaders.length > 0) {
+        systemPrompt += `
+He extraído los siguientes headers relevantes de la página que podrían ayudarte a determinar el nombre de la aplicación:
+${relevantHeaders.map((h) => `- ${h}`).join('\n')}
+
+`;
+      }
+
+      systemPrompt += `
 Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
 {
   "applicationInfo": {
@@ -144,75 +200,98 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
     "logoImageId": "img_X" // ID de la imagen sugerida como logo (de la lista proporcionada)
   },
   "categories": ["Categoría 1", "Categoría 2", "Categoría 3"], // Sugerencias de categorías para organizar las funciones
-  "template": {
-    "name": "Nombre descriptivo del template",
-    "description": "Descripción detallada",
-    "endpoint": "/ruta/sugerida",
-    "method": "GET|POST|PUT|DELETE",
-    "params": [
-      {
-        "name": "nombreParametro",
-        "type": "string|number|boolean|object",
-        "description": "Descripción del parámetro",
-        "required": true|false,
-        "location": "body|query|path"
-      }
-    ],
-    "responseSchema": {
-      "type": "object",
-      "properties": {
-        "nombrePropiedad": {
-          "type": "string|number|boolean|object|array",
-          "description": "Descripción de la propiedad"
+  "templates": [
+    {
+      "name": "Nombre descriptivo del template",
+      "description": "Descripción detallada",
+      "endpoint": "/ruta/sugerida",
+      "method": "GET|POST|PUT|DELETE",
+      "params": [
+        {
+          "name": "nombreParametro",
+          "type": "string|number|boolean|object",
+          "description": "Descripción del parámetro",
+          "required": true|false,
+          "location": "body|query|path"
         }
-      }
-    },
-    "suggestedCategory": "Categoría 1", // Elije una de las categorías sugeridas arriba
-    "implementationNotes": "Notas para la implementación"
-  },
-  "lastProcessedLine": 123 // número de la última línea procesada
-}
-`
-      : `
-Eres un asistente especializado en crear templates de funciones API a partir de contenido web.
-Tu tarea es analizar el contenido proporcionado y generar un template estructurado para implementar funcionalidad similar.
-
-Analiza el siguiente contenido extraído de una página web (cada línea está numerada):
-${chunksText}
-
-${additionalMessage ? `Instrucciones adicionales: ${additionalMessage}\n` : ''}
-
-Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
-{
-  "template": {
-    "name": "Nombre descriptivo del template",
-    "description": "Descripción detallada",
-    "endpoint": "/ruta/sugerida",
-    "method": "GET|POST|PUT|DELETE",
-    "params": [
-      {
-        "name": "nombreParametro",
-        "type": "string|number|boolean|object",
-        "description": "Descripción del parámetro",
-        "required": true|false,
-        "location": "body|query|path"
-      }
-    ],
-    "responseSchema": {
-      "type": "object",
-      "properties": {
-        "nombrePropiedad": {
-          "type": "string|number|boolean|object|array",
-          "description": "Descripción de la propiedad"
+      ],
+      "responseSchema": {
+        "type": "object",
+        "properties": {
+          "nombrePropiedad": {
+            "type": "string|number|boolean|object|array",
+            "description": "Descripción de la propiedad"
+          }
         }
-      }
-    },
-    "suggestedCategory": "Categoría sugerida",
-    "implementationNotes": "Notas para la implementación"
-  },
+      },
+      "suggestedCategory": "Categoría 1", // Elije una de las categorías sugeridas arriba
+      "implementationNotes": "Notas para la implementación",
+      "endLine": 123 // Número de línea donde termina esta función
+    }
+  ],
   "lastProcessedLine": 123 // número de la última línea procesada
 }
 `;
+    } else {
+      // Prompt para llamadas subsecuentes (solo templates)
+      systemPrompt = `
+Eres un asistente especializado en crear templates de funciones API a partir de contenido web.
+Tu tarea es analizar el contenido proporcionado y generar templates estructurados para implementar funcionalidad similar.
+
+Analiza el siguiente contenido extraído de una página web (cada línea está numerada):
+${chunksText}
+`;
+
+      if (additionalMessage) {
+        systemPrompt += `
+Instrucciones adicionales: ${additionalMessage}
+`;
+      }
+
+      if (relevantHeaders.length > 0) {
+        systemPrompt += `
+He extraído los siguientes headers relevantes de la página que podrían ayudarte a determinar el nombre de la aplicación:
+${relevantHeaders.map((h) => `- ${h}`).join('\n')}
+
+`;
+      }
+
+      systemPrompt += `
+Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
+{
+  "templates": [
+    {
+      "name": "Nombre descriptivo del template",
+      "description": "Descripción detallada",
+      "endpoint": "/ruta/sugerida",
+      "method": "GET|POST|PUT|DELETE",
+      "params": [
+        {
+          "name": "nombreParametro",
+          "type": "string|number|boolean|object",
+          "description": "Descripción del parámetro",
+          "required": true|false,
+          "location": "body|query|path"
+        }
+      ],
+      "responseSchema": {
+        "type": "object",
+        "properties": {
+          "nombrePropiedad": {
+            "type": "string|number|boolean|object|array",
+            "description": "Descripción de la propiedad"
+          }
+        }
+      },
+      "suggestedCategory": "Categoría sugerida",
+      "implementationNotes": "Notas para la implementación",
+      "endLine": 123 // Número de línea donde termina esta función
+    }
+  ],
+  "lastProcessedLine": 123 // número de la última línea procesada
+}
+`;
+    }
 
     try {
       // Usar el método estático de ClaudeSonetService para generar contenido
@@ -229,7 +308,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         // Si es la primera llamada, incluir la información de la aplicación y categorías
         if (isFirstCall) {
           return {
-            template: parsedResponse.template,
+            templates: parsedResponse.templates || [parsedResponse.template].filter(Boolean),
             applicationInfo: parsedResponse.applicationInfo,
             categories: parsedResponse.categories,
             lastProcessedLine: lastLine,
@@ -237,7 +316,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         }
 
         return {
-          template: parsedResponse.template,
+          templates: parsedResponse.templates || [parsedResponse.template].filter(Boolean),
           lastProcessedLine: lastLine,
         };
       } catch (parseError) {
@@ -262,19 +341,31 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
     }
   }
 
-  async generateFromUrl(
-    url: string,
+  // Método para generar template a partir de texto o HTML directamente
+  async generateFromText(
+    content: string,
     additionalMessage?: string,
     lastProcessedLine: number = 0,
     isNewTemplate: boolean = true,
     createdIds?: { applicationId?: string; categoryIds?: string[] },
   ) {
-    // Obtener HTML y convertirlo a texto
-    const html = await this.fetchHtmlFromUrl(url);
-    const text = this.convertHtmlToText(html);
+    // Determinar si el contenido es HTML o texto plano
+    let text = content;
+    let images: { id: string; url: string; alt: string; width: number; height: number }[] = [];
 
-    // Extraer imágenes potenciales para logos
-    const images = this.extractImages(html, url);
+    // Si parece ser HTML, convertirlo a texto y extraer imágenes
+    let relevantHeaders: string[] = [];
+    if (content.includes('<html') || content.includes('<body') || content.includes('<div')) {
+      try {
+        const result = this.convertHtmlToText(content);
+        text = result.text;
+        relevantHeaders = result.relevantHeaders;
+        // Para extraer imágenes necesitamos una URL base, usamos una genérica
+        images = this.extractImages(content, 'https://example.com');
+      } catch (error) {
+        console.warn('Error al procesar HTML, tratando como texto plano:', error);
+      }
+    }
 
     // Preparar chunks de texto
     const textChunks = this.prepareContentChunks(text);
@@ -282,43 +373,70 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
     // Si es una nueva plantilla, la IA debe generar información de la aplicación
     // Si es una continuación, solo se genera el template
     const isFirstCall = isNewTemplate && lastProcessedLine === 0;
+    console.log('lastProcessedLine', lastProcessedLine);
+    console.log('textChunks', textChunks);
+    console.log('images', images);
+    console.log('additionalMessage', additionalMessage);
 
-    // Generar template con IA (y posiblemente información de la aplicación si es primera llamada)
-    const result = await this.generateTemplateFromText(textChunks, images, additionalMessage, lastProcessedLine, isFirstCall);
-
+    // Generar templates con IA (y posiblemente información de la aplicación si es primera llamada)
+    const result = await this.generateTemplateFromText(textChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders);
+    console.log('result templates count:', result);
     // Si es la primera vez y tenemos información de aplicación y categorías
     if (isFirstCall && result.applicationInfo && result.categories) {
       // Verificar si ya existe la aplicación por dominio o crear una nueva
-      let application;
+      let application: FunctionTemplateApplication;
       const domain = result.applicationInfo.domain;
       const existingApp = await this.templateService.getApplicationByDomain(domain);
-
+      console.log('existingApp', existingApp);
       if (existingApp) {
         application = existingApp;
       } else {
         // Buscar la URL de la imagen de logo
         let logoFile: Express.Multer.File | undefined;
         if (result.applicationInfo.logoImageId) {
+          console.log('logoImageId', result.applicationInfo.logoImageId);
           const logoImage = images.find((img) => img.id === result.applicationInfo.logoImageId);
           if (logoImage) {
-            const response = await axios.get(logoImage.url, { responseType: 'arraybuffer' });
-            const tempFilePath = `/tmp/${logoImage.id}`;
-            await fs.writeFile(tempFilePath, response.data);
+            try {
+              console.log('Descargando imagen de:', logoImage.url);
+              const response = await axios.get(logoImage.url, {
+                responseType: 'arraybuffer',
+                timeout: 10000, // 10 segundos de timeout
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                },
+                maxRedirects: 5,
+              });
 
-            logoFile = {
-              fieldname: 'image',
-              originalname: 'logo',
-              encoding: '7bit',
-              mimetype: response.headers['content-type'],
-              size: response.data.length,
-              buffer: response.data,
-              destination: '',
-              filename: 'logo',
-              path: tempFilePath,
-            } as Express.Multer.File;
+              if (response.status === 200 && response.data) {
+                const tempFilePath = `/tmp/${logoImage.id}`;
+                await fs.writeFile(tempFilePath, response.data);
+
+                const contentType = response.headers['content-type'] || 'image/jpeg';
+
+                logoFile = {
+                  fieldname: 'image',
+                  originalname: `logo.${contentType.split('/')[1] || 'jpg'}`,
+                  encoding: '7bit',
+                  mimetype: contentType,
+                  size: response.data.length,
+                  buffer: response.data,
+                  destination: '',
+                  filename: 'logo',
+                  path: tempFilePath,
+                } as Express.Multer.File;
+
+                console.log('Imagen descargada correctamente, tamaño:', response.data.length, 'bytes');
+              } else {
+                console.error('Error al descargar imagen, status:', response.status);
+              }
+            } catch (error) {
+              console.error('Error al descargar la imagen del logo:', error.message);
+            }
           }
         }
 
+        console.log('logoFile', logoFile);
         // Crear la aplicación
         const newAppResult = await this.templateService.createApplication(
           {
@@ -329,7 +447,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           },
           logoFile,
         );
-
+        console.log('newAppResult', newAppResult);
         application = newAppResult.data;
       }
 
@@ -352,14 +470,17 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
 
       // Guardar IDs creados
       if (!createdIds) createdIds = {};
-      createdIds.applicationId = application.id;
+      createdIds.applicationId = application.id.toString();
       createdIds.categoryIds = processedCategories.map((c) => c.id.toString());
+
+      // Guardar los templates generados en la base de datos
+      const savedTemplates = await this.saveGeneratedTemplates(result.templates, application.id, processedCategories);
 
       return {
         ok: true,
-        message: 'Template y aplicación generados con éxito',
+        message: 'Templates y aplicación generados con éxito',
         data: {
-          template: result.template,
+          templates: savedTemplates,
           application,
           categories: processedCategories,
           applications: [application],
@@ -374,11 +495,17 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         createdIds?.applicationId ? this.templateService.getApplicationsByIds([createdIds.applicationId]) : [],
       ]);
 
+      // Guardar los templates generados en la base de datos si tenemos los IDs necesarios
+      let savedTemplates = result.templates;
+      if (createdIds?.applicationId && categories.length > 0) {
+        savedTemplates = await this.saveGeneratedTemplates(result.templates, parseInt(createdIds.applicationId), categories);
+      }
+
       return {
         ok: true,
-        message: 'Template generado con éxito',
+        message: 'Templates generados con éxito',
         data: {
-          template: result.template,
+          templates: savedTemplates,
           categories,
           applications,
           lastProcessedLine: result.lastProcessedLine,
@@ -386,5 +513,77 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         },
       };
     }
+  }
+
+  /**
+   * Guarda los templates generados en la base de datos
+   * @param templates Templates generados por la IA
+   * @param applicationId ID de la aplicación
+   * @param categories Categorías disponibles
+   * @returns Templates guardados
+   */
+  private async saveGeneratedTemplates(templates: any[], applicationId: number, categories: any[]): Promise<FunctionTemplate[]> {
+    if (!templates || templates.length === 0) {
+      return [];
+    }
+
+    // Crear un mapa de nombres de categorías a IDs para búsqueda rápida
+    const categoryMap = new Map<string, number>();
+    categories.forEach((category) => {
+      categoryMap.set(category.name, category.id);
+    });
+
+    // Convertir los templates generados al formato esperado por createTemplate
+    const savedTemplates: FunctionTemplate[] = [];
+
+    for (const template of templates) {
+      try {
+        // Obtener el ID de la categoría sugerida o usar la primera disponible
+        const categoryId = template.suggestedCategory && categoryMap.has(template.suggestedCategory) ? categoryMap.get(template.suggestedCategory) : categories[0]?.id;
+
+        if (!categoryId) {
+          console.warn('No se encontró categoría para el template:', template.name);
+          continue;
+        }
+
+        // Convertir parámetros al formato esperado por createTemplate (Record<string, param>)
+        const paramsArray = template.params || [];
+        const params: Record<string, any> = {};
+        
+        // Convertir el array de parámetros a un objeto donde el nombre es la clave
+        paramsArray.forEach((param) => {
+          if (param.name) {
+            params[param.name] = {
+              name: param.name,
+              title: param.name,
+              description: param.description,
+              type: param.type || 'string', // Valor por defecto si no se especifica
+              required: param.required || false,
+              location: param.location || 'body',
+            };
+          }
+        });
+
+        // Crear el template
+        const templateDto = {
+          name: template.name,
+          description: template.description,
+          categoryId,
+          applicationId,
+          url: template.endpoint || '',
+          method: template.method || 'GET',
+          bodyType: 'json',
+          params,
+          // Agregar campos adicionales si son necesarios
+        };
+
+        const savedTemplate = await this.templateService.createTemplate(templateDto);
+        savedTemplates.push(savedTemplate);
+      } catch (error) {
+        console.error('Error al guardar template:', error, template);
+      }
+    }
+
+    return savedTemplates;
   }
 }
