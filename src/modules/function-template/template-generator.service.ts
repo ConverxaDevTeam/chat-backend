@@ -130,6 +130,7 @@ export class TemplateGeneratorService {
     lastProcessedLine: number = 0,
     isFirstCall: boolean = false,
     relevantHeaders: string[] = [],
+    attempt: number = 0,
   ): Promise<{ templates: any[]; applicationInfo?: any; categories?: string[]; lastProcessedLine: number }> {
     // Filtrar chunks a partir de la última línea procesada
     const chunksToProcess = textChunks.filter(([lineNum]) => lineNum > lastProcessedLine);
@@ -189,7 +190,7 @@ ${relevantHeaders.map((h) => `- ${h}`).join('\n')}
       }
 
       systemPrompt += `
-Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
+Responde ÚNICAMENTE en formato JSON con la siguiente estructura y limita tu respuesta a 300 lineas:
 {
   "applicationInfo": {
     "name": "Nombre de la aplicación",
@@ -224,7 +225,6 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
       },
       "suggestedCategory": "Categoría 1", // Elije una de las categorías sugeridas arriba
       "tags": ["Tag1", "Tag2", "Tag3"], // Etiquetas relevantes para esta función
-      "implementationNotes": "Notas para la implementación",
       "endLine": 123 // Número de línea donde termina esta función
     }
   ],
@@ -235,28 +235,13 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
       // Prompt para llamadas subsecuentes (solo templates)
       systemPrompt = `
 Eres un asistente especializado en crear templates de funciones API a partir de contenido web.
-Tu tarea es analizar el contenido proporcionado y generar templates estructurados para implementar funcionalidad similar.
+Tu tarea es analizar el contenido y generar templates estructurados.
 
-Analiza el siguiente contenido extraído de una página web (cada línea está numerada):
+Analiza este contenido:
 ${chunksText}
-`;
+${additionalMessage ? `Instrucciones: ${additionalMessage}` : ''}
 
-      if (additionalMessage) {
-        systemPrompt += `
-Instrucciones adicionales: ${additionalMessage}
-`;
-      }
-
-      if (relevantHeaders.length > 0) {
-        systemPrompt += `
-He extraído los siguientes headers relevantes de la página que podrían ayudarte a determinar el nombre de la aplicación:
-${relevantHeaders.map((h) => `- ${h}`).join('\n')}
-
-`;
-      }
-
-      systemPrompt += `
-Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
+Responde en JSON con esta estructura:
 {
   "templates": [
     {
@@ -282,20 +267,19 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           }
         }
       },
-      "suggestedCategory": "Categoría sugerida",
+      "suggestedCategory": "Categoría", // REQUERIDO - Debe ser una de las categorías proporcionadas
       "tags": ["Tag1", "Tag2", "Tag3"], // Etiquetas relevantes para esta función
-      "implementationNotes": "Notas para la implementación",
       "endLine": 123 // Número de línea donde termina esta función
     }
   ],
+  "categories": ["Categoría1", "Categoría2"], // REQUERIDO - Lista de todas las categorías disponibles
   "lastProcessedLine": 123 // número de la última línea procesada
-}
-`;
+}`;
     }
 
     try {
       // Usar el método estático de ClaudeSonetService para generar contenido
-      const content = await ClaudeSonetService.generateContent(systemPrompt, 'Genera el template basado en el contenido proporcionado.', 4000, 0.7);
+      const content = await ClaudeSonetService.generateContent(systemPrompt, 'Genera el template basado en el contenido proporcionado.', 6500, 0.7);
       try {
         // Extraer solo el JSON válido de la respuesta (ignorando markdown, etc.)
         const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/({[\s\S]*})/);
@@ -304,6 +288,9 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
 
         // Encontrar la última línea procesada o usar la última del chunk actual
         const lastLine = parsedResponse.lastProcessedLine || (chunksToSend.length > 0 ? chunksToSend[chunksToSend.length - 1][0] : lastProcessedLine);
+
+        // Log processing context
+        this.logFinalLine(lastLine, chunksToSend);
 
         // Si es la primera llamada, incluir la información de la aplicación y categorías
         if (isFirstCall) {
@@ -315,11 +302,22 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           };
         }
 
+        // Asegurar que siempre haya categorías
+        const categories: string[] = parsedResponse.categories || parsedResponse.templates?.map((t) => t.suggestedCategory as string).filter(Boolean) || [];
+
         return {
           templates: parsedResponse.templates || [parsedResponse.template].filter(Boolean),
+          applicationInfo: parsedResponse.applicationInfo,
+          categories,
           lastProcessedLine: lastLine,
         };
       } catch (parseError) {
+        if (attempt < 3) {
+          console.log('Error al procesar la respuesta de la IA, reduciendo el texto...', attempt);
+          const reducedChunks = chunksToSend.slice(0, chunksToSend.length - 50);
+          return this.generateTemplateFromText(reducedChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders, attempt + 1);
+        }
+        console.error('Error al procesar la respuesta de la IA:', parseError);
         throw new HttpException(
           {
             ok: false,
@@ -329,6 +327,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         );
       }
     } catch (error) {
+      console.error('Error al comunicarse con el servicio de IA:', error);
       throw new HttpException(
         {
           ok: false,
@@ -337,6 +336,29 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  /**
+   * Extrae lógica común de procesamiento de categorías
+   * @param categoryNames Nombres de categorías
+   * @returns Categorías procesadas
+   */
+  private async processCategories(categoryNames: string[]) {
+    const existingCategories = await this.templateService.getCategoriesByNames(categoryNames);
+    const existingCategoryNames = new Set(existingCategories.map((c) => c.name));
+    const missingCategories = categoryNames
+      .filter((name) => !existingCategoryNames.has(name))
+      .map((name) => ({
+        name,
+        description: '',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+    const createdCategories = missingCategories.length > 0 ? await this.templateService.createCategoriesBulk(missingCategories) : [];
+
+    return [...existingCategories, ...createdCategories];
   }
 
   // Método para generar template a partir de texto o HTML directamente
@@ -376,10 +398,19 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
 
     // Generar templates con IA (y posiblemente información de la aplicación si es primera llamada)
     const result = await this.generateTemplateFromText(textChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders);
-    // Si es la primera vez y tenemos información de aplicación y categorías
-    if (isFirstCall && result.applicationInfo && result.categories) {
+
+    // Procesar categorías (común para ambos flujos)
+    const categories = await this.processCategories(result.categories || []);
+
+    // Variables para el resultado final
+    let applications: FunctionTemplateApplication[] = [];
+    let application: FunctionTemplateApplication | undefined;
+    let savedTemplates = result.templates;
+    let successMessage = 'Templates generados con éxito';
+
+    // Si es la primera vez y tenemos información de aplicación
+    if (isFirstCall && result.applicationInfo) {
       // Verificar si ya existe la aplicación por dominio o crear una nueva
-      let application: FunctionTemplateApplication;
       // Usar sourceUrl como dominio si está disponible, o el dominio proporcionado por la IA
       const domain = sourceUrl ? new URL(sourceUrl).hostname : result.applicationInfo.domain;
       const existingApp = await this.templateService.getApplicationByDomain(domain);
@@ -419,10 +450,10 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
                   path: tempFilePath,
                 } as Express.Multer.File;
               } else {
-                // Error al descargar imagen
+                console.error('Failed to download logo image - invalid response status:', response.status);
               }
             } catch (error) {
-              // Error al descargar la imagen del logo
+              console.error('Error downloading logo image:', error);
             }
           }
         }
@@ -440,68 +471,38 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
         application = newAppResult.data;
       }
 
-      // Procesar categorías
-      const existingCategories = await this.templateService.getCategoriesByNames(result.categories);
-      const existingCategoryNames = new Set(existingCategories.map((c) => c.name));
-      const missingCategories = result.categories
-        .filter((name) => !existingCategoryNames.has(name))
-        .map((name) => ({
-          name,
-          description: '',
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }));
-
-      const createdCategories = missingCategories.length > 0 ? await this.templateService.createCategoriesBulk(missingCategories) : [];
-
-      const processedCategories = [...existingCategories, ...createdCategories];
-
       // Guardar IDs creados
       if (!createdIds) createdIds = {};
       createdIds.applicationId = application.id.toString();
-      createdIds.categoryIds = processedCategories.map((c) => c.id.toString());
+      createdIds.categoryIds = categories.map((c) => c.id.toString());
 
-      // Guardar los templates generados en la base de datos
-      const savedTemplates = await this.saveGeneratedTemplates(result.templates, application.id, processedCategories);
-
-      return {
-        ok: true,
-        message: 'Templates y aplicación generados con éxito',
-        data: {
-          templates: savedTemplates,
-          application,
-          categories: processedCategories,
-          applications: [application],
-          lastProcessedLine: result.lastProcessedLine,
-          createdIds,
-        },
-      };
+      // Actualizar variables para el resultado
+      applications = [application];
+      successMessage = 'Templates y aplicación generados con éxito';
     } else {
-      // Obtener solo las categorías y aplicaciones especificadas
-      const [categories, applications] = await Promise.all([
-        createdIds?.categoryIds ? this.templateService.getCategoriesByIds(createdIds.categoryIds) : [],
-        createdIds?.applicationId ? this.templateService.getApplicationsByIds([createdIds.applicationId]) : [],
-      ]);
-
-      // Guardar los templates generados en la base de datos si tenemos los IDs necesarios
-      let savedTemplates = result.templates;
-      if (createdIds?.applicationId && categories.length > 0) {
-        savedTemplates = await this.saveGeneratedTemplates(result.templates, parseInt(createdIds.applicationId), categories);
-      }
-
-      return {
-        ok: true,
-        message: 'Templates generados con éxito',
-        data: {
-          templates: savedTemplates,
-          categories,
-          applications,
-          lastProcessedLine: result.lastProcessedLine,
-          createdIds,
-        },
-      };
+      // Obtener aplicaciones usando los IDs proporcionados
+      applications = createdIds?.applicationId ? await this.templateService.getApplicationsByIds([createdIds.applicationId]) : [];
     }
+
+    // Guardar los templates generados en la base de datos si tenemos los IDs necesarios
+    if (createdIds?.applicationId) {
+      const appId = parseInt(createdIds.applicationId);
+      savedTemplates = await this.saveGeneratedTemplates(result.templates, appId, categories);
+    }
+
+    // Retornar resultado común
+    return {
+      ok: true,
+      message: successMessage,
+      data: {
+        templates: savedTemplates,
+        application,
+        categories,
+        applications,
+        lastProcessedLine: result.lastProcessedLine,
+        createdIds,
+      },
+    };
   }
 
   /**
@@ -529,10 +530,6 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
       try {
         // Obtener el ID de la categoría sugerida o usar la primera disponible
         const categoryId = template.suggestedCategory && categoryMap.has(template.suggestedCategory) ? categoryMap.get(template.suggestedCategory) : categories[0]?.id;
-
-        if (!categoryId) {
-          continue;
-        }
 
         // Convertir parámetros al formato esperado por createTemplate (Record<string, param>)
         const paramsArray = template.params || [];
@@ -570,8 +567,9 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura:
           params,
           tags,
         };
-
+        console.log('templateDto', templateDto);
         const savedTemplate = await this.templateService.createTemplate(templateDto);
+        console.log('savedTemplate', savedTemplate);
         savedTemplates.push(savedTemplate);
       } catch (error) {
         console.error('Error al guardar template:', error, template);

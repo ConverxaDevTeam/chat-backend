@@ -220,7 +220,9 @@ export class FunctionTemplateService {
   }
 
   async getCategoriesByIds(ids: string[]): Promise<FunctionTemplateCategory[]> {
-    return this.categoryRepository.find({ where: { id: In(ids) } });
+    const categories = await this.categoryRepository.find({ where: { id: In(ids) } });
+    const firstCategory = await this.categoryRepository.findOne({});
+    return categories.length > 0 ? categories : firstCategory ? [firstCategory] : [];
   }
 
   async getApplicationsByIds(ids: string[]): Promise<FunctionTemplateApplication[]> {

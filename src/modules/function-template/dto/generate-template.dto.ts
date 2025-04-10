@@ -43,7 +43,7 @@ export class GenerateTemplateDto {
   })
   @IsOptional()
   @IsString()
-  sourceUrl?: string;
+  domain?: string;
 }
 
 export class ContinueGenerateTemplateDto extends GenerateTemplateDto {

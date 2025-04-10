@@ -139,7 +139,7 @@ export class FunctionTemplateController {
   async generateTemplateWithAI(@Body() dto: GenerateTemplateDto): Promise<TemplateGenerationResponse> {
     try {
       // Primera llamada, isNewTemplate = true
-      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, 0, true, undefined, dto.sourceUrl);
+      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, 0, true, undefined, dto.domain);
     } catch (error) {
       throw new HttpException(
         {
@@ -157,7 +157,7 @@ export class FunctionTemplateController {
   async continueTemplateGeneration(@Body() dto: ContinueGenerateTemplateDto): Promise<TemplateGenerationResponse> {
     try {
       // Llamada subsiguiente, isNewTemplate = false
-      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, dto.lastProcessedLine, false, dto.createdIds, dto.sourceUrl);
+      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, dto.lastProcessedLine, false, dto.createdIds, dto.domain);
     } catch (error) {
       throw new HttpException(
         {
