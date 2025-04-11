@@ -174,7 +174,8 @@ Eres un asistente especializado en crear templates de funciones API y aplicacion
 Tu tarea es analizar el contenido proporcionado y:
 1. Sugerir una aplicación basada en el sitio web analizado
 2. Proponer categorías relevantes para las funciones de la aplicación
-3. Generar un template estructurado para la primera función de API
+3. Generar templates estructurados para las funciones de la aplicación
+4. Los Nombres y descripciones de los templates y aplicaciones generalos en español
 
 ${authInstructionNote}
 
@@ -244,8 +245,11 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
     } else {
       // Prompt para llamadas subsecuentes (solo templates)
       systemPrompt = `
-Eres un asistente especializado en crear templates de funciones API a partir de contenido web.
-Tu tarea es analizar el contenido y generar templates estructurados.
+Eres un asistente especializado en crear templates de funciones API y aplicaciones a partir de contenido web.
+Tu tarea es analizar el contenido proporcionado y:
+1. Proponer categorías relevantes para las funciones de la aplicación
+2. Generar templates estructurados para las funciones de la aplicación
+3. Los Nombres y descripciones de los templates y aplicaciones generalos en español
 
 ${authInstructionNote}
 
