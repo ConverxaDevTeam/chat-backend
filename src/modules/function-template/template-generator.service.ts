@@ -161,6 +161,10 @@ ${images.map((img) => `[${img.id}] URL: ${img.url}, Alt: ${img.alt}, Tamaño: ${
     // Crear el prompt según sea primera llamada o no
     let systemPrompt = '';
 
+    // Instrucción común para no incluir parámetros de autenticación
+    const authInstructionNote =
+      'IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth, authorization, etc.) en los templates generados. Estos serán manejados por el sistema de autenticación.';
+
     if (isFirstCall) {
       // Prompt para la primera llamada (con información de aplicación y categorías)
       systemPrompt = `
@@ -169,6 +173,8 @@ Tu tarea es analizar el contenido proporcionado y:
 1. Sugerir una aplicación basada en el sitio web analizado
 2. Proponer categorías relevantes para las funciones de la aplicación
 3. Generar un template estructurado para la primera función de API
+
+${authInstructionNote}
 
 Analiza el siguiente contenido extraído de una página web (cada línea está numerada):
 ${chunksText}
@@ -230,12 +236,16 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura y limita tu res
   ],
   "lastProcessedLine": 123 // número de la última línea procesada
 }
+
+IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth, authorization, etc.) en los templates generados. Estos serán manejados por el sistema de autenticación.
 `;
     } else {
       // Prompt para llamadas subsecuentes (solo templates)
       systemPrompt = `
 Eres un asistente especializado en crear templates de funciones API a partir de contenido web.
 Tu tarea es analizar el contenido y generar templates estructurados.
+
+${authInstructionNote}
 
 Analiza este contenido:
 ${chunksText}
@@ -274,12 +284,15 @@ Responde en JSON con esta estructura:
   ],
   "categories": ["Categoría1", "Categoría2"], // REQUERIDO - Lista de todas las categorías disponibles
   "lastProcessedLine": 123 // número de la última línea procesada
-}`;
+}
+
+IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth, authorization, etc.) en los templates generados. Estos serán manejados por el sistema de autenticación.`;
     }
 
     try {
       // Usar el método estático de ClaudeSonetService para generar contenido
       const content = await ClaudeSonetService.generateContent(systemPrompt, 'Genera el template basado en el contenido proporcionado.', 6500, 0.7);
+      console.log('Content:', content);
       try {
         // Extraer solo el JSON válido de la respuesta (ignorando markdown, etc.)
         const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/({[\s\S]*})/);

@@ -69,12 +69,16 @@ export class FunctionTemplateService {
   }
 
   async createTemplate(dto: CreateFunctionTemplateDto): Promise<FunctionTemplate> {
-    // Convertir el array de parámetros a un objeto donde el nombre es la clave
-    const paramsObj: Record<string, any> = {};
-    if (Array.isArray(dto.params)) {
-      dto.params.forEach((param) => {
-        if (param.name) {
-          // Procesar propiedades anidadas si existen
+    // Procesar los parámetros según su formato (array u objeto)
+    let processedParams: Record<string, any> = {};
+
+    if (dto.params) {
+      // Si params ya es un objeto, usarlo directamente
+      if (!Array.isArray(dto.params)) {
+        processedParams = dto.params;
+
+        // Procesar propiedades anidadas si es necesario
+        Object.values(processedParams).forEach((param) => {
           if (param.properties && Array.isArray(param.properties)) {
             const propertiesObj: Record<string, any> = {};
             param.properties.forEach((prop) => {
@@ -84,10 +88,26 @@ export class FunctionTemplateService {
             });
             param.properties = propertiesObj;
           }
-          // Usar el nombre como clave
-          paramsObj[param.name] = param;
-        }
-      });
+        });
+      } else {
+        // Si params es un array, convertirlo a objeto
+        dto.params.forEach((param) => {
+          if (param.name) {
+            // Procesar propiedades anidadas si existen
+            if (param.properties && Array.isArray(param.properties)) {
+              const propertiesObj: Record<string, any> = {};
+              param.properties.forEach((prop) => {
+                if (prop.name) {
+                  propertiesObj[prop.name] = prop;
+                }
+              });
+              param.properties = propertiesObj;
+            }
+            // Usar el nombre como clave
+            processedParams[param.name] = param;
+          }
+        });
+      }
     }
 
     let tags: FunctionTemplateTag[] = [];
@@ -115,7 +135,7 @@ export class FunctionTemplateService {
     });
 
     // Asignar los parámetros como un objeto
-    template.params = paramsObj;
+    template.params = processedParams;
 
     return this.templateRepository.save(template);
   }

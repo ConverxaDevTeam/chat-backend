@@ -169,4 +169,24 @@ export class FunctionTemplateController {
       );
     }
   }
+
+  @ApiOperation({ summary: 'Get templates by application ID' })
+  @Get('by-application/:applicationId')
+  async getTemplatesByApplicationId(@Param('applicationId') applicationId: number) {
+    try {
+      return await this.service.getTemplates({
+        applicationId: Number(applicationId),
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al obtener los templates por aplicación',
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
