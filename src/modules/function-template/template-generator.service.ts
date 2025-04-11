@@ -294,40 +294,44 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
     try {
       // Usar el método estático de ClaudeSonetService para generar contenido
       const content = await ClaudeSonetService.generateContent(systemPrompt, 'Genera el template basado en el contenido proporcionado.', 6500, 0.7);
-      console.log('Content:', content);
       try {
         // Extraer solo el JSON válido de la respuesta (ignorando markdown, etc.)
         const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/({[\s\S]*})/);
         const jsonStr = jsonMatch ? jsonMatch[1] : content;
-        const parsedResponse = JSON.parse(jsonStr);
+        try {
+          const parsedResponse = JSON.parse(jsonStr);
 
-        // Encontrar la última línea procesada o usar la última del chunk actual
-        const lastLine = parsedResponse.lastProcessedLine || (chunksToSend.length > 0 ? chunksToSend[chunksToSend.length - 1][0] : lastProcessedLine);
+          // Encontrar la última línea procesada o usar la última del chunk actual
+          const lastLine = parsedResponse.lastProcessedLine || (chunksToSend.length > 0 ? chunksToSend[chunksToSend.length - 1][0] : lastProcessedLine);
 
-        // Log processing context
-        this.logFinalLine(lastLine, chunksToSend);
+          // Log processing context
+          this.logFinalLine(lastLine, chunksToSend);
 
-        // Si es la primera llamada, incluir la información de la aplicación y categorías
-        if (isFirstCall) {
+          // Si es la primera llamada, incluir la información de la aplicación y categorías
+          if (isFirstCall) {
+            const templates = parsedResponse.templates || [parsedResponse.template].filter(Boolean);
+            return {
+              templates,
+              applicationInfo: parsedResponse.applicationInfo,
+              categories: parsedResponse.categories,
+              lastProcessedLine: lastLine,
+              totalLines,
+            };
+          }
+
+          // Asegurar que siempre haya categorías
+          const categories: string[] = parsedResponse.categories || parsedResponse.templates?.map((t) => t.suggestedCategory as string).filter(Boolean) || [];
+
           return {
             templates: parsedResponse.templates || [parsedResponse.template].filter(Boolean),
             applicationInfo: parsedResponse.applicationInfo,
-            categories: parsedResponse.categories,
+            categories,
             lastProcessedLine: lastLine,
             totalLines,
           };
+        } catch (innerError) {
+          throw innerError;
         }
-
-        // Asegurar que siempre haya categorías
-        const categories: string[] = parsedResponse.categories || parsedResponse.templates?.map((t) => t.suggestedCategory as string).filter(Boolean) || [];
-
-        return {
-          templates: parsedResponse.templates || [parsedResponse.template].filter(Boolean),
-          applicationInfo: parsedResponse.applicationInfo,
-          categories,
-          lastProcessedLine: lastLine,
-          totalLines,
-        };
       } catch (parseError) {
         if (attempt < 3) {
           console.log('Error al procesar la respuesta de la IA, reduciendo el texto...', attempt);
@@ -504,10 +508,20 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
     // Guardar los templates generados en la base de datos si tenemos los IDs necesarios
     if (createdIds?.applicationId) {
       const appId = parseInt(createdIds.applicationId);
-      savedTemplates = await this.saveGeneratedTemplates(result.templates, appId, categories);
+      if (result.templates && result.templates.length > 0) {
+        savedTemplates = await this.saveGeneratedTemplates(result.templates, appId, categories);
+      }
     }
 
-    // Retornar resultado común
+    // Asegurar que createdIds siempre esté presente en la respuesta
+    const finalCreatedIds = createdIds || {};
+    if (application && !finalCreatedIds.applicationId) {
+      finalCreatedIds.applicationId = application.id.toString();
+    }
+    if (categories && categories.length > 0 && !finalCreatedIds.categoryIds) {
+      finalCreatedIds.categoryIds = categories.map((c) => c.id.toString());
+    }
+
     return {
       ok: true,
       message: successMessage,
@@ -518,7 +532,7 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
         applications,
         lastProcessedLine: result.lastProcessedLine,
         totalLines: result.totalLines,
-        createdIds,
+        createdIds: finalCreatedIds,
       },
     };
   }
@@ -585,9 +599,7 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
           params,
           tags,
         };
-        console.log('templateDto', templateDto);
         const savedTemplate = await this.templateService.createTemplate(templateDto);
-        console.log('savedTemplate', savedTemplate);
         savedTemplates.push(savedTemplate);
       } catch (error) {
         console.error('Error al guardar template:', error, template);

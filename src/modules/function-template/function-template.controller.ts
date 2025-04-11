@@ -156,6 +156,18 @@ export class FunctionTemplateController {
   @Post('generate-with-ai/continue')
   async continueTemplateGeneration(@Body() dto: ContinueGenerateTemplateDto): Promise<TemplateGenerationResponse> {
     try {
+      // Validar que createdIds contenga applicationId
+      if (!dto.createdIds || !dto.createdIds.applicationId) {
+        throw new HttpException(
+          {
+            ok: false,
+            message: 'Se requiere el ID de la aplicación para continuar la generación',
+            data: { templates: [], categories: [], applications: [] },
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       // Llamada subsiguiente, isNewTemplate = false
       return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, dto.lastProcessedLine, false, dto.createdIds, dto.domain);
     } catch (error) {
