@@ -8,6 +8,7 @@ import { FunctionTemplateTag } from '@models/function-template/function-template
 import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto, FunctionTemplateResponseDto } from './dto/template.dto';
 import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplicationDto } from './dto/application.dto';
 import { FileService } from '@modules/file/file.service';
+import { In } from 'typeorm';
 
 @Injectable()
 export class FunctionTemplateService {
@@ -68,12 +69,16 @@ export class FunctionTemplateService {
   }
 
   async createTemplate(dto: CreateFunctionTemplateDto): Promise<FunctionTemplate> {
-    // Convertir el array de parámetros a un objeto donde el nombre es la clave
-    const paramsObj: Record<string, any> = {};
-    if (Array.isArray(dto.params)) {
-      dto.params.forEach((param) => {
-        if (param.name) {
-          // Procesar propiedades anidadas si existen
+    // Procesar los parámetros según su formato (array u objeto)
+    let processedParams: Record<string, any> = {};
+
+    if (dto.params) {
+      // Si params ya es un objeto, usarlo directamente
+      if (!Array.isArray(dto.params)) {
+        processedParams = dto.params;
+
+        // Procesar propiedades anidadas si es necesario
+        Object.values(processedParams).forEach((param) => {
           if (param.properties && Array.isArray(param.properties)) {
             const propertiesObj: Record<string, any> = {};
             param.properties.forEach((prop) => {
@@ -83,10 +88,26 @@ export class FunctionTemplateService {
             });
             param.properties = propertiesObj;
           }
-          // Usar el nombre como clave
-          paramsObj[param.name] = param;
-        }
-      });
+        });
+      } else {
+        // Si params es un array, convertirlo a objeto
+        dto.params.forEach((param) => {
+          if (param.name) {
+            // Procesar propiedades anidadas si existen
+            if (param.properties && Array.isArray(param.properties)) {
+              const propertiesObj: Record<string, any> = {};
+              param.properties.forEach((prop) => {
+                if (prop.name) {
+                  propertiesObj[prop.name] = prop;
+                }
+              });
+              param.properties = propertiesObj;
+            }
+            // Usar el nombre como clave
+            processedParams[param.name] = param;
+          }
+        });
+      }
     }
 
     let tags: FunctionTemplateTag[] = [];
@@ -114,7 +135,7 @@ export class FunctionTemplateService {
     });
 
     // Asignar los parámetros como un objeto
-    template.params = paramsObj;
+    template.params = processedParams;
 
     return this.templateRepository.save(template);
   }
@@ -187,6 +208,23 @@ export class FunctionTemplateService {
     }
   }
 
+  async getCategoriesByNames(names: string[]): Promise<FunctionTemplateCategory[]> {
+    return this.categoryRepository.find({
+      where: { name: In(names) },
+    });
+  }
+
+  async getTagsByNames(names: string[]): Promise<FunctionTemplateTag[]> {
+    return this.tagRepository.find({
+      where: { name: In(names) },
+    });
+  }
+
+  async createCategoriesBulk(categories: Array<Omit<FunctionTemplateCategory, 'id'>>): Promise<FunctionTemplateCategory[]> {
+    const entities = categories.map((category) => this.categoryRepository.create(category));
+    return this.categoryRepository.save(entities);
+  }
+
   async getApplications(): Promise<FunctionTemplateApplication[]> {
     try {
       // Usar find() con opciones explícitas para evitar problemas de NaN
@@ -201,8 +239,24 @@ export class FunctionTemplateService {
     }
   }
 
+  async getCategoriesByIds(ids: string[]): Promise<FunctionTemplateCategory[]> {
+    const categories = await this.categoryRepository.find({ where: { id: In(ids) } });
+    const firstCategory = await this.categoryRepository.findOne({});
+    return categories.length > 0 ? categories : firstCategory ? [firstCategory] : [];
+  }
+
+  async getApplicationsByIds(ids: string[]): Promise<FunctionTemplateApplication[]> {
+    return this.applicationRepository.find({ where: { id: In(ids) } });
+  }
+
   async createCategory(dto: Omit<FunctionTemplateCategory, 'id'>): Promise<FunctionTemplateCategory> {
     return this.categoryRepository.save(this.categoryRepository.create(dto));
+  }
+
+  async getCategoryByName(name: string): Promise<FunctionTemplateCategory | null> {
+    return this.categoryRepository.findOne({
+      where: { name },
+    });
   }
 
   async createApplication(dto: CreateFunctionTemplateApplicationDto, file?: Express.Multer.File) {
@@ -248,5 +302,11 @@ export class FunctionTemplateService {
       ok: true,
       data: application,
     };
+  }
+
+  async getApplicationByDomain(domain: string): Promise<FunctionTemplateApplication | null> {
+    return this.applicationRepository.findOne({
+      where: { domain, isActive: true },
+    });
   }
 }

@@ -4,9 +4,11 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
 import { FunctionTemplateService } from './function-template.service';
+import { TemplateGeneratorService } from './template-generator.service';
 import { FunctionTemplateCategory } from '@models/function-template/function-template-category.entity';
 import { CreateFunctionTemplateDto, UpdateFunctionTemplateDto, FunctionTemplateSearchDto } from './dto/template.dto';
 import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplicationDto } from './dto/application.dto';
+import { GenerateTemplateDto, TemplateGenerationResponse, ContinueGenerateTemplateDto } from './dto/generate-template.dto';
 
 @ApiTags('Function Templates')
 @ApiBearerAuth()
@@ -14,7 +16,10 @@ import { CreateFunctionTemplateApplicationDto, UpdateFunctionTemplateApplication
 @UseInterceptors(LoggingInterceptor)
 @Controller('function-templates')
 export class FunctionTemplateController {
-  constructor(private readonly service: FunctionTemplateService) {}
+  constructor(
+    private readonly service: FunctionTemplateService,
+    private readonly generatorService: TemplateGeneratorService,
+  ) {}
 
   @ApiOperation({ summary: 'Get template categories' })
   @Get('categories')
@@ -123,6 +128,74 @@ export class FunctionTemplateController {
         {
           ok: false,
           message: error.message || 'Error al actualizar la aplicación',
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @ApiOperation({ summary: 'Generate template from text content using AI' })
+  @Post('generate-with-ai')
+  async generateTemplateWithAI(@Body() dto: GenerateTemplateDto): Promise<TemplateGenerationResponse> {
+    try {
+      // Primera llamada, isNewTemplate = true
+      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, 0, true, undefined, dto.domain);
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al generar los templates con IA',
+          data: { templates: [], categories: [], applications: [] },
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @ApiOperation({ summary: 'Continue template generation from text content' })
+  @Post('generate-with-ai/continue')
+  async continueTemplateGeneration(@Body() dto: ContinueGenerateTemplateDto): Promise<TemplateGenerationResponse> {
+    try {
+      // Validar que createdIds contenga applicationId
+      if (!dto.createdIds || !dto.createdIds.applicationId) {
+        throw new HttpException(
+          {
+            ok: false,
+            message: 'Se requiere el ID de la aplicación para continuar la generación',
+            data: { templates: [], categories: [], applications: [] },
+          },
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // Llamada subsiguiente, isNewTemplate = false
+      return await this.generatorService.generateFromText(dto.content, dto.additionalMessage, dto.lastProcessedLine, false, dto.createdIds, dto.domain);
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al continuar la generación de los templates',
+          data: { templates: [], categories: [], applications: [] },
+        },
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @ApiOperation({ summary: 'Get templates by application ID' })
+  @Get('by-application/:applicationId')
+  async getTemplatesByApplicationId(@Param('applicationId') applicationId: number) {
+    try {
+      return await this.service.getTemplates({
+        applicationId: Number(applicationId),
+        page: 1,
+        limit: 100,
+      });
+    } catch (error) {
+      throw new HttpException(
+        {
+          ok: false,
+          message: error.message || 'Error al obtener los templates por aplicación',
         },
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
