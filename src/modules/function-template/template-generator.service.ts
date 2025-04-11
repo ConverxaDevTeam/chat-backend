@@ -211,7 +211,7 @@ Responde ÚNICAMENTE en formato JSON con la siguiente estructura y limita tu res
     {
       "name": "Nombre descriptivo del template",
       "description": "Descripción detallada",
-      "endpoint": "/ruta/sugerida",
+      "endpoint": "/ruta/sugerida", // para parametros en el path se usa el formato :<parametro>
       "method": "GET|POST|PUT|DELETE",
       "params": [
         {
@@ -259,7 +259,7 @@ Responde en JSON con esta estructura:
     {
       "name": "Nombre descriptivo del template",
       "description": "Descripción detallada",
-      "endpoint": "/ruta/sugerida",
+      "endpoint": "/ruta/sugerida", // para parametros en el path se usa el formato :<parametro>
       "method": "GET|POST|PUT|DELETE",
       "params": [
         {
