@@ -85,6 +85,7 @@ export class TemplateGenerationResponse {
     categories: any[];
     applications: any[];
     lastProcessedLine?: number;
+    totalLines?: number;
     createdIds?: CreatedIdsDto;
   };
 }

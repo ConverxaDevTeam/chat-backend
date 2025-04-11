@@ -118,9 +118,10 @@ export class TemplateGeneratorService {
     }
   }
 
-  prepareContentChunks(text: string): Array<[number, string]> {
+  prepareContentChunks(text: string): { chunks: Array<[number, string]>; totalLines: number } {
     const lines = text.split('\n');
-    return lines.map((line, index) => [index + 1, line.trim()] as [number, string]).filter(([, line]) => line.length > 0);
+    const chunks = lines.map((line, index) => [index + 1, line.trim()] as [number, string]).filter(([, line]) => line.length > 0);
+    return { chunks, totalLines: lines.length };
   }
 
   async generateTemplateFromText(
@@ -131,7 +132,8 @@ export class TemplateGeneratorService {
     isFirstCall: boolean = false,
     relevantHeaders: string[] = [],
     attempt: number = 0,
-  ): Promise<{ templates: any[]; applicationInfo?: any; categories?: string[]; lastProcessedLine: number }> {
+    totalLines: number = 0,
+  ): Promise<{ templates: any[]; applicationInfo?: any; categories?: string[]; lastProcessedLine: number; totalLines: number }> {
     // Filtrar chunks a partir de la última línea procesada
     const chunksToProcess = textChunks.filter(([lineNum]) => lineNum > lastProcessedLine);
     // Tomar solo los primeros 400 chunks para evitar exceder límites de tokens
@@ -312,6 +314,7 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
             applicationInfo: parsedResponse.applicationInfo,
             categories: parsedResponse.categories,
             lastProcessedLine: lastLine,
+            totalLines,
           };
         }
 
@@ -323,12 +326,13 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
           applicationInfo: parsedResponse.applicationInfo,
           categories,
           lastProcessedLine: lastLine,
+          totalLines,
         };
       } catch (parseError) {
         if (attempt < 3) {
           console.log('Error al procesar la respuesta de la IA, reduciendo el texto...', attempt);
           const reducedChunks = chunksToSend.slice(0, chunksToSend.length - 50);
-          return this.generateTemplateFromText(reducedChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders, attempt + 1);
+          return this.generateTemplateFromText(reducedChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders, attempt + 1, totalLines);
         }
         console.error('Error al procesar la respuesta de la IA:', parseError);
         throw new HttpException(
@@ -403,14 +407,14 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
     }
 
     // Preparar chunks de texto
-    const textChunks = this.prepareContentChunks(text);
+    const { chunks: textChunks, totalLines } = this.prepareContentChunks(text);
 
     // Si es una nueva plantilla, la IA debe generar información de la aplicación
     // Si es una continuación, solo se genera el template
     const isFirstCall = isNewTemplate && lastProcessedLine === 0;
 
     // Generar templates con IA (y posiblemente información de la aplicación si es primera llamada)
-    const result = await this.generateTemplateFromText(textChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders);
+    const result = await this.generateTemplateFromText(textChunks, images, additionalMessage, lastProcessedLine, isFirstCall, relevantHeaders, 0, totalLines);
 
     // Procesar categorías (común para ambos flujos)
     const categories = await this.processCategories(result.categories || []);
@@ -513,6 +517,7 @@ IMPORTANTE: No incluyas parámetros de autenticación (como token, apiKey, auth,
         categories,
         applications,
         lastProcessedLine: result.lastProcessedLine,
+        totalLines: result.totalLines,
         createdIds,
       },
     };
