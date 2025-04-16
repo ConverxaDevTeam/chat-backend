@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { BaseAgent } from './base-agent';
 import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
@@ -8,6 +9,8 @@ import { SystemEventsService } from '@modules/system-events/system-events.servic
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { Funcion } from '@models/agent/Function.entity';
 import { ContentBlock } from '@anthropic-ai/sdk/resources';
+
+const ANTHROPIC_MODEL = 'claude-3-7-sonnet-20250219';
 
 const tempMemory = new Map<string, Date>();
 const tempMemoryConversation = new Map<number, string>();
@@ -96,6 +99,7 @@ export class ClaudeSonetService extends BaseAgent {
   protected threadId: string | null = null;
   private messages: MessageParam[] = [];
   private system: string = '';
+  private static configService: ConfigService;
 
   constructor(
     functionCallService: FunctionCallService,
@@ -103,10 +107,16 @@ export class ClaudeSonetService extends BaseAgent {
     integrationRouterService: IntegrationRouterService,
     identifier: agentIdentifier,
     agenteConfig: AgentConfig,
+    private configService: ConfigService,
   ) {
     super(identifier, functionCallService, systemEventsService, integrationRouterService, agenteConfig);
+
+    ClaudeSonetService.configService = configService;
+    const apiKey = this.configService.get<string>('CLAUDE_API_KEY');
+    console.log('CLAUDE_API_KEY en constructor (ConfigService):', apiKey ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}` : 'No disponible');
+
     this.anthropic = new Anthropic({
-      apiKey: process.env.CLAUDE_API_KEY,
+      apiKey: this.configService.get<string>('CLAUDE_API_KEY'),
     });
     const config = this.agenteConfig as CreateAgentConfig;
     if (!config?.instruccion) {
@@ -119,6 +129,8 @@ export class ClaudeSonetService extends BaseAgent {
   }
 
   async _initializeAgent(): Promise<void> {
+    const apiKey = this.configService.get<string>('CLAUDE_API_KEY');
+    console.log('CLAUDE_API_KEY en _initializeAgent (ConfigService):', apiKey ? 'Configurada' : 'No disponible');
     return;
   }
 
@@ -230,7 +242,7 @@ export class ClaudeSonetService extends BaseAgent {
         messages: messages as any,
         system: this.system,
         tools: tools as any,
-        model: 'claude-3-7-sonnet-20250219',
+        model: ANTHROPIC_MODEL,
         max_tokens: 1024,
       };
 
@@ -436,5 +448,53 @@ export class ClaudeSonetService extends BaseAgent {
   ): Promise<void> {
     // Implementación mínima que no lanza error
     return;
+  }
+
+  /**
+   * Método estático para generar contenido con Claude sin necesidad de crear un agente
+   * @param systemPrompt Instrucción del sistema
+   * @param userPrompt Mensaje del usuario
+   * @param model Modelo de Claude a utilizar (por defecto claude-3-sonnet-20240229)
+   * @param maxTokens Máximo de tokens a generar
+   * @param temperature Temperatura para la generación
+   * @returns Texto generado por Claude
+   */
+  public static async generateContent(systemPrompt: string, userPrompt: string, maxTokens: number = 4000, temperature: number = 0.7): Promise<string> {
+    try {
+      const apiKey = ClaudeSonetService.configService?.get<string>('CLAUDE_API_KEY') || process.env.CLAUDE_API_KEY;
+      if (!apiKey) {
+        console.error('No se encontró CLAUDE_API_KEY para generateContent');
+        throw new Error('API key no disponible');
+      }
+
+      const client = new Anthropic({
+        apiKey,
+      });
+
+      const response = await client.messages.create({
+        model: ANTHROPIC_MODEL,
+        max_tokens: maxTokens,
+        temperature,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+      });
+
+      // Extraer el texto de la respuesta
+      if (response.content && response.content.length > 0) {
+        const content = response.content[0];
+        if (typeof content === 'object' && 'text' in content) {
+          return content.text;
+        }
+      }
+      return '';
+    } catch (error) {
+      console.error('Error al generar contenido con Claude:', error);
+      throw error;
+    }
   }
 }
