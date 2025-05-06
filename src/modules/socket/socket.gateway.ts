@@ -128,7 +128,6 @@ export class WebChatSocketGateway implements OnModuleInit {
                 // Normalizar URLs para manejar diferentes protocolos
                 let normalizedCorsUrl = corsUrl;
                 let normalizedOrigin = origin;
-                console.log(normalizedCorsUrl, normalizedOrigin);
 
                 // Agregar protocolo si no existe
                 if (!normalizedCorsUrl.includes('://')) {
@@ -143,7 +142,6 @@ export class WebChatSocketGateway implements OnModuleInit {
                 const originUrl = new URL(normalizedOrigin);
 
                 // Comparar solo los hostnames para ignorar diferencias de protocolo
-                console.log(url.hostname, originUrl.hostname);
                 return url.hostname === originUrl.hostname;
               } catch (error) {
                 console.error(`Error validando CORS URL: ${corsUrl} contra origen: ${origin}`, error);
