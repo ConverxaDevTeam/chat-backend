@@ -124,10 +124,31 @@ export class WebChatSocketGateway implements OnModuleInit {
           const integrationConfig = JSON.parse(integration.config);
           if (
             !integrationConfig?.cors?.some((corsUrl: string) => {
-              const url = new URL(corsUrl);
-              const originUrl = new URL(origin);
+              try {
+                // Normalizar URLs para manejar diferentes protocolos
+                let normalizedCorsUrl = corsUrl;
+                let normalizedOrigin = origin;
+                console.log(normalizedCorsUrl, normalizedOrigin);
 
-              return url.origin === originUrl.origin;
+                // Agregar protocolo si no existe
+                if (!normalizedCorsUrl.includes('://')) {
+                  normalizedCorsUrl = `https://${normalizedCorsUrl}`;
+                }
+
+                if (!normalizedOrigin.includes('://')) {
+                  normalizedOrigin = `https://${normalizedOrigin}`;
+                }
+
+                const url = new URL(normalizedCorsUrl);
+                const originUrl = new URL(normalizedOrigin);
+
+                // Comparar solo los hostnames para ignorar diferencias de protocolo
+                console.log(url.hostname, originUrl.hostname);
+                return url.hostname === originUrl.hostname;
+              } catch (error) {
+                console.error(`Error validando CORS URL: ${corsUrl} contra origen: ${origin}`, error);
+                return false;
+              }
             })
           ) {
             socket.send(JSON.stringify({ action: 'error', message: 'CORS not allowed' }));
