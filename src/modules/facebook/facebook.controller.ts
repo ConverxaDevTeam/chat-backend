@@ -126,10 +126,12 @@ export class FacebookController {
   @ApiOperation({ summary: 'Post Webhook' })
   @Post('webhook/:integrationId')
   async postWebhookManual(@Body() webhookFacebookDto: WebhookFacebookDto, @Res() res) {
+    console.log('on post webhook manual');
     if (webhookFacebookDto.object === FacebookType.PAGE) {
       console.log('Received Messenger event');
       this.facebookService.analyzefacebookmessage(webhookFacebookDto);
     } else if (webhookFacebookDto.object === FacebookType.WHATSAPP_BUSINESS_ACCOUNT) {
+      console.log('Received whatsapp event');
       if (!webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages) return;
       console.log('Received whatsapp event', JSON.stringify(webhookFacebookDto.entry?.[0]?.changes?.[0]?.value?.messages));
       this.facebookService.analyzeWhatsAppMessage(webhookFacebookDto);
