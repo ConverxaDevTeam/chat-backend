@@ -336,11 +336,14 @@ export class IntegrationService {
       button_text: config.button_text || '',
     };
 
-    // Generamos el script usando JSON.stringify para el objeto completo
-    // Esto maneja automáticamente el escape de todos los caracteres especiales
+    // Convertimos la configuración a JSON y la insertamos directamente en el script
+    // Esto garantiza que todos los caracteres espeoeciales y saltos de línea se manejen correctamente
+    const configJson = JSON.stringify(clientConfig);
+
+    // Generamos el script con la configuración ya serializada
     const script = `(async () => {
       await import('${this.configService.get<string>('url.files')}/files/sofia-chat.min.js');
-      const config = ${JSON.stringify(clientConfig)};
+      const config = ${configJson};
       SofiaChat.default.init(config);
     })();
 `;
