@@ -312,30 +312,35 @@ export class IntegrationService {
   }
 
   private async generateAndSaveScript(integration: Integration, config: any) {
+    // Preparamos la configuración del cliente como un objeto JavaScript
+    const clientConfig = {
+      id: integration.id,
+      url: this.configService.get<string>('url.wss'),
+      url_assets: this.configService.get<string>('url.files'),
+      name: config.name || '',
+      title: config.title || '',
+      sub_title: config.sub_title || '',
+      description: config.description || '',
+      logo: config.logo || '',
+      horizontal_logo: config.horizontal_logo || '',
+      edge_radius: config.edge_radius || '',
+      message_radius: config.message_radius || '',
+      bg_color: config.bg_color || '',
+      bg_chat: config.bg_chat || '',
+      bg_user: config.bg_user || '',
+      bg_assistant: config.bg_assistant || '',
+      text_color: config.text_color || '',
+      text_title: config.text_title || '',
+      text_date: config.text_date || '',
+      button_color: config.button_color || '',
+      button_text: config.button_text || '',
+    };
+
+    // Generamos el script usando JSON.stringify para el objeto completo
+    // Esto maneja automáticamente el escape de todos los caracteres especiales
     const script = `(async () => {
       await import('${this.configService.get<string>('url.files')}/files/sofia-chat.min.js');
-      const config = {
-        id: '${integration.id}',
-        url: '${this.configService.get<string>('url.wss')}',
-        url_assets: '${this.configService.get<string>('url.files')}',
-        name: '${config.name}',
-        title: '${config.title}',
-        sub_title: '${config.sub_title}',
-        description: '${config.description}',
-        logo: '${config.logo}',
-        horizontal_logo: '${config.horizontal_logo}',
-        edge_radius: '${config.edge_radius}',
-        message_radius: '${config.message_radius}',
-        bg_color: '${config.bg_color}',
-        bg_chat: '${config.bg_chat}',
-        bg_user: '${config.bg_user}',
-        bg_assistant: '${config.bg_assistant}',
-        text_color: '${config.text_color}',
-        text_title: '${config.text_title}',
-        text_date: '${config.text_date}',
-        button_color: '${config.button_color}',
-        button_text: '${config.button_text}',
-      };
+      const config = ${JSON.stringify(clientConfig)};
       SofiaChat.default.init(config);
     })();
 `;
