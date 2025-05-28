@@ -1,0 +1,141 @@
+name: Auto deploy sofia-chat-backend-v2 development in VPS
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - '.github/workflows/**'
+      - 'index.html'
+      - 'package.json'
+      - 'public/**'
+      - 'scripts/**'
+      - 'src/**'
+      - 'vite.config.js'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: npm install pg
+
+      - name: Install pgvector on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEV2_SSH_HOST }}
+          username: ${{ secrets.DEV2_SSH_USERNAME }}
+          key: ${{ secrets.DEV2_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            sudo apt-get update && sudo apt-get install -y postgresql-16-pgvector
+
+      - name: Configure Nginx
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEV2_SSH_HOST }}
+          username: ${{ secrets.DEV2_SSH_USERNAME }}
+          key: ${{ secrets.DEV2_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            # Install Nginx if not already installed
+            if ! command -v nginx &> /dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y nginx
+            fi
+            
+            # Create Nginx configuration for the backend
+            cat > /tmp/dev-app.sofiachat.com.conf << 'EOL'
+            server {
+                listen 80;
+                server_name dev-app.sofiachat.com;
+                
+                location / {
+                    proxy_pass http://localhost:3001;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_cache_bypass $http_upgrade;
+                }
+            }
+            EOL
+            
+            # Move the configuration file to Nginx sites-available
+            sudo mv /tmp/dev-app.sofiachat.com.conf /etc/nginx/sites-available/dev-app.sofiachat.com.conf
+            
+            # Create a symbolic link to sites-enabled if it doesn't exist
+            if [ ! -f /etc/nginx/sites-enabled/dev-app.sofiachat.com.conf ]; then
+              sudo ln -s /etc/nginx/sites-available/dev-app.sofiachat.com.conf /etc/nginx/sites-enabled/
+            fi
+            
+            # Test Nginx configuration
+            sudo nginx -t
+            
+            # Install Certbot if not already installed
+            if ! command -v certbot &> /dev/null; then
+              sudo apt-get update
+              sudo apt-get install -y certbot python3-certbot-nginx
+            fi
+            
+            # Obtain and configure SSL certificate
+            sudo certbot --nginx -d dev-app.sofiachat.com --non-interactive --agree-tos --email frank@pixeldigita.com
+            
+            # Reload Nginx to apply changes
+            sudo systemctl reload nginx
+
+      - name: Deploy using ssh
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEV2_SSH_HOST }}
+          username: ${{ secrets.DEV2_SSH_USERNAME }}
+          key: ${{ secrets.DEV2_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd /root/repos/sofia-chat-backend-v2
+            git pull origin develop
+            git checkout develop
+            cat <<EOF > .env
+            NODE_ENV=development
+            LOG_LEVEL=debug
+            TYPEORM_HOST=${{ secrets.DEV2_TYPEORM_HOST }}
+            TYPEORM_PORT=${{ secrets.DEV2_TYPEORM_PORT }}
+            TYPEORM_USERNAME=${{ secrets.DEV2_TYPEORM_USERNAME }}
+            TYPEORM_PASSWORD=${{ secrets.DEV2_TYPEORM_PASSWORD }}
+            TYPEORM_DB_NAME=${{ secrets.DEV2_TYPEORM_DB_NAME }}
+            JWT_SECRET_KEY=${{ secrets.DEV2_JWT_SECRET_KEY }}
+            JWT_SECRET_KEY_REFRESH=${{ secrets.DEV2_JWT_SECRET_KEY_REFRESH }}
+            NODEMAILER_HOST=${{ secrets.DEV2_NODEMAILER_HOST }}
+            NODEMAILER_PORT=${{ secrets.DEV2_NODEMAILER_PORT }}
+            NODEMAILER_USER=${{ secrets.DEV2_NODEMAILER_USER }}
+            NODEMAILER_PASS=${{ secrets.DEV2_NODEMAILER_PASS }}
+            NODEMAILER_FROM=${{ secrets.DEV2_NODEMAILER_FROM }}
+            URL_FILES=${{ secrets.DEV2_URL_FILES }}
+            URL_WSS=${{ secrets.DEV2_URL_WSS }}
+            URL_WEBHOOK_WA=${{ secrets.DEV2_URL_WEBHOOK_WA }}
+            OPENAI_API_KEY=${{ secrets.DEV2_OPENAI_API_KEY }}
+            FACEBOOK_APP_ID=${{ secrets.DEV2_FACEBOOK_APP_ID }}
+            FACEBOOK_APP_SECRET=${{ secrets.DEV2_FACEBOOK_APP_SECRET }}
+            FACEBOOK_WEBHOOK_SECRET=${{ secrets.DEV2_FACEBOOK_WEBHOOK_SECRET }}
+            FACEBOOK_GRAPH_API=${{ secrets.DEV2_FACEBOOK_GRAPH_API }}
+            APP_URL=${{ secrets.DEV2_APP_URL }}
+            URL_FRONTEND=${{ secrets.DEV2_URL_FRONTEND }}
+            MAILGUN_API_KEY=${{ secrets.DEV2_MAILGUN_API_KEY }}
+            MAILGUN_DOMAIN=${{ secrets.DEV2_MAILGUN_DOMAIN }}
+            MAILGUN_FROM=${{ secrets.DEV2_MAILGUN_FROM }}
+            VOYAGE_API_KEY=${{ secrets.DEV2_VOYAGE_API_KEY }}
+            CLAUDE_API_KEY=${{ secrets.DEV2_CLAUDE_API_KEY }}
+            EOF
+            node src/config/install-pgvector.js
+            docker-compose build
+            docker-compose down -v
+            docker-compose up -d
