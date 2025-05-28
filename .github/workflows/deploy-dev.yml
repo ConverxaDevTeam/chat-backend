@@ -3,7 +3,7 @@ name: Auto deploy sofia-chat-backend-v2 development in VPS
 on:
   push:
     branches:
-      - develop
+      - develop-v1
     paths:
       - '.github/workflows/**'
       - 'index.html'
@@ -45,7 +45,7 @@ jobs:
           port: 22
           script: |
             cd /root/repos/sofia-chat-backend-v2
-            git pull origin develop
+            git pull origin develop-v1
             cat <<EOF > .env
             NODE_ENV=development
             LOG_LEVEL=debug
