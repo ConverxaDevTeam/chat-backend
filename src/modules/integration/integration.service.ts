@@ -74,7 +74,7 @@ export class IntegrationService {
         edge_radius: '10',
         message_radius: '20',
         bg_color: '#15ECDA',
-        bg_chat: '#F5F5F5',
+        bg_chat: 'background-chats.png',
         bg_user: '#ffffff',
         bg_assistant: '#b1f6f0',
         text_color: '#000000',
