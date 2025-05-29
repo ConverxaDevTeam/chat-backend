@@ -23,6 +23,11 @@ export class OrganizationLimitService {
       throw new NotFoundException(`Organización con ID ${createDto.organizationId} no encontrada`);
     }
 
+    // Para PRODUCTION y MVP no se permiten límites
+    if (organization.type === OrganizationType.PRODUCTION || organization.type === OrganizationType.MVP) {
+      throw new BadRequestException(`No se pueden crear límites para organizaciones de tipo ${organization.type}`);
+    }
+
     // Verificar si la organización ya tiene límites configurados
     const existingLimit = await this.organizationLimitRepository.findOne({
       where: { organizationId: createDto.organizationId },
@@ -32,28 +37,26 @@ export class OrganizationLimitService {
       throw new BadRequestException(`La organización ya tiene límites configurados`);
     }
 
+    let limit: OrganizationLimit;
+
     // Configurar valores predeterminados según el tipo de organización
     if (organization.type === OrganizationType.FREE) {
       // Para FREE, los valores son fijos: 50 conversaciones, 15 días, no mensual
-      const limit = this.organizationLimitRepository.create({
+      limit = this.organizationLimitRepository.create({
         conversationLimit: 50,
         durationDays: 15,
         isMonthly: false,
         organizationId: createDto.organizationId,
       });
-      return this.organizationLimitRepository.save(limit);
-    } else if (organization.type === OrganizationType.CUSTOM) {
+    } else {
       // Para CUSTOM, los valores son configurables y mensuales por defecto
-      const limit = this.organizationLimitRepository.create({
+      limit = this.organizationLimitRepository.create({
         ...createDto,
         isMonthly: createDto.isMonthly !== undefined ? createDto.isMonthly : true,
       });
-      return this.organizationLimitRepository.save(limit);
-    } else {
-      // Para otros tipos, usar los valores proporcionados
-      const limit = this.organizationLimitRepository.create(createDto);
-      return this.organizationLimitRepository.save(limit);
     }
+    
+    return this.organizationLimitRepository.save(limit);
   }
 
   async findByOrganizationId(organizationId: number): Promise<OrganizationLimit> {
@@ -120,16 +123,17 @@ export class OrganizationLimitService {
     }
 
     // Crear límites por defecto según el tipo de organización
-    let limit: Partial<OrganizationLimit>;
+    let limitData: Partial<OrganizationLimit>;
 
     if (organization.type === OrganizationType.FREE) {
-      limit = {
+      limitData = {
         conversationLimit: 50,
         durationDays: 15,
         isMonthly: false,
       };
-    } else if (organization.type === OrganizationType.CUSTOM) {
-      limit = {
+    } else {
+      // Para CUSTOM
+      limitData = {
         conversationLimit: 100, // Valor por defecto para CUSTOM
         durationDays: 30,
         isMonthly: true,
@@ -137,7 +141,7 @@ export class OrganizationLimitService {
     }
 
     const newLimit = this.organizationLimitRepository.create({
-      ...limit,
+      ...limitData,
       organizationId: organization.id,
     });
 

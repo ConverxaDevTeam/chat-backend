@@ -45,11 +45,11 @@ flowchart TD
     A[Crear Organización] --> B{Tipo de Organización?}
     B -->|FREE| C[Crear límites fijos:<br>50 conversaciones<br>15 días<br>No mensual]
     B -->|CUSTOM| D[Crear límites configurables:<br>100 conversaciones<br>30 días<br>Mensual]
-    B -->|PRODUCTION/MVP| E[Crear límites estándar:<br>1000 conversaciones<br>30 días<br>Mensual]
+    B -->|PRODUCTION/MVP| E[Sin límites]
     
     C --> F[Guardar límites]
     D --> F
-    E --> F
+    E --> G[No se crean límites]
     
     G[Actualizar Organización] --> H{¿Cambio de tipo?}
     H -->|Sí| I[Mantener límites actuales]
@@ -95,10 +95,9 @@ flowchart LR
    - Valores predeterminados: 100 conversaciones, 30 días, mensual
    - Estos valores pueden ser modificados
 
-3. Las organizaciones PRODUCTION y MVP tienen límites estándar:
-   - 1000 conversaciones
-   - 30 días de duración
-   - Mensual (el límite se restablece mensualmente)
+3. Las organizaciones PRODUCTION y MVP no tienen límites de conversaciones.
+   - No se crean registros de límites para estas organizaciones
+   - No es posible crear o modificar límites para estas organizaciones
 
 4. Solo los usuarios con roles ADMIN y OWNER pueden crear y modificar límites.
 

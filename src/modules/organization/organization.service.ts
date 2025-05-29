@@ -220,9 +220,9 @@ export class OrganizationService {
   /**
    * Crea límites para una organización según su tipo
    * @param organization Organización para la que se crearán los límites
-   * @returns Límites creados
+   * @returns Límites creados o null si el tipo de organización no requiere límites
    */
-  private async createOrganizationLimits(organization: Organization): Promise<OrganizationLimit> {
+  private async createOrganizationLimits(organization: Organization): Promise<OrganizationLimit | null> {
     return this.organizationLimitService.createDefaultLimitForOrganization(organization);
   }
 }
