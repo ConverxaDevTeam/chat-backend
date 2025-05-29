@@ -350,4 +350,14 @@ export class UserService {
 
     await this.userRepository.update(userId, updateData);
   }
+
+  /**
+   * Actualiza información completa de Google para un usuario existente
+   * @param userId ID del usuario a actualizar
+   * @param data Datos completos de Google a actualizar
+   */
+  async updateUserWithGoogleInfo(userId: number, data: any): Promise<void> {
+    this.logger.log(`[UserService] Actualizando usuario ${userId} con datos de Google: ${JSON.stringify(data)}`);
+    await this.userRepository.update(userId, data);
+  }
 }

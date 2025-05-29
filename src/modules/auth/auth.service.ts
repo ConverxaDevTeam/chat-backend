@@ -1,4 +1,14 @@
-import { forwardRef, Inject, Injectable, Logger, NotFoundException, UnauthorizedException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+  BadRequestException,
+  InternalServerErrorException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
@@ -11,6 +21,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { EmailService } from '../email/email.service';
 import type { Request } from 'express';
 import { GoogleLoginDto } from './dto/google-login.dto';
+import { SignUpDto } from './dto/sign-up.dto';
 import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
 
@@ -273,6 +284,7 @@ export class AuthService {
         });
 
         payload = response.data;
+        this.logger.log(`[GoogleLogin] Información recibida de Google: ${JSON.stringify(payload)}`);
 
         if (!payload || !payload.email) {
           throw new UnauthorizedException('Token de Google válido pero sin información de email');
@@ -290,8 +302,16 @@ export class AuthService {
       // Buscar si el usuario ya existe con más campos
       let user = await this.userService.findByEmailComplete(payload.email);
 
+      this.logger.log(`[GoogleLogin] Usuario encontrado: ${user ? 'Sí' : 'No'}, Email: ${payload.email}`);
+      if (user) {
+        this.logger.log(
+          `[GoogleLogin] Datos del usuario existente: ID=${user.id}, google_id=${user.google_id || 'No tiene'}, first_name=${user.first_name || 'Vacío'}, last_name=${user.last_name || 'Vacío'}`,
+        );
+      }
+
       // Si no existe, crear un nuevo usuario
       if (!user) {
+        this.logger.log(`[GoogleLogin] Creando nuevo usuario con email: ${payload.email}`);
         const newUser: {
           email: string;
           name?: string;
@@ -306,13 +326,67 @@ export class AuthService {
           picture: payload.picture,
         };
 
+        this.logger.log(`[GoogleLogin] Datos para nuevo usuario: ${JSON.stringify(newUser)}`);
         user = await this.userService.createUserFromGoogle(newUser);
+        this.logger.log(`[GoogleLogin] Usuario creado con ID: ${user.id}`);
+      } else if (!user.google_id) {
+        // Si el usuario existe pero no tiene google_id, actualizamos todos los campos relevantes
+        this.logger.log(`[GoogleLogin] Usuario existe pero no tiene google_id. Actualizando información completa.`);
+
+        // Preparar datos para actualizar
+        const updateData: any = {
+          google_id: payload.sub,
+          email_verified: true,
+        };
+
+        // Actualizar foto si existe
+        if (payload.picture) {
+          updateData.picture = payload.picture;
+        }
+
+        // Actualizar nombre si existe y los campos están vacíos
+        if (payload.name && (!user.first_name || !user.last_name)) {
+          const nameParts = payload.name.split(' ');
+          if (nameParts.length > 1) {
+            updateData.first_name = !user.first_name ? nameParts[0] : user.first_name;
+            updateData.last_name = !user.last_name ? nameParts.slice(1).join(' ') : user.last_name;
+          } else {
+            updateData.first_name = !user.first_name ? payload.name : user.first_name;
+          }
+        }
+
+        this.logger.log(`[GoogleLogin] Actualizando usuario existente con datos: ${JSON.stringify(updateData)}`);
+        await this.userService.updateUserWithGoogleInfo(user.id, updateData);
+
+        // Obtener el usuario actualizado
+        const updatedUser = await this.userService.findByEmailComplete(payload.email);
+        if (!updatedUser) {
+          throw new InternalServerErrorException('Error al obtener usuario actualizado');
+        }
+        user = updatedUser;
+
+        this.logger.log(
+          `[GoogleLogin] Usuario actualizado: ${JSON.stringify({
+            id: user.id,
+            email: user.email,
+            google_id: user.google_id,
+            first_name: user.first_name,
+            last_name: user.last_name,
+            picture: user.picture ? 'Tiene foto' : 'Sin foto',
+          })}`,
+        );
       } else {
         // Siempre actualizamos la información de Google para mantenerla al día
+        this.logger.log(`[GoogleLogin] Actualizando información básica de Google para usuario existente con ID: ${user.id}`);
         await this.userService.updateGoogleInfo(user.id, {
           google_id: payload.sub,
           picture: payload.picture || user.picture,
         });
+      }
+
+      // Verificar que el usuario exista antes de continuar
+      if (!user) {
+        throw new InternalServerErrorException('Error al procesar usuario');
       }
 
       // Actualizar último login
@@ -333,6 +407,80 @@ export class AuthService {
         throw error;
       }
       throw new InternalServerErrorException('Error al procesar la autenticación con Google');
+    }
+  }
+
+  /**
+   * Registra un nuevo usuario
+   * @param req Objeto de solicitud HTTP
+   * @param signUpDto DTO con la información de registro
+   * @returns Objeto con tokens de autenticación JWT
+   */
+  async signUp(req: Request, signUpDto: SignUpDto): Promise<{ ok: boolean; token: string; refreshToken: string }> {
+    try {
+      // Verificar si existe un usuario con el mismo email
+      const existingUser = await this.userService.findByEmailComplete(signUpDto.email);
+
+      // Si existe un usuario con Google ID, no permitir registro con contraseña
+      if (existingUser && existingUser.google_id) {
+        throw new ConflictException('Ya existe una cuenta con este email usando autenticación de Google. Por favor, inicie sesión con Google.');
+      }
+
+      // Si existe un usuario sin Google ID, no permitir registro duplicado
+      if (existingUser) {
+        throw new ConflictException('Ya existe una cuenta con este email. Por favor, inicie sesión con su contraseña.');
+      }
+
+      // Si se proporciona un token de Google, intentar autenticar con Google primero
+      if (signUpDto.google_token) {
+        try {
+          const googleLoginDto = new GoogleLoginDto();
+          googleLoginDto.token = signUpDto.google_token;
+          return await this.googleLogin(req, googleLoginDto);
+        } catch (error) {
+          this.logger.error(`Error al autenticar con Google durante el registro: ${error.message}`);
+          // Si falla la autenticación con Google, continuar con el registro normal
+        }
+      }
+
+      // Crear el usuario con el servicio existente
+      // Nota: getUserForEmailOrCreate genera una contraseña aleatoria si el usuario no existe
+      const { created, user: createdUser } = await this.userService.getUserForEmailOrCreate(signUpDto.email.toLowerCase());
+
+      // Si el usuario fue creado, actualizamos sus datos
+      if (created) {
+        // Actualizar los datos del usuario con la información proporcionada
+        await this.userService.updateGlobalUser(createdUser.id, {
+          first_name: signUpDto.first_name,
+          last_name: signUpDto.last_name,
+        });
+
+        // Actualizar la contraseña con la proporcionada por el usuario
+        // Usamos changePasswordAsAdmin porque no conocemos la contraseña generada aleatoriamente
+        await this.userService.changePasswordAsAdmin(createdUser.id, signUpDto.password);
+      } else {
+        // Si el usuario ya existe (lo cual no debería ocurrir debido a nuestras validaciones previas)
+        throw new ConflictException('Usuario ya existe');
+      }
+
+      // Usuario creado y actualizado
+      const savedUser = createdUser;
+
+      // Generar tokens de autenticación
+      const { session, refreshToken } = await this.generateAccessRefreshToken(req, savedUser);
+      const token = await this.generateAccessToken(savedUser.id, session.id);
+
+      // Enviar email de bienvenida (sin incluir la contraseña por seguridad)
+      // El usuario ya conoce su contraseña porque la proporcionó durante el registro
+      await this.emailService.sendUserWellcome(savedUser.email, '********');
+
+      return { ok: true, token, refreshToken };
+    } catch (error) {
+      this.logger.error(`Error en signUp: ${error.message}`, error.stack);
+      if (error instanceof ConflictException || error instanceof BadRequestException || error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al procesar el registro');
     }
   }
 }

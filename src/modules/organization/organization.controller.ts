@@ -60,11 +60,13 @@ export class OrganizationController {
 
   @UseGuards(JwtAuthRolesGuard)
   @Roles(OrganizationRoleType.USR_TECNICO)
-  @ApiOperation({ summary: 'crear una organización, solo super admin' })
+  @ApiOperation({ summary: 'crear una organización' })
   @Post('')
   @UseInterceptors(FileInterceptor('logo'))
-  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File) {
-    const organization = await this.organizationService.createOrganization(createOrganizationDto, file);
+  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File, @GetUser() user: User) {
+    // Pasar el flag de superusuario al servicio
+    const isSuperUser = user.is_super_admin;
+    const organization = await this.organizationService.createOrganization(createOrganizationDto, file, isSuperUser);
     return { ok: true, organization };
   }
 

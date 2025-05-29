@@ -1,5 +1,5 @@
 import { Organization } from '@models/Organization.entity';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -66,26 +66,51 @@ export class OrganizationService {
     });
   }
 
-  async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File): Promise<Organization> {
+  async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File, isSuperUser: boolean = false): Promise<Organization> {
+    // Obtener el usuario por email
+    const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
+    const user = responseCreateUser.user;
+
+    // Si no es superusuario, verificar si ya tiene una organización
+    if (!isSuperUser) {
+      // Buscar todas las organizaciones donde el usuario es propietario (OWNER)
+      const userOrganizations = await this.userOrganizationRepository.find({
+        where: {
+          user: { id: user.id },
+          role: OrganizationRoleType.OWNER,
+        },
+        relations: ['organization'],
+      });
+
+      // Si ya tiene una organización, no permitir crear otra
+      if (userOrganizations.length > 0) {
+        throw new ConflictException('No puedes crear más de una organización. Contacta al administrador si necesitas ayuda.');
+      }
+    }
+
+    // Crear la organización
     const organization = this.organizationRepository.create(createOrganizationDto);
     await this.organizationRepository.save(organization);
 
+    // Guardar el logo
     const logoUrl = await this.fileService.saveFile(file, `organizations/${organization.id}`, 'logo');
     organization.logo = logoUrl;
     await this.organizationRepository.save(organization);
 
-    const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
-
+    // Asignar el usuario como propietario de la organización
     await this.userOrganizationService.create({
       organization,
-      user: responseCreateUser.user,
+      user: user,
       role: OrganizationRoleType.OWNER,
     });
-    let password = 'created before';
-    if (responseCreateUser.password) {
-      password = responseCreateUser.password;
+
+    // Enviar email de notificación
+    // Si el usuario fue creado, ya se envió un email de bienvenida con la contraseña desde getUserForEmailOrCreate
+    // Solo enviamos el email de nueva organización si el usuario ya existía
+    if (!responseCreateUser.created) {
+      await this.emailService.sendNewOrganizationEmail(user.email, 'Tu contraseña actual', organization.name);
     }
-    await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, password, organization.name);
+
     return organization;
   }
 
