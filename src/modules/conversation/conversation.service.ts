@@ -14,6 +14,7 @@ import { SearchConversationDto } from './dto/search-conversation.dto';
 import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 import { NotificationStatus } from '@models/notification.entity';
 import { Notification } from '@models/notification.entity';
+import { OrganizationLimitService } from '@modules/organization/organization-limit.service';
 
 @Injectable()
 export class ConversationService {
@@ -27,14 +28,28 @@ export class ConversationService {
     private readonly departmentService: DepartmentService,
     @InjectRepository(Notification)
     private readonly notificationRepository: Repository<Notification>,
+    private readonly organizationLimitService: OrganizationLimitService,
   ) {}
 
   async createConversation(chatUser: ChatUser, departamento: Departamento): Promise<Conversation> {
+    // Verificar límites de organización
+    const organizationId = departamento.organizacion.id;
+    const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
+    
+    // Si se ha alcanzado el límite, lanzar error
+    if (limitInfo.hasReachedLimit) {
+      throw new BadRequestException(`La organización ha alcanzado su límite de ${limitInfo.limit} conversaciones`);
+    }
+    
     const conversation = new Conversation();
     conversation.messages = [];
     conversation.chat_user = chatUser;
     conversation.departamento = departamento;
     await this.conversationRepository.save(conversation);
+    
+    // Incrementar el contador de conversaciones
+    await this.organizationLimitService.incrementConversationCount(organizationId);
+    
     return conversation;
   }
 
@@ -238,6 +253,15 @@ export class ConversationService {
       throw new Error('Departamento no encontrado');
     }
 
+    // Verificar límites de organización
+    const organizationId = departamento.organizacion.id;
+    const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
+    
+    // Si se ha alcanzado el límite, lanzar error
+    if (limitInfo.hasReachedLimit) {
+      throw new BadRequestException(`La organización ha alcanzado su límite de ${limitInfo.limit} conversaciones`);
+    }
+
     const chatUser = await this.chatUserService.createChatUserFacebook(identified, userType);
 
     if (!chatUser) {
@@ -251,6 +275,10 @@ export class ConversationService {
     conversation.departamento = departamento;
     conversation.integration = integration;
     await this.conversationRepository.save(conversation);
+    
+    // Incrementar el contador de conversaciones
+    await this.organizationLimitService.incrementConversationCount(organizationId);
+    
     return conversation;
   }
 
@@ -258,6 +286,15 @@ export class ConversationService {
     const departamento = await this.departmentService.getDepartmentById(integration.departamento.id);
     if (!departamento) {
       throw new Error('Departamento no encontrado');
+    }
+
+    // Verificar límites de organización
+    const organizationId = departamento.organizacion.id;
+    const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
+    
+    // Si se ha alcanzado el límite, lanzar error
+    if (limitInfo.hasReachedLimit) {
+      throw new BadRequestException(`La organización ha alcanzado su límite de ${limitInfo.limit} conversaciones`);
     }
 
     const chatUser = await this.chatUserService.createChatUserWhatsApp(identified, webhookFacebookDto);
@@ -273,6 +310,10 @@ export class ConversationService {
     conversation.departamento = departamento;
     conversation.integration = integration;
     await this.conversationRepository.save(conversation);
+    
+    // Incrementar el contador de conversaciones
+    await this.organizationLimitService.incrementConversationCount(organizationId);
+    
     return conversation;
   }
 

@@ -51,10 +51,38 @@ export class OrganizationController {
   @ApiBearerAuth()
   @Get('my-organizations')
   async getMyOrganizations(@GetUser() user: User) {
-    const organizations = await this.userOrganizationService.getMyOrganizations(user);
+    const userOrganizations = await this.userOrganizationService.getMyOrganizations(user);
+    
+    // Obtener información de límites para cada organización
+    const organizationsWithLimits = await Promise.all(
+      userOrganizations.map(async (userOrg) => {
+        try {
+          // Acceder al tipo de organización a través de la relación
+          const orgType = userOrg.organization?.type;
+          const orgId = userOrg.organization?.id;
+          
+          // Solo obtener límites para organizaciones FREE y CUSTOM
+          if (orgId && (orgType === OrganizationType.FREE || orgType === OrganizationType.CUSTOM)) {
+            const limitInfo = await this.organizationService.getOrganizationLimitInfo(orgId);
+            return {
+              ...userOrg,
+              organization: {
+                ...userOrg.organization,
+                limitInfo
+              }
+            };
+          }
+          return userOrg;
+        } catch (error) {
+          // Si hay algún error al obtener los límites, devolver la organización sin información de límites
+          return userOrg;
+        }
+      })
+    );
+    
     return {
       ok: true,
-      organizations,
+      organizations: organizationsWithLimits,
     };
   }
 
