@@ -23,8 +23,6 @@ export class OrganizationService {
     private readonly userOrganizationRepository: Repository<UserOrganization>,
     @InjectRepository(Agente)
     private readonly agentRepository: Repository<Agente>,
-    @InjectRepository(OrganizationLimit)
-    private readonly organizationLimitRepository: Repository<OrganizationLimit>,
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
     private readonly emailService: EmailService,
@@ -225,47 +223,6 @@ export class OrganizationService {
    * @returns Límites creados
    */
   private async createOrganizationLimits(organization: Organization): Promise<OrganizationLimit> {
-    // Verificar si ya existen límites para esta organización
-    const existingLimit = await this.organizationLimitRepository.findOne({
-      where: { organizationId: organization.id },
-    });
-
-    if (existingLimit) {
-      return existingLimit;
-    }
-
-    let limitData: Partial<OrganizationLimit>;
-
-    // Configurar límites según el tipo de organización
-    if (organization.type === OrganizationType.FREE) {
-      // Para FREE, los valores son fijos: 50 conversaciones, 15 días, no mensual
-      limitData = {
-        conversationLimit: 50,
-        durationDays: 15,
-        isMonthly: false,
-      };
-    } else if (organization.type === OrganizationType.CUSTOM) {
-      // Para CUSTOM, los valores son configurables y mensuales por defecto
-      limitData = {
-        conversationLimit: 100, // Valor por defecto para CUSTOM
-        durationDays: 30,
-        isMonthly: true,
-      };
-    } else {
-      // Para otros tipos (PRODUCTION, MVP)
-      limitData = {
-        conversationLimit: 1000,
-        durationDays: 30,
-        isMonthly: true,
-      };
-    }
-
-    // Crear y guardar el límite
-    const limit = this.organizationLimitRepository.create({
-      ...limitData,
-      organizationId: organization.id,
-    });
-
-    return this.organizationLimitRepository.save(limit);
+    return this.organizationLimitService.createDefaultLimitForOrganization(organization);
   }
 }

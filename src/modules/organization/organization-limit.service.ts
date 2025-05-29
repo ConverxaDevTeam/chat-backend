@@ -104,7 +104,7 @@ export class OrganizationLimitService {
     }
   }
 
-  async createDefaultLimitForOrganization(organization: Organization): Promise<OrganizationLimit> {
+  async createDefaultLimitForOrganization(organization: Organization): Promise<OrganizationLimit | null> {
     // Verificar si ya existe un límite para esta organización
     const existingLimit = await this.organizationLimitRepository.findOne({
       where: { organizationId: organization.id },
@@ -112,6 +112,11 @@ export class OrganizationLimitService {
 
     if (existingLimit) {
       return existingLimit;
+    }
+
+    // Para PRODUCTION y MVP no creamos límites
+    if (organization.type === OrganizationType.PRODUCTION || organization.type === OrganizationType.MVP) {
+      return null;
     }
 
     // Crear límites por defecto según el tipo de organización
@@ -126,13 +131,6 @@ export class OrganizationLimitService {
     } else if (organization.type === OrganizationType.CUSTOM) {
       limit = {
         conversationLimit: 100, // Valor por defecto para CUSTOM
-        durationDays: 30,
-        isMonthly: true,
-      };
-    } else {
-      // Para otros tipos (PRODUCTION, MVP)
-      limit = {
-        conversationLimit: 1000,
         durationDays: 30,
         isMonthly: true,
       };
