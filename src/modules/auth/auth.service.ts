@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, Logger, NotFoundException, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger, NotFoundException, UnauthorizedException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import * as bcrypt from 'bcrypt';
@@ -9,6 +9,9 @@ import { ConfigService } from '@nestjs/config';
 import { LogInDto } from './dto/log-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { EmailService } from '../email/email.service';
+import { GoogleLoginDto } from './dto/google-login.dto';
+import { OAuth2Client } from 'google-auth-library';
+import axios from 'axios';
 
 export class validatedSession {
   user: User;
@@ -30,6 +33,7 @@ class AccessRefreshTokenGenerated {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   userRepository: any;
+  private googleClient: OAuth2Client;
 
   constructor(
     private readonly userService: UserService,
@@ -38,7 +42,9 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @Inject(forwardRef(() => EmailService))
     private readonly emailService: EmailService,
-  ) {}
+  ) {
+    this.googleClient = new OAuth2Client(this.configService.get<string>('GOOGLE_CLIENT_ID'));
+  }
 
   async logIn(req, logInDto: LogInDto) {
     const user = await this.userService.userExistByEmail(logInDto.email);
@@ -242,5 +248,83 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.userService.updatePassword(user.id, hashedPassword);
     return { ok: true, message: 'Password actualizado exitosamente' };
+  }
+
+  async googleLogin(req, googleLoginDto: GoogleLoginDto) {
+    try {
+      if (!googleLoginDto.token) {
+        throw new BadRequestException('Token de Google no proporcionado');
+      }
+
+      this.logger.log(`Intentando autenticar con Google usando token: ${googleLoginDto.token.substring(0, 10)}...`);
+
+      let payload;
+      try {
+        // Obtener información del usuario usando el token de acceso
+        const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: {
+            Authorization: `Bearer ${googleLoginDto.token}`,
+          },
+        });
+
+        payload = response.data;
+        this.logger.log(`Información de usuario obtenida de Google: ${JSON.stringify(payload)}`);
+
+        if (!payload || !payload.email) {
+          throw new UnauthorizedException('Token de Google válido pero sin información de email');
+        }
+      } catch (error) {
+        this.logger.error(`Error al obtener información de Google: ${error.message}`);
+        if (error.response) {
+          this.logger.error(`Respuesta de error: ${JSON.stringify(error.response.data)}`);
+        } else if (error.request) {
+          this.logger.error('No se recibió respuesta del servidor de Google');
+        }
+        throw new UnauthorizedException('Error al verificar el token de Google. Asegúrate de usar un token de acceso válido.');
+      }
+
+      // Buscar si el usuario ya existe con más campos
+      let user = await this.userService.findByEmailComplete(payload.email);
+
+      // Si no existe, crear un nuevo usuario
+      if (!user) {
+        const newUser = {
+          email: payload.email,
+          name: payload.name || 'Usuario de Google',
+          password: await bcrypt.hash(Math.random().toString(36).slice(-8), 10), // Generar contraseña aleatoria
+          google_id: payload.sub,
+          picture: payload.picture,
+        };
+
+        this.logger.log(`Creando nuevo usuario desde Google: ${payload.email}`);
+        user = await this.userService.createUserFromGoogle(newUser);
+      } else {
+        this.logger.log(`Usuario existente encontrado: ${user.email}, actualizando información de Google`);
+        // Siempre actualizamos la información de Google para mantenerla al día
+        await this.userService.updateGoogleInfo(user.id, {
+          google_id: payload.sub,
+          picture: payload.picture || user.picture,
+        });
+      }
+
+      // Actualizar último login
+      await this.userService.updateLastLogin(user);
+
+      // Generar tokens
+      const { refreshToken, session } = await this.generateAccessRefreshToken(req, user);
+      const token = await this.generateAccessToken(user.id, session.id);
+
+      return {
+        ok: true,
+        token,
+        refreshToken,
+      };
+    } catch (error) {
+      this.logger.error(`Error en googleLogin: ${error.message}`, error.stack);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al procesar la autenticación con Google');
+    }
   }
 }

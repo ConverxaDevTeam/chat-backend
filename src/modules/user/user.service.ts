@@ -63,6 +63,13 @@ export class UserService {
     });
   }
 
+  async findByEmailComplete(email: string) {
+    return this.userRepository.findOne({
+      where: { email: email.toLowerCase() },
+      select: ['id', 'email', 'first_name', 'last_name', 'google_id', 'picture', 'email_verified'],
+    });
+  }
+
   async updateLastLogin(user: User): Promise<User> {
     user.last_login = new Date();
     return this.userRepository.save(user);
@@ -292,5 +299,40 @@ export class UserService {
       reset_password_code: () => 'NULL',
       reset_password_expires: () => 'NULL',
     });
+  }
+
+  async createUserFromGoogle(userData: { email: string; name?: string; password: string; google_id: string; picture?: string }): Promise<User> {
+    const user = new User();
+    user.email = userData.email.toLowerCase();
+    user.password = userData.password;
+    user.google_id = userData.google_id;
+    user.email_verified = true; // Consideramos verificado el email si viene de Google
+
+    // Separar nombre completo en nombre y apellido si es posible
+    if (userData.name) {
+      const nameParts = userData.name.split(' ');
+      if (nameParts.length > 1) {
+        user.first_name = nameParts[0];
+        user.last_name = nameParts.slice(1).join(' ');
+      } else {
+        user.first_name = userData.name;
+      }
+    }
+
+    if (userData.picture) {
+      user.picture = userData.picture;
+    }
+
+    return this.userRepository.save(user);
+  }
+
+  async updateGoogleInfo(userId: number, data: { google_id: string; picture?: string }): Promise<void> {
+    const updateData: any = { google_id: data.google_id };
+
+    if (data.picture) {
+      updateData.picture = data.picture;
+    }
+
+    await this.userRepository.update(userId, updateData);
   }
 }

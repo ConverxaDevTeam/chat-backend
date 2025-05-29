@@ -11,6 +11,7 @@ import { LogInDto } from './dto/log-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestResetPasswordDto } from './dto/request-reset-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -51,6 +52,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Resetea password con código' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto.email, resetPasswordDto.code, resetPasswordDto.newPassword);
+  }
+
+  @Public()
+  @ApiBody({ type: GoogleLoginDto })
+  @ApiOperation({ summary: 'Autentica al usuario con token de Google' })
+  @Post('/google-login')
+  async googleLogin(@Body() googleLoginDto: GoogleLoginDto, @Req() request: Request) {
+    const userResponse = await this.authService.googleLogin(request, googleLoginDto);
+    return userResponse;
   }
 
   @UseGuards(JwtAuthGuard)
