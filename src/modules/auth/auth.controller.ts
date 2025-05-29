@@ -9,8 +9,10 @@ import { User } from '@models/User.entity';
 import { GetSessionId } from '@infrastructure/decorators/get-session-id.decorator';
 import { LogInDto } from './dto/log-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { SignUpDto } from './dto/sign-up.dto';
 import { RequestResetPasswordDto } from './dto/request-reset-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleLoginDto } from './dto/google-login.dto';
 
 @Controller('auth')
 @ApiTags('auth')
@@ -51,6 +53,23 @@ export class AuthController {
   @ApiOperation({ summary: 'Resetea password con código' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto.email, resetPasswordDto.code, resetPasswordDto.newPassword);
+  }
+
+  @Public()
+  @ApiBody({ type: GoogleLoginDto })
+  @ApiOperation({ summary: 'Autentica al usuario con token de Google' })
+  @Post('/google-login')
+  async googleLogin(@Body() googleLoginDto: GoogleLoginDto, @Req() request: Request) {
+    const userResponse = await this.authService.googleLogin(request, googleLoginDto);
+    return userResponse;
+  }
+
+  @Public()
+  @ApiBody({ type: SignUpDto })
+  @ApiOperation({ summary: 'Registra un nuevo usuario' })
+  @Post('/sign-up')
+  async signUp(@Body() signUpDto: SignUpDto, @Req() request: Request) {
+    return this.authService.signUp(request, signUpDto);
   }
 
   @UseGuards(JwtAuthGuard)
