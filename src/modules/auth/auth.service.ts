@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { LogInDto } from './dto/log-in.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { EmailService } from '../email/email.service';
+import type { Request } from 'express';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
@@ -250,15 +251,19 @@ export class AuthService {
     return { ok: true, message: 'Password actualizado exitosamente' };
   }
 
-  async googleLogin(req, googleLoginDto: GoogleLoginDto) {
+  /**
+   * Autentica a un usuario utilizando un token de acceso de Google
+   * @param req Objeto de solicitud HTTP
+   * @param googleLoginDto DTO con el token de acceso de Google
+   * @returns Objeto con tokens de autenticación JWT
+   */
+  async googleLogin(req: Request, googleLoginDto: GoogleLoginDto): Promise<{ ok: boolean; token: string; refreshToken: string }> {
     try {
       if (!googleLoginDto.token) {
         throw new BadRequestException('Token de Google no proporcionado');
       }
 
-      this.logger.log(`Intentando autenticar con Google usando token: ${googleLoginDto.token.substring(0, 10)}...`);
-
-      let payload;
+      let payload: { email: string; sub: string; name?: string; picture?: string };
       try {
         // Obtener información del usuario usando el token de acceso
         const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -268,7 +273,6 @@ export class AuthService {
         });
 
         payload = response.data;
-        this.logger.log(`Información de usuario obtenida de Google: ${JSON.stringify(payload)}`);
 
         if (!payload || !payload.email) {
           throw new UnauthorizedException('Token de Google válido pero sin información de email');
@@ -288,7 +292,13 @@ export class AuthService {
 
       // Si no existe, crear un nuevo usuario
       if (!user) {
-        const newUser = {
+        const newUser: {
+          email: string;
+          name?: string;
+          password: string;
+          google_id: string;
+          picture?: string;
+        } = {
           email: payload.email,
           name: payload.name || 'Usuario de Google',
           password: await bcrypt.hash(Math.random().toString(36).slice(-8), 10), // Generar contraseña aleatoria
@@ -296,10 +306,8 @@ export class AuthService {
           picture: payload.picture,
         };
 
-        this.logger.log(`Creando nuevo usuario desde Google: ${payload.email}`);
         user = await this.userService.createUserFromGoogle(newUser);
       } else {
-        this.logger.log(`Usuario existente encontrado: ${user.email}, actualizando información de Google`);
         // Siempre actualizamos la información de Google para mantenerla al día
         await this.userService.updateGoogleInfo(user.id, {
           google_id: payload.sub,

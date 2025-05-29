@@ -63,7 +63,12 @@ export class UserService {
     });
   }
 
-  async findByEmailComplete(email: string) {
+  /**
+   * Busca un usuario por email con campos adicionales para autenticación con Google
+   * @param email Email del usuario
+   * @returns Usuario con campos adicionales o null si no existe
+   */
+  async findByEmailComplete(email: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { email: email.toLowerCase() },
       select: ['id', 'email', 'first_name', 'last_name', 'google_id', 'picture', 'email_verified'],
@@ -301,6 +306,11 @@ export class UserService {
     });
   }
 
+  /**
+   * Crea un nuevo usuario con información de Google
+   * @param userData Datos del usuario de Google
+   * @returns Usuario creado
+   */
   async createUserFromGoogle(userData: { email: string; name?: string; password: string; google_id: string; picture?: string }): Promise<User> {
     const user = new User();
     user.email = userData.email.toLowerCase();
@@ -326,8 +336,13 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
+  /**
+   * Actualiza la información de Google de un usuario existente
+   * @param userId ID del usuario a actualizar
+   * @param data Datos de Google a actualizar
+   */
   async updateGoogleInfo(userId: number, data: { google_id: string; picture?: string }): Promise<void> {
-    const updateData: any = { google_id: data.google_id };
+    const updateData: Record<string, string> = { google_id: data.google_id };
 
     if (data.picture) {
       updateData.picture = data.picture;
