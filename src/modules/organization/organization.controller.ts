@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Logger, Body, Post, Delete, Param, Patch, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, UseGuards, Logger, Body, Post, Delete, Param, Patch, UseInterceptors, ConflictException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
@@ -58,12 +58,21 @@ export class OrganizationController {
     };
   }
 
-  @UseGuards(JwtAuthRolesGuard)
-  @Roles(OrganizationRoleType.USR_TECNICO)
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'crear una organización' })
   @Post('')
   @UseInterceptors(FileInterceptor('logo'))
   async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File, @GetUser() user: User) {
+    // Verificar si el usuario es USR_TECNICO o no tiene organizaciones
+    const userOrganizations = await this.userOrganizationService.getMyOrganizations(user);
+    const isUserTecnico = userOrganizations.some((uo) => uo.role === OrganizationRoleType.USR_TECNICO);
+    const hasNoOrganizations = userOrganizations.length === 0;
+
+    // Si no es USR_TECNICO y ya tiene organizaciones, no permitir crear más
+    if (!isUserTecnico && !hasNoOrganizations && !user.is_super_admin) {
+      throw new ConflictException('No puedes crear más de una organización. Contacta al administrador si necesitas ayuda.');
+    }
+
     // Pasar el flag de superusuario al servicio
     const isSuperUser = user.is_super_admin;
     const organization = await this.organizationService.createOrganization(createOrganizationDto, file, isSuperUser);

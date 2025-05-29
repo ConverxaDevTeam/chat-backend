@@ -1,4 +1,4 @@
-import { Organization } from '@models/Organization.entity';
+import { Organization, OrganizationType } from '@models/Organization.entity';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -11,6 +11,8 @@ import { EmailService } from '../email/email.service';
 import { FileService } from '@modules/file/file.service';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
+import { OrganizationLimitService } from './organization-limit.service';
+import { OrganizationLimit } from '@models/OrganizationLimit.entity';
 
 @Injectable()
 export class OrganizationService {
@@ -21,10 +23,13 @@ export class OrganizationService {
     private readonly userOrganizationRepository: Repository<UserOrganization>,
     @InjectRepository(Agente)
     private readonly agentRepository: Repository<Agente>,
+    @InjectRepository(OrganizationLimit)
+    private readonly organizationLimitRepository: Repository<OrganizationLimit>,
     private readonly userService: UserService,
     private readonly userOrganizationService: UserOrganizationService,
     private readonly emailService: EmailService,
     private readonly fileService: FileService,
+    private readonly organizationLimitService: OrganizationLimitService,
   ) {}
 
   async getAll(): Promise<Organization[]> {
@@ -103,6 +108,11 @@ export class OrganizationService {
       user: user,
       role: OrganizationRoleType.OWNER,
     });
+
+    // Crear límites según el tipo de organización
+    if (organization.type === OrganizationType.FREE || organization.type === OrganizationType.CUSTOM) {
+      await this.createOrganizationLimits(organization);
+    }
 
     // Enviar email de notificación
     // Si el usuario fue creado, ya se envió un email de bienvenida con la contraseña desde getUserForEmailOrCreate
@@ -207,5 +217,55 @@ export class OrganizationService {
     if (agentes.length > 0) {
       await this.agentRepository.update({ id: In(agentes.map((agente) => agente.id)) }, { type: agentType });
     }
+  }
+
+  /**
+   * Crea límites para una organización según su tipo
+   * @param organization Organización para la que se crearán los límites
+   * @returns Límites creados
+   */
+  private async createOrganizationLimits(organization: Organization): Promise<OrganizationLimit> {
+    // Verificar si ya existen límites para esta organización
+    const existingLimit = await this.organizationLimitRepository.findOne({
+      where: { organizationId: organization.id },
+    });
+
+    if (existingLimit) {
+      return existingLimit;
+    }
+
+    let limitData: Partial<OrganizationLimit>;
+
+    // Configurar límites según el tipo de organización
+    if (organization.type === OrganizationType.FREE) {
+      // Para FREE, los valores son fijos: 50 conversaciones, 15 días, no mensual
+      limitData = {
+        conversationLimit: 50,
+        durationDays: 15,
+        isMonthly: false,
+      };
+    } else if (organization.type === OrganizationType.CUSTOM) {
+      // Para CUSTOM, los valores son configurables y mensuales por defecto
+      limitData = {
+        conversationLimit: 100, // Valor por defecto para CUSTOM
+        durationDays: 30,
+        isMonthly: true,
+      };
+    } else {
+      // Para otros tipos (PRODUCTION, MVP)
+      limitData = {
+        conversationLimit: 1000,
+        durationDays: 30,
+        isMonthly: true,
+      };
+    }
+
+    // Crear y guardar el límite
+    const limit = this.organizationLimitRepository.create({
+      ...limitData,
+      organizationId: organization.id,
+    });
+
+    return this.organizationLimitRepository.save(limit);
   }
 }
