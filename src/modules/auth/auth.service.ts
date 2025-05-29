@@ -284,34 +284,20 @@ export class AuthService {
         });
 
         payload = response.data;
-        this.logger.log(`[GoogleLogin] Información recibida de Google: ${JSON.stringify(payload)}`);
 
         if (!payload || !payload.email) {
           throw new UnauthorizedException('Token de Google válido pero sin información de email');
         }
       } catch (error) {
         this.logger.error(`Error al obtener información de Google: ${error.message}`);
-        if (error.response) {
-          this.logger.error(`Respuesta de error: ${JSON.stringify(error.response.data)}`);
-        } else if (error.request) {
-          this.logger.error('No se recibió respuesta del servidor de Google');
-        }
         throw new UnauthorizedException('Error al verificar el token de Google. Asegúrate de usar un token de acceso válido.');
       }
 
       // Buscar si el usuario ya existe con más campos
       let user = await this.userService.findByEmailComplete(payload.email);
 
-      this.logger.log(`[GoogleLogin] Usuario encontrado: ${user ? 'Sí' : 'No'}, Email: ${payload.email}`);
-      if (user) {
-        this.logger.log(
-          `[GoogleLogin] Datos del usuario existente: ID=${user.id}, google_id=${user.google_id || 'No tiene'}, first_name=${user.first_name || 'Vacío'}, last_name=${user.last_name || 'Vacío'}`,
-        );
-      }
-
       // Si no existe, crear un nuevo usuario
       if (!user) {
-        this.logger.log(`[GoogleLogin] Creando nuevo usuario con email: ${payload.email}`);
         const newUser: {
           email: string;
           name?: string;
@@ -326,12 +312,9 @@ export class AuthService {
           picture: payload.picture,
         };
 
-        this.logger.log(`[GoogleLogin] Datos para nuevo usuario: ${JSON.stringify(newUser)}`);
         user = await this.userService.createUserFromGoogle(newUser);
-        this.logger.log(`[GoogleLogin] Usuario creado con ID: ${user.id}`);
       } else if (!user.google_id) {
         // Si el usuario existe pero no tiene google_id, actualizamos todos los campos relevantes
-        this.logger.log(`[GoogleLogin] Usuario existe pero no tiene google_id. Actualizando información completa.`);
 
         // Preparar datos para actualizar
         const updateData: any = {
@@ -355,7 +338,6 @@ export class AuthService {
           }
         }
 
-        this.logger.log(`[GoogleLogin] Actualizando usuario existente con datos: ${JSON.stringify(updateData)}`);
         await this.userService.updateUserWithGoogleInfo(user.id, updateData);
 
         // Obtener el usuario actualizado
@@ -364,20 +346,8 @@ export class AuthService {
           throw new InternalServerErrorException('Error al obtener usuario actualizado');
         }
         user = updatedUser;
-
-        this.logger.log(
-          `[GoogleLogin] Usuario actualizado: ${JSON.stringify({
-            id: user.id,
-            email: user.email,
-            google_id: user.google_id,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            picture: user.picture ? 'Tiene foto' : 'Sin foto',
-          })}`,
-        );
       } else {
         // Siempre actualizamos la información de Google para mantenerla al día
-        this.logger.log(`[GoogleLogin] Actualizando información básica de Google para usuario existente con ID: ${user.id}`);
         await this.userService.updateGoogleInfo(user.id, {
           google_id: payload.sub,
           picture: payload.picture || user.picture,
@@ -402,8 +372,8 @@ export class AuthService {
         refreshToken,
       };
     } catch (error) {
-      this.logger.error(`Error en googleLogin: ${error.message}`, error.stack);
-      if (error instanceof UnauthorizedException) {
+      this.logger.error(`Error en googleLogin: ${error.message}`);
+      if (error instanceof UnauthorizedException || error instanceof BadRequestException || error instanceof ConflictException) {
         throw error;
       }
       throw new InternalServerErrorException('Error al procesar la autenticación con Google');
@@ -476,7 +446,7 @@ export class AuthService {
 
       return { ok: true, token, refreshToken };
     } catch (error) {
-      this.logger.error(`Error en signUp: ${error.message}`, error.stack);
+      this.logger.error(`Error en signUp: ${error.message}`);
       if (error instanceof ConflictException || error instanceof BadRequestException || error instanceof UnauthorizedException) {
         throw error;
       }
