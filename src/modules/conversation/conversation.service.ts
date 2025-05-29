@@ -32,9 +32,13 @@ export class ConversationService {
   ) {}
 
   async createConversation(chatUser: ChatUser, departamento: Departamento): Promise<Conversation> {
-    // Verificar límites de organización
+    // Verificar límites e incrementar contador en una sola operación
+    // Aprovechamos la organización que ya está cargada en departamento
     const organizationId = departamento.organizacion.id;
-    const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
+    const limitInfo = await this.organizationLimitService.checkLimitAndIncrementIfAllowed(
+      organizationId,
+      departamento.organizacion, // Pasamos la organización ya cargada para evitar otra consulta
+    );
 
     // Si se ha alcanzado el límite, lanzar error
     if (limitInfo.hasReachedLimit) {
@@ -46,9 +50,6 @@ export class ConversationService {
     conversation.chat_user = chatUser;
     conversation.departamento = departamento;
     await this.conversationRepository.save(conversation);
-
-    // Incrementar el contador de conversaciones
-    await this.organizationLimitService.incrementConversationCount(organizationId);
 
     return conversation;
   }
@@ -219,6 +220,8 @@ export class ConversationService {
         .createQueryBuilder('conversation')
         .leftJoinAndSelect('conversation.chat_user', 'chat_user')
         .leftJoinAndSelect('conversation.integration', 'integration')
+        .leftJoinAndSelect('conversation.departamento', 'departamento')
+        .leftJoinAndSelect('departamento.organizacion', 'organizacion')
         .leftJoinAndSelect('conversation.user', 'user')
         .addSelect('user.id')
         .addSelect('integration.token')
@@ -234,6 +237,8 @@ export class ConversationService {
       .createQueryBuilder('conversation')
       .leftJoinAndSelect('conversation.chat_user', 'chat_user')
       .leftJoinAndSelect('conversation.integration', 'integration')
+      .leftJoinAndSelect('conversation.departamento', 'departamento')
+      .leftJoinAndSelect('departamento.organizacion', 'organizacion')
       .leftJoinAndSelect('conversation.user', 'user')
       .addSelect('user.id')
       .addSelect('integration.token')
@@ -253,9 +258,12 @@ export class ConversationService {
       throw new Error('Departamento no encontrado');
     }
 
-    // Verificar límites de organización
+    // Verificar límites e incrementar contador en una sola operación
     const organizationId = departamento.organizacion.id;
-    const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
+    const limitInfo = await this.organizationLimitService.checkLimitAndIncrementIfAllowed(
+      organizationId,
+      departamento.organizacion, // Pasamos la organización ya cargada para evitar otra consulta
+    );
 
     // Si se ha alcanzado el límite, lanzar error
     if (limitInfo.hasReachedLimit) {
@@ -276,9 +284,6 @@ export class ConversationService {
     conversation.integration = integration;
     await this.conversationRepository.save(conversation);
 
-    // Incrementar el contador de conversaciones
-    await this.organizationLimitService.incrementConversationCount(organizationId);
-
     return conversation;
   }
 
@@ -288,9 +293,12 @@ export class ConversationService {
       throw new Error('Departamento no encontrado');
     }
 
-    // Verificar límites de organización
+    // Verificar límites e incrementar contador en una sola operación
     const organizationId = departamento.organizacion.id;
-    const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
+    const limitInfo = await this.organizationLimitService.checkLimitAndIncrementIfAllowed(
+      organizationId,
+      departamento.organizacion, // Pasamos la organización ya cargada para evitar otra consulta
+    );
 
     // Si se ha alcanzado el límite, lanzar error
     if (limitInfo.hasReachedLimit) {
@@ -310,9 +318,6 @@ export class ConversationService {
     conversation.departamento = departamento;
     conversation.integration = integration;
     await this.conversationRepository.save(conversation);
-
-    // Incrementar el contador de conversaciones
-    await this.organizationLimitService.incrementConversationCount(organizationId);
 
     return conversation;
   }
