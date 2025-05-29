@@ -8,7 +8,7 @@ import { IntegrationRouterController } from './integration.router.controller';
 import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Conversation]), forwardRef(() => AgentModule), forwardRef(() => SocketModule), forwardRef(() => AuthModule)],
+  imports: [TypeOrmModule.forFeature([Conversation]), forwardRef(() => AgentModule), forwardRef(() => SocketModule), AuthModule],
   providers: [IntegrationRouterService],
   controllers: [IntegrationRouterController],
   exports: [IntegrationRouterService],

@@ -1,5 +1,5 @@
-import { Organization, OrganizationType } from '@models/Organization.entity';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Organization } from '@models/Organization.entity';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -11,8 +11,6 @@ import { EmailService } from '../email/email.service';
 import { FileService } from '@modules/file/file.service';
 import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
-import { OrganizationLimitService } from './organization-limit.service';
-import { OrganizationLimit } from '@models/OrganizationLimit.entity';
 
 @Injectable()
 export class OrganizationService {
@@ -27,7 +25,6 @@ export class OrganizationService {
     private readonly userOrganizationService: UserOrganizationService,
     private readonly emailService: EmailService,
     private readonly fileService: FileService,
-    private readonly organizationLimitService: OrganizationLimitService,
   ) {}
 
   async getAll(): Promise<Organization[]> {
@@ -69,56 +66,26 @@ export class OrganizationService {
     });
   }
 
-  async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File, isSuperUser: boolean = false): Promise<Organization> {
-    // Obtener el usuario por email
-    const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
-    const user = responseCreateUser.user;
-
-    // Si no es superusuario, verificar si ya tiene una organización
-    if (!isSuperUser) {
-      // Buscar todas las organizaciones donde el usuario es propietario (OWNER)
-      const userOrganizations = await this.userOrganizationRepository.find({
-        where: {
-          user: { id: user.id },
-          role: OrganizationRoleType.OWNER,
-        },
-        relations: ['organization'],
-      });
-
-      // Si ya tiene una organización, no permitir crear otra
-      if (userOrganizations.length > 0) {
-        throw new ConflictException('No puedes crear más de una organización. Contacta al administrador si necesitas ayuda.');
-      }
-    }
-
-    // Crear la organización
+  async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File): Promise<Organization> {
     const organization = this.organizationRepository.create(createOrganizationDto);
     await this.organizationRepository.save(organization);
 
-    // Guardar el logo
     const logoUrl = await this.fileService.saveFile(file, `organizations/${organization.id}`, 'logo');
     organization.logo = logoUrl;
     await this.organizationRepository.save(organization);
 
-    // Asignar el usuario como propietario de la organización
+    const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
+
     await this.userOrganizationService.create({
       organization,
-      user: user,
+      user: responseCreateUser.user,
       role: OrganizationRoleType.OWNER,
     });
-
-    // Crear límites según el tipo de organización
-    if (organization.type === OrganizationType.FREE || organization.type === OrganizationType.CUSTOM) {
-      await this.createOrganizationLimits(organization);
+    let password = 'created before';
+    if (responseCreateUser.password) {
+      password = responseCreateUser.password;
     }
-
-    // Enviar email de notificación
-    // Si el usuario fue creado, ya se envió un email de bienvenida con la contraseña desde getUserForEmailOrCreate
-    // Solo enviamos el email de nueva organización si el usuario ya existía
-    if (!responseCreateUser.created) {
-      await this.emailService.sendNewOrganizationEmail(user.email, 'Tu contraseña actual', organization.name);
-    }
-
+    await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, password, organization.name);
     return organization;
   }
 
@@ -215,14 +182,5 @@ export class OrganizationService {
     if (agentes.length > 0) {
       await this.agentRepository.update({ id: In(agentes.map((agente) => agente.id)) }, { type: agentType });
     }
-  }
-
-  /**
-   * Crea límites para una organización según su tipo
-   * @param organization Organización para la que se crearán los límites
-   * @returns Límites creados o null si el tipo de organización no requiere límites
-   */
-  private async createOrganizationLimits(organization: Organization): Promise<OrganizationLimit | null> {
-    return this.organizationLimitService.createDefaultLimitForOrganization(organization);
   }
 }

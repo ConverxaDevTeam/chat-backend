@@ -34,12 +34,6 @@ export class User extends BaseEntity {
   @Column({ type: 'timestamptz', nullable: true })
   reset_password_expires: Date;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  google_id: string;
-
-  @Column({ type: 'varchar', length: 1024, nullable: true })
-  picture: string;
-
   @DeleteDateColumn()
   deletedAt: Date;
 
