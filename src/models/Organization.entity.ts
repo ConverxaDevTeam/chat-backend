@@ -6,8 +6,6 @@ import { Departamento } from './Departamento.entity';
 export enum OrganizationType {
   PRODUCTION = 'production',
   MVP = 'mvp',
-  FREE = 'free',
-  CUSTOM = 'custom',
 }
 
 @Entity({ name: 'Organizations' })

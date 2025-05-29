@@ -10,7 +10,7 @@ import { AuthModule } from '@modules/auth/auth.module';
 import { FacebookModule } from '@modules/facebook/facebook.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Departamento, Organization, Agente]), forwardRef(() => LlmAgentModule), forwardRef(() => AuthModule), forwardRef(() => FacebookModule)],
+  imports: [TypeOrmModule.forFeature([Departamento, Organization, Agente]), LlmAgentModule, AuthModule, forwardRef(() => FacebookModule)],
   controllers: [DepartmentController],
   providers: [DepartmentService],
   exports: [DepartmentService],
