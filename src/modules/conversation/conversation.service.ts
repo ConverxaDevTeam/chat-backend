@@ -35,21 +35,21 @@ export class ConversationService {
     // Verificar límites de organización
     const organizationId = departamento.organizacion.id;
     const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
-    
+
     // Si se ha alcanzado el límite, lanzar error
     if (limitInfo.hasReachedLimit) {
       throw new BadRequestException(`La organización ha alcanzado su límite de ${limitInfo.limit} conversaciones`);
     }
-    
+
     const conversation = new Conversation();
     conversation.messages = [];
     conversation.chat_user = chatUser;
     conversation.departamento = departamento;
     await this.conversationRepository.save(conversation);
-    
+
     // Incrementar el contador de conversaciones
     await this.organizationLimitService.incrementConversationCount(organizationId);
-    
+
     return conversation;
   }
 
@@ -256,7 +256,7 @@ export class ConversationService {
     // Verificar límites de organización
     const organizationId = departamento.organizacion.id;
     const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
-    
+
     // Si se ha alcanzado el límite, lanzar error
     if (limitInfo.hasReachedLimit) {
       throw new BadRequestException(`La organización ha alcanzado su límite de ${limitInfo.limit} conversaciones`);
@@ -275,10 +275,10 @@ export class ConversationService {
     conversation.departamento = departamento;
     conversation.integration = integration;
     await this.conversationRepository.save(conversation);
-    
+
     // Incrementar el contador de conversaciones
     await this.organizationLimitService.incrementConversationCount(organizationId);
-    
+
     return conversation;
   }
 
@@ -291,7 +291,7 @@ export class ConversationService {
     // Verificar límites de organización
     const organizationId = departamento.organizacion.id;
     const limitInfo = await this.organizationLimitService.hasReachedConversationLimit(organizationId);
-    
+
     // Si se ha alcanzado el límite, lanzar error
     if (limitInfo.hasReachedLimit) {
       throw new BadRequestException(`La organización ha alcanzado su límite de ${limitInfo.limit} conversaciones`);
@@ -310,10 +310,10 @@ export class ConversationService {
     conversation.departamento = departamento;
     conversation.integration = integration;
     await this.conversationRepository.save(conversation);
-    
+
     // Incrementar el contador de conversaciones
     await this.organizationLimitService.incrementConversationCount(organizationId);
-    
+
     return conversation;
   }
 
