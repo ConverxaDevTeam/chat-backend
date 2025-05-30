@@ -246,4 +246,114 @@ export class OrganizationLimitService {
     organization.conversationCount = (organization.conversationCount || 0) + 1;
     return this.organizationRepository.save(organization);
   }
+
+  /**
+   * Verifica los límites de conversación y, si no se han alcanzado, incrementa el contador en una sola operación
+   * @param organizationId ID de la organización
+   * @param existingOrganization Organización ya cargada (opcional)
+   * @returns Información sobre el límite y la organización actualizada
+   */
+  async checkLimitAndIncrementIfAllowed(
+    organizationId: number,
+    existingOrganization?: Organization,
+  ): Promise<{
+    hasReachedLimit: boolean;
+    limit?: number;
+    current?: number;
+    daysRemaining?: number;
+    type?: OrganizationType;
+    organization?: Organization;
+  }> {
+    // Usar la organización proporcionada o buscarla en la base de datos
+    let organization = existingOrganization;
+
+    if (!organization) {
+      // Solo si no se proporciona, hacer la consulta a la base de datos
+      organization =
+        (await this.organizationRepository.findOne({
+          where: { id: organizationId },
+        })) ?? undefined;
+
+      if (!organization) {
+        throw new NotFoundException(`Organización con ID ${organizationId} no encontrada`);
+      }
+    }
+
+    // Para PRODUCTION y MVP no hay límites
+    if (organization.type === OrganizationType.PRODUCTION || organization.type === OrganizationType.MVP) {
+      // Incrementar directamente sin verificar límites
+      organization.conversationCount = (organization.conversationCount || 0) + 1;
+      const updatedOrg = await this.organizationRepository.save(organization);
+
+      return {
+        hasReachedLimit: false,
+        type: organization.type,
+        organization: updatedOrg,
+      };
+    }
+
+    // Obtener los límites de la organización
+    const limit = await this.organizationLimitRepository.findOne({
+      where: { organizationId },
+    });
+
+    let currentLimit;
+
+    if (!limit) {
+      // Si no hay límites configurados pero es FREE o CUSTOM, crear límites por defecto
+      if (organization.type === OrganizationType.FREE || organization.type === OrganizationType.CUSTOM) {
+        currentLimit = await this.createDefaultLimitForOrganization(organization);
+      } else {
+        // Incrementar directamente sin verificar límites
+        organization.conversationCount = (organization.conversationCount || 0) + 1;
+        const updatedOrg = await this.organizationRepository.save(organization);
+
+        return {
+          hasReachedLimit: false,
+          organization: updatedOrg,
+        };
+      }
+    } else {
+      currentLimit = limit;
+    }
+
+    // Verificar si se ha alcanzado el límite
+    const currentCount = organization.conversationCount || 0;
+    const hasReachedLimit = currentCount >= currentLimit.conversationLimit;
+
+    // Calcular días restantes para organizaciones FREE
+    let daysRemaining: number | undefined;
+    if (organization.type === OrganizationType.FREE && !currentLimit.isMonthly) {
+      // Asegurarse de que created_at sea una fecha válida
+      const createdAt = organization.created_at instanceof Date ? organization.created_at : new Date(organization.created_at || Date.now());
+
+      const expirationDate = new Date(createdAt);
+      expirationDate.setDate(expirationDate.getDate() + currentLimit.durationDays);
+
+      const today = new Date();
+      const diffTime = expirationDate.getTime() - today.getTime();
+      daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Si los días restantes son negativos, significa que ya expiró
+      if (daysRemaining < 0) {
+        daysRemaining = 0;
+      }
+    }
+
+    // Si no se ha alcanzado el límite, incrementar el contador
+    let updatedOrg = organization;
+    if (!hasReachedLimit) {
+      organization.conversationCount = currentCount + 1;
+      updatedOrg = await this.organizationRepository.save(organization);
+    }
+
+    return {
+      hasReachedLimit,
+      limit: currentLimit.conversationLimit,
+      current: updatedOrg.conversationCount,
+      daysRemaining,
+      type: organization.type,
+      organization: hasReachedLimit ? undefined : updatedOrg,
+    };
+  }
 }
