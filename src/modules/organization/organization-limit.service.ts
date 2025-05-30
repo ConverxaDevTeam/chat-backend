@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { OrganizationLimit } from '../../models/OrganizationLimit.entity';
-import { Organization, OrganizationType } from '../../models/Organization.entity';
+import { OrganizationLimit } from '@models/OrganizationLimit.entity';
+import { Organization, OrganizationType } from '@models/Organization.entity';
 import { CreateOrganizationLimitDto, UpdateOrganizationLimitDto } from './dto/organization-limit.dto';
 import { ConfigService } from '@nestjs/config';
 
@@ -57,7 +57,7 @@ export class OrganizationLimitService {
         isMonthly: createDto.isMonthly !== undefined ? createDto.isMonthly : true,
       });
     }
-    
+
     return this.organizationLimitRepository.save(limit);
   }
 
@@ -157,10 +157,10 @@ export class OrganizationLimitService {
    * @param organizationId ID de la organización a verificar
    * @returns Un objeto con información sobre el límite y si se ha alcanzado
    */
-  async hasReachedConversationLimit(organizationId: number): Promise<{ 
-    hasReachedLimit: boolean; 
-    limit?: number; 
-    current?: number; 
+  async hasReachedConversationLimit(organizationId: number): Promise<{
+    hasReachedLimit: boolean;
+    limit?: number;
+    current?: number;
     daysRemaining?: number;
     type?: OrganizationType;
   }> {
@@ -175,9 +175,9 @@ export class OrganizationLimitService {
 
     // Para PRODUCTION y MVP no hay límites
     if (organization.type === OrganizationType.PRODUCTION || organization.type === OrganizationType.MVP) {
-      return { 
+      return {
         hasReachedLimit: false,
-        type: organization.type
+        type: organization.type,
       };
     }
 
@@ -204,17 +204,15 @@ export class OrganizationLimitService {
     let daysRemaining: number | undefined;
     if (organization.type === OrganizationType.FREE && !limit.isMonthly) {
       // Asegurarse de que created_at sea una fecha válida
-      const createdAt = organization.created_at instanceof Date 
-        ? organization.created_at 
-        : new Date(organization.created_at || Date.now());
-      
+      const createdAt = organization.created_at instanceof Date ? organization.created_at : new Date(organization.created_at || Date.now());
+
       const expirationDate = new Date(createdAt);
       expirationDate.setDate(expirationDate.getDate() + limit.durationDays);
-      
+
       const today = new Date();
       const diffTime = expirationDate.getTime() - today.getTime();
       daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       // Si los días restantes son negativos, significa que ya expiró
       if (daysRemaining < 0) {
         daysRemaining = 0;
@@ -226,7 +224,7 @@ export class OrganizationLimitService {
       limit: limit.conversationLimit,
       current: currentCount,
       daysRemaining,
-      type: organization.type
+      type: organization.type,
     };
   }
 
