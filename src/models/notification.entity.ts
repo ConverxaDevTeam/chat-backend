@@ -5,6 +5,7 @@ import { BaseEntity } from './Base.entity';
 export enum NotificationType {
   SYSTEM = 'SYSTEM',
   USER = 'USER',
+  CUSTOM_PLAN_REQUEST = 'CUSTOM_PLAN_REQUEST',
 }
 
 export enum NotificationStatus {

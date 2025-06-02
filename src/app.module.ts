@@ -31,6 +31,7 @@ import { SlackModule } from '@modules/slack/slack.module';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { DataSource } from 'typeorm';
 import { FunctionTemplateModule } from '@modules/function-template/function-template.module';
+import { PlanModule } from '@modules/plan/plan.module';
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { FunctionTemplateModule } from '@modules/function-template/function-temp
     SlackModule,
     NotificationModule,
     FunctionTemplateModule,
+    PlanModule,
   ],
   controllers: [AppController],
   providers: [AppService],

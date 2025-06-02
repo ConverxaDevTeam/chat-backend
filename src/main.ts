@@ -63,6 +63,7 @@ async function bootstrap() {
       /http\:\/\/localhost\:\d{1,5}$/,
       'https://chat-v2.sofiacall.com',
       'https://dev-sofia-chat-frontend.sofiacall.com',
+      'https://app.sofiachat.com',
       'https://ci3.googleusercontent.com',
       'https://drlntz6nkra23p6khm9h89.webrelay.io',
       'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',

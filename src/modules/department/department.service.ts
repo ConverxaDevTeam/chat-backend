@@ -93,6 +93,7 @@ export class DepartmentService {
       where: {
         id,
       },
+      relations: ['organizacion'],
     });
   }
 }

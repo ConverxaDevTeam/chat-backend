@@ -108,4 +108,27 @@ export class EmailService {
     const templateContent = await fs.readFile(templatePath, 'utf-8');
     return templateContent;
   }
+
+  async sendCustomPlanRequestEmail(to: string, organizationName: string, requestingUserEmail: string, requestingUserName: string): Promise<void> {
+    const template = await this.loadTemplate('custom-plan-request');
+    const compiledTemplate = handlebars.compile(template);
+    const currentYear = new Date().getFullYear();
+
+    const html = compiledTemplate({
+      organizationName,
+      requestingUserEmail,
+      requestingUserName,
+      currentYear,
+      frontendBaseUrl: this.configService.get<string>('url.frontend'), // Assuming you might need this for links
+    });
+
+    const messageData = {
+      from: this.configService.get<string>('mailgun.from'),
+      to,
+      subject: `Solicitud de Plan Personalizado para ${organizationName}`,
+      html,
+    };
+
+    await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), messageData);
+  }
 }

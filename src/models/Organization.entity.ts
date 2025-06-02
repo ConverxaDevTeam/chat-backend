@@ -30,6 +30,9 @@ export class Organization extends BaseEntity {
   @Column({ type: 'enum', enum: OrganizationType, default: OrganizationType.PRODUCTION })
   type: OrganizationType;
 
+  @Column({ type: 'int', default: 0 })
+  conversationCount: number;
+
   @DeleteDateColumn()
   deletedAt: Date;
 }
