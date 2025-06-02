@@ -1,9 +1,15 @@
-import { IsOptional, IsEmail } from 'class-validator';
+import { IsOptional, IsEmail, IsString } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
   @IsEmail()
   email?: string;
 
-  // Otros campos que desees permitir para actualizar...
+  @IsOptional()
+  @IsString()
+  first_name?: string;
+
+  @IsOptional()
+  @IsString()
+  last_name?: string;
 }
