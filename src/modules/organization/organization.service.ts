@@ -225,4 +225,13 @@ export class OrganizationService {
   private async createOrganizationLimits(organization: Organization): Promise<OrganizationLimit | null> {
     return this.organizationLimitService.createDefaultLimitForOrganization(organization);
   }
+
+  /**
+   * Obtiene información sobre los límites de una organización
+   * @param organizationId ID de la organización
+   * @returns Información sobre los límites de la organización
+   */
+  async getOrganizationLimitInfo(organizationId: number) {
+    return this.organizationLimitService.hasReachedConversationLimit(organizationId);
+  }
 }
