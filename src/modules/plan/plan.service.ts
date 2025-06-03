@@ -68,8 +68,9 @@ export class PlanService {
     }
 
     organization.type = OrganizationType.CUSTOM;
+    // Reiniciar el contador de conversaciones a 0 cuando se cambia a tipo CUSTOM
+    organization.conversationCount = 0;
     // Note: We might need to adjust organization limits here if there's a separate service/logic for it.
-    // For now, just changing the type.
     return this.organizationRepository.save(organization);
   }
 
