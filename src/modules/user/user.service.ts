@@ -63,6 +63,18 @@ export class UserService {
     });
   }
 
+  /**
+   * Busca un usuario por email con campos adicionales para autenticación con Google
+   * @param email Email del usuario
+   * @returns Usuario con campos adicionales o null si no existe
+   */
+  async findByEmailComplete(email: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { email: email.toLowerCase() },
+      select: ['id', 'email', 'first_name', 'last_name', 'google_id', 'picture', 'email_verified'],
+    });
+  }
+
   async updateLastLogin(user: User): Promise<User> {
     user.last_login = new Date();
     return this.userRepository.save(user);
@@ -253,21 +265,16 @@ export class UserService {
   }
 
   async changePasswordAsAdmin(userId: number, newPassword: string) {
-    const user = await this.userRepository.findOne({
-      where: { id: userId },
-      select: ['id'],
-    });
-
-    if (!user) {
-      throw new NotFoundException('Usuario no encontrado');
-    }
-
     return this.updateUserPassword(userId, newPassword);
   }
 
   private async updateUserPassword(userId: number, newPassword: string) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.userRepository.update(userId, { password: hashedPassword });
+    const result = await this.userRepository.update(userId, { password: hashedPassword });
+  
+    if (result.affected === 0) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
 
     return { ok: true, message: 'Password actualizado exitosamente' };
   }
@@ -292,5 +299,60 @@ export class UserService {
       reset_password_code: () => 'NULL',
       reset_password_expires: () => 'NULL',
     });
+  }
+
+  /**
+   * Crea un nuevo usuario con información de Google
+   * @param userData Datos del usuario de Google
+   * @returns Usuario creado
+   */
+  async createUserFromGoogle(userData: { email: string; name?: string; password: string; google_id: string; picture?: string }): Promise<User> {
+    const user = new User();
+    user.email = userData.email.toLowerCase();
+    user.password = userData.password;
+    user.google_id = userData.google_id;
+    user.email_verified = true; // Consideramos verificado el email si viene de Google
+
+    // Separar nombre completo en nombre y apellido si es posible
+    if (userData.name) {
+      const nameParts = userData.name.split(' ');
+      if (nameParts.length > 1) {
+        user.first_name = nameParts[0];
+        user.last_name = nameParts.slice(1).join(' ');
+      } else {
+        user.first_name = userData.name;
+      }
+    }
+
+    if (userData.picture) {
+      user.picture = userData.picture;
+    }
+
+    return this.userRepository.save(user);
+  }
+
+  /**
+   * Actualiza la información de Google de un usuario existente
+   * @param userId ID del usuario a actualizar
+   * @param data Datos de Google a actualizar
+   */
+  async updateGoogleInfo(userId: number, data: { google_id: string; picture?: string }): Promise<void> {
+    const updateData: Record<string, string> = { google_id: data.google_id };
+
+    if (data.picture) {
+      updateData.picture = data.picture;
+    }
+
+    await this.userRepository.update(userId, updateData);
+  }
+
+  /**
+   * Actualiza información completa de Google para un usuario existente
+   * @param userId ID del usuario a actualizar
+   * @param data Datos completos de Google a actualizar
+   */
+  async updateUserWithGoogleInfo(userId: number, data: any): Promise<void> {
+    this.logger.log(`[UserService] Actualizando usuario ${userId} con datos de Google: ${JSON.stringify(data)}`);
+    await this.userRepository.update(userId, data);
   }
 }

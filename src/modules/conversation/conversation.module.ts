@@ -14,12 +14,14 @@ import { Departamento } from '@models/Departamento.entity';
 import { DepartmentService } from '@modules/department/department.service';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { Notification } from '@models/notification.entity';
+import { OrganizationLimitService } from '@modules/organization/organization-limit.service';
+import { OrganizationLimit } from '@models/OrganizationLimit.entity';
 
 @Module({
-  providers: [ConversationService, UserOrganizationService, DepartmentService],
+  providers: [ConversationService, UserOrganizationService, DepartmentService, OrganizationLimitService],
   controllers: [ConversationController],
   imports: [
-    TypeOrmModule.forFeature([Conversation, UserOrganization, Organization, Departamento, Notification]),
+    TypeOrmModule.forFeature([Conversation, UserOrganization, Organization, Departamento, Notification, OrganizationLimit]),
     forwardRef(() => AuthModule),
     forwardRef(() => OrganizationModule),
     forwardRef(() => DepartmentModule),

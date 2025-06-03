@@ -31,9 +31,13 @@ import { SlackModule } from '@modules/slack/slack.module';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { DataSource } from 'typeorm';
 import { FunctionTemplateModule } from '@modules/function-template/function-template.module';
+import { PlanModule } from '@modules/plan/plan.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     ConfigModule.forRoot(ConfigModuleOptions),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'assets'),
@@ -111,6 +115,8 @@ import { FunctionTemplateModule } from '@modules/function-template/function-temp
     SlackModule,
     NotificationModule,
     FunctionTemplateModule,
+    PlanModule,
+    SchedulerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

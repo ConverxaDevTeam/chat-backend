@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Logger, Body, Post, Delete, Param, Patch, UseInterceptors } from '@nestjs/common';
+import { Controller, Get, UseGuards, Logger, Body, Post, Delete, Param, Patch, UseInterceptors, ConflictException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
@@ -51,20 +51,59 @@ export class OrganizationController {
   @ApiBearerAuth()
   @Get('my-organizations')
   async getMyOrganizations(@GetUser() user: User) {
-    const organizations = await this.userOrganizationService.getMyOrganizations(user);
+    const userOrganizations = await this.userOrganizationService.getMyOrganizations(user);
+
+    // Obtener información de límites para cada organización
+    const organizationsWithLimits = await Promise.all(
+      userOrganizations.map(async (userOrg) => {
+        try {
+          // Acceder al tipo de organización a través de la relación
+          const orgType = userOrg.organization?.type;
+          const orgId = userOrg.organization?.id;
+
+          // Solo obtener límites para organizaciones FREE y CUSTOM
+          if (orgId && (orgType === OrganizationType.FREE || orgType === OrganizationType.CUSTOM)) {
+            const limitInfo = await this.organizationService.getOrganizationLimitInfo(orgId);
+            return {
+              ...userOrg,
+              organization: {
+                ...userOrg.organization,
+                limitInfo,
+              },
+            };
+          }
+          return userOrg;
+        } catch (error) {
+          // Si hay algún error al obtener los límites, devolver la organización sin información de límites
+          return userOrg;
+        }
+      }),
+    );
+
     return {
       ok: true,
-      organizations,
+      organizations: organizationsWithLimits,
     };
   }
 
-  @UseGuards(JwtAuthRolesGuard)
-  @Roles(OrganizationRoleType.USR_TECNICO)
-  @ApiOperation({ summary: 'crear una organización, solo super admin' })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'crear una organización' })
   @Post('')
   @UseInterceptors(FileInterceptor('logo'))
-  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File) {
-    const organization = await this.organizationService.createOrganization(createOrganizationDto, file);
+  async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File, @GetUser() user: User) {
+    // Verificar si el usuario es USR_TECNICO o no tiene organizaciones
+    const userOrganizations = await this.userOrganizationService.getMyOrganizations(user);
+    const isUserTecnico = userOrganizations.some((uo) => uo.role === OrganizationRoleType.USR_TECNICO);
+    const hasNoOrganizations = userOrganizations.length === 0;
+
+    // Si no es USR_TECNICO y ya tiene organizaciones, no permitir crear más
+    if (!isUserTecnico && !hasNoOrganizations && !user.is_super_admin) {
+      throw new ConflictException('No puedes crear más de una organización. Contacta al administrador si necesitas ayuda.');
+    }
+
+    // Pasar el flag de superusuario al servicio
+    const isSuperUser = user.is_super_admin;
+    const organization = await this.organizationService.createOrganization(createOrganizationDto, file, isSuperUser);
     return { ok: true, organization };
   }
 
