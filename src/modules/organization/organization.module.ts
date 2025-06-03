@@ -10,11 +10,14 @@ import { UserOrganizationService } from './UserOrganization.service';
 import { OrganizationSubscriber } from 'src/subscribers/organization.subscriber';
 import { EmailModule } from '@modules/email/email.module';
 import { Agente } from '@models/agent/Agente.entity';
+import { OrganizationLimit } from '@models/OrganizationLimit.entity';
+import { OrganizationLimitService } from './organization-limit.service';
+import { OrganizationLimitController } from './organization-limit.controller';
 
 @Module({
-  providers: [OrganizationService, UserOrganizationService, OrganizationSubscriber],
-  controllers: [OrganizationController],
-  imports: [TypeOrmModule.forFeature([Organization, UserOrganization, Agente]), forwardRef(() => AuthModule), forwardRef(() => UserModule), EmailModule],
-  exports: [OrganizationService, UserOrganizationService, TypeOrmModule.forFeature([Organization, UserOrganization])],
+  providers: [OrganizationService, UserOrganizationService, OrganizationSubscriber, OrganizationLimitService],
+  controllers: [OrganizationController, OrganizationLimitController],
+  imports: [TypeOrmModule.forFeature([Organization, UserOrganization, Agente, OrganizationLimit]), forwardRef(() => AuthModule), forwardRef(() => UserModule), EmailModule],
+  exports: [OrganizationService, UserOrganizationService, OrganizationLimitService, TypeOrmModule.forFeature([Organization, UserOrganization, OrganizationLimit])],
 })
 export class OrganizationModule {}
