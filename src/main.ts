@@ -1,3 +1,4 @@
+import './polyfills'; // Importar polyfills primero
 import './config/dd-tracer';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
