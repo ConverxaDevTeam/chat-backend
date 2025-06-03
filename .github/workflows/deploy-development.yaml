@@ -79,6 +79,9 @@ jobs:
             SLACK_REDIRECT_URI=${{ secrets.SLACK_REDIRECT_URI }}
             VOYAGE_API_KEY=${{ secrets.VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ secrets.CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
             EOF
             node src/config/install-pgvector.js
             docker-compose build
