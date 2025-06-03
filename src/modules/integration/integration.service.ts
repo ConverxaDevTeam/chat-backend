@@ -106,7 +106,8 @@ export class IntegrationService {
   }
 
   async getDepartamentoById(id: number): Promise<Departamento | null> {
-    const departamento = await this.departmentService.getDepartamentoById(id);
+    // Usar getDepartmentById en lugar de getDepartamentoById para cargar la relación completa con la organización
+    const departamento = await this.departmentService.getDepartmentById(id);
     return departamento;
   }
 
