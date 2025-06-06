@@ -73,7 +73,8 @@ export class FacebookService {
     }
     const webhookUrl = `${this.configService.get<string>('url.web_hook_whatsapp')}/api/facebook/webhook/${integrationId}/api`;
     try {
-      await axios.post(
+      console.log('on subscribeToWebhook', webhookUrl, accessToken, wabaId);
+      const response = await axios.post(
         `https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`,
         {
           callback_url: webhookUrl,
@@ -86,6 +87,7 @@ export class FacebookService {
           },
         },
       );
+      console.log(response.data);
     } catch (error) {
       console.log(error.response.data.error.message);
     }
