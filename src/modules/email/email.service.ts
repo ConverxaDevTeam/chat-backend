@@ -45,12 +45,14 @@ export class EmailService {
     const compiledTemplate = handlebars.compile(template);
 
     console.log('url email', this.configService.get<string>('url.frontend'));
+    const backendBaseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
 
     const html = compiledTemplate({
       email,
       password,
       link: this.configService.get<string>('url.frontend'),
       frontendBaseUrl: this.configService.get<string>('url.frontend'),
+      backendBaseUrl,
     });
 
     const messageData = {
@@ -67,6 +69,7 @@ export class EmailService {
     const template = await this.loadTemplate('new-organization');
     const compiledTemplate = handlebars.compile(template);
     const frontendUrl = this.configService.get<string>('url.frontend');
+    const backendBaseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
 
     const html = compiledTemplate({
       email,
@@ -74,6 +77,7 @@ export class EmailService {
       organization_name: organizationName,
       link: frontendUrl,
       frontendBaseUrl: frontendUrl,
+      backendBaseUrl,
     });
 
     await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), {
@@ -88,11 +92,13 @@ export class EmailService {
     const template = await this.loadTemplate('reset-password');
     const compiledTemplate = handlebars.compile(template);
     const frontendUrl = this.configService.get<string>('url.frontend');
+    const backendBaseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
 
     const html = compiledTemplate({
       email,
       code,
       frontendBaseUrl: frontendUrl,
+      backendBaseUrl,
       resetPasswordLink: `${frontendUrl}/reset-password/change?code=${code}&email=${encodeURIComponent(email)}`,
       linkedinLink: 'https://linkedin.com/company/sofiachat',
       whatsappLink: 'https://whatsapp.com/sofiachat',
@@ -112,13 +118,15 @@ export class EmailService {
     const template = await this.loadTemplate('custom-plan-request');
     const compiledTemplate = handlebars.compile(template);
     const currentYear = new Date().getFullYear();
+    const backendBaseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
 
     const html = compiledTemplate({
       organizationName,
       requestingUserEmail,
       requestingUserName,
       currentYear,
-      frontendBaseUrl: this.configService.get<string>('url.frontend'), // Assuming you might need this for links
+      frontendBaseUrl: this.configService.get<string>('url.frontend'),
+      backendBaseUrl,
     });
 
     const messageData = {
@@ -136,7 +144,7 @@ export class EmailService {
       const template = await this.loadTemplate('plan-change');
       const compiledTemplate = handlebars.compile(template);
       const frontendBaseUrl = this.configService.get<string>('url.frontend');
-      const backendBaseUrl = this.configService.get<string>('url.backend') || 'http://localhost:3001';
+      const backendBaseUrl = this.configService.get<string>('APP_URL') || 'http://localhost:3001';
 
       const html = compiledTemplate({
         organizationName: organization.name,
