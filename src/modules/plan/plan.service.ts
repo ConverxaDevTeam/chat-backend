@@ -7,6 +7,7 @@ import { UserOrganization } from '@models/UserOrganization.entity';
 import { EmailService } from '@modules/email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { UpdateCustomPlanDto } from './dto/update-custom-plan.dto';
+import { ChangeOrganizationTypeDto } from './dto/change-organization-type.dto';
 
 @Injectable()
 export class PlanService {
@@ -85,6 +86,28 @@ export class PlanService {
     }
 
     organization.conversationCount = dto.conversationCount;
+    return this.organizationRepository.save(organization);
+  }
+
+  async changeOrganizationTypeBySuperAdmin(organizationId: number, dto: ChangeOrganizationTypeDto): Promise<Organization> {
+    const organization = await this.organizationRepository.findOne({ where: { id: organizationId } });
+    if (!organization) {
+      throw new NotFoundException(`Organization with ID ${organizationId} not found`);
+    }
+
+    // Cambiar el tipo de organización
+    organization.type = dto.type;
+
+    // Si el tipo es CUSTOM, verificar que se hayan proporcionado los días para actualizar
+    if (dto.type === OrganizationType.CUSTOM) {
+      if (!dto.daysToUpdate) {
+        throw new BadRequestException('Days to update must be provided for CUSTOM organization type');
+      }
+
+      // Reiniciar el contador de conversaciones a 0 cuando se cambia a tipo CUSTOM
+      organization.conversationCount = 0;
+    }
+
     return this.organizationRepository.save(organization);
   }
 }
