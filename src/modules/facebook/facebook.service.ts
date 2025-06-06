@@ -60,27 +60,35 @@ export class FacebookService {
   }
 
   private async subscribeToWebhook(wabaId: string, integrationId: number, accessToken: string): Promise<void> {
-    await axios.delete(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    const webhookUrl = `${this.configService.get<string>('url.web_hook_whatsapp')}/api/facebook/webhook/${integrationId}/api`;
-
-    await axios.post(
-      `https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`,
-      {
-        callback_url: webhookUrl,
-        verify_token: accessToken,
-      },
-      {
+    console.log('on subscribeToWebhook');
+    try {
+      await axios.delete(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-      },
-    );
+      });
+    } catch (error) {
+      console.log(error.response.data.error.message);
+    }
+    const webhookUrl = `${this.configService.get<string>('url.web_hook_whatsapp')}/api/facebook/webhook/${integrationId}/api`;
+    try {
+      await axios.post(
+        `https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`,
+        {
+          callback_url: webhookUrl,
+          verify_token: accessToken,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+    } catch (error) {
+      console.log(error.response.data.error.message);
+    }
   }
 
   private async registerPhoneNumber(phoneNumberId: string, accessToken: string): Promise<string> {
@@ -106,35 +114,6 @@ export class FacebookService {
       throw new BadRequestException('Failed to register phone number');
     }
     return pin;
-  }
-
-  private async sendTestMessage(phoneNumberId: string, accessToken: string): Promise<void> {
-    const response = await axios.post<{
-      messaging_product: string;
-      contacts: Array<{ input: string; wa_id: string }>;
-      messages: Array<{ id: string }>;
-    }>(
-      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phoneNumberId,
-        type: 'text',
-        text: {
-          body: 'Test message from Sofia Chat: Phone number registered successfully!',
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      },
-    );
-
-    if (!response.data.messages?.[0]?.id) {
-      throw new BadRequestException('Failed to send test message');
-    }
   }
 
   async createIntegrationWhatsApp(user: User, createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto, organizationId: number, departamentoId: number): Promise<Integration> {
