@@ -3,10 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Organization, OrganizationType } from '@models/Organization.entity';
 import { User } from '@models/User.entity';
-import { UserOrganization } from '@models/UserOrganization.entity';
+import { UserOrganization, OrganizationRoleType } from '@models/UserOrganization.entity';
 import { EmailService } from '@modules/email/email.service';
 import { ConfigService } from '@nestjs/config';
+import { logger } from 'src/main';
 import { UpdateCustomPlanDto } from './dto/update-custom-plan.dto';
+import { ChangeOrganizationTypeDto } from './dto/change-organization-type.dto';
 
 @Injectable()
 export class PlanService {
@@ -86,5 +88,54 @@ export class PlanService {
 
     organization.conversationCount = dto.conversationCount;
     return this.organizationRepository.save(organization);
+  }
+
+  async changeOrganizationTypeBySuperAdmin(organizationId: number, dto: ChangeOrganizationTypeDto): Promise<Organization> {
+    const organization = await this.organizationRepository.findOne({ where: { id: organizationId } });
+    if (!organization) {
+      throw new NotFoundException(`Organization with ID ${organizationId} not found`);
+    }
+
+    organization.type = dto.type;
+
+    if (dto.type === OrganizationType.CUSTOM) {
+      if (!dto.daysToUpdate) {
+        throw new BadRequestException('Days to update must be provided for CUSTOM organization type');
+      }
+
+      // Reiniciar el contador de conversaciones a 0 cuando se cambia a tipo CUSTOM
+      organization.conversationCount = 0;
+    }
+
+    // Guardar los cambios en la organización
+    const updatedOrganization = await this.organizationRepository.save(organization);
+
+    try {
+      // Buscar el administrador de la organización para enviar la notificación
+      const adminUserOrgs = await this.userOrganizationRepository.find({
+        where: {
+          organization: { id: organizationId },
+          role: OrganizationRoleType.OWNER,
+        },
+        relations: ['user', 'organization'],
+      });
+
+      if (adminUserOrgs && adminUserOrgs.length > 0) {
+        // Enviar correo de notificación a los administradores
+        for (const adminUserOrg of adminUserOrgs) {
+          if (adminUserOrg.user) {
+            await this.emailService.sendPlanChangeEmail(updatedOrganization, adminUserOrg.user, dto);
+            logger.log(`Plan change notification sent to admin ${adminUserOrg.user.email} of organization ${organizationId}`);
+          }
+        }
+      } else {
+        logger.warn(`Could not find admin users for organization ${organizationId} to send plan change notification`);
+      }
+    } catch (error) {
+      // No interrumpir el flujo principal si falla el envío de correo
+      logger.error(`Failed to send plan change notification for organization ${organizationId}:`, error);
+    }
+
+    return updatedOrganization;
   }
 }
