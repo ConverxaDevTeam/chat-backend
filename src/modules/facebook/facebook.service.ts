@@ -143,7 +143,9 @@ export class FacebookService {
         console.log('*'.repeat(50));
         console.log('on create integration whatsapp');
         const accessToken = await this.getAccessToken(createIntegrationWhatsAppDto.code);
+        console.log('after accessToken');
         const pin = await this.registerPhoneNumber(createIntegrationWhatsAppDto.phone_number_id, accessToken);
+        console.log('after pin');
 
         // Validate all external services before saving
         // await this.sendTestMessage(createIntegrationWhatsAppDto.phone_number_id, accessToken);
