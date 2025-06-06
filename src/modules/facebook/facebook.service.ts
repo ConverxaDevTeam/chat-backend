@@ -140,6 +140,8 @@ export class FacebookService {
   async createIntegrationWhatsApp(user: User, createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto, organizationId: number, departamentoId: number): Promise<Integration> {
     return await this.connection.transaction(async (entityManager) => {
       try {
+        console.log('*'.repeat(50));
+        console.log('on create integration whatsapp');
         const accessToken = await this.getAccessToken(createIntegrationWhatsAppDto.code);
         const pin = await this.registerPhoneNumber(createIntegrationWhatsAppDto.phone_number_id, accessToken);
 
@@ -162,14 +164,45 @@ export class FacebookService {
 
         return integration;
       } catch (error) {
-        console.log(error.response.data);
+        console.log(error.response?.data);
         if (axios.isAxiosError(error)) {
-          this.logger.error(`Facebook API error: ${error.response?.data?.message || error.message}`);
-          throw new BadRequestException(error.response?.data?.message || 'Facebook API error');
+          // Detectar errores específicos de permisos de Facebook
+          const errorData = error.response?.data;
+          const errorMessage = errorData?.error?.message || error.message;
+          const errorCode = errorData?.error?.code;
+          const errorType = errorData?.error?.type;
+
+          this.logger.error(`Facebook API error: ${errorMessage}, code: ${errorCode}, type: ${errorType}`);
+
+          // Errores específicos de permisos
+          if (
+            errorCode === 190 || // Token inválido o expirado
+            errorCode === 200 || // Permisos insuficientes
+            errorType === 'OAuthException' || // Problema de autenticación OAuth
+            errorMessage.includes('permission') || // Mensaje incluye 'permission'
+            errorMessage.includes('access') || // Mensaje incluye 'access'
+            errorMessage.includes('unauthorized') // Mensaje incluye 'unauthorized'
+          ) {
+            throw new BadRequestException({
+              message: errorMessage || 'Error de permisos de Facebook',
+              code: errorCode,
+              type: errorType,
+              isPermissionError: true,
+            });
+          }
+
+          throw new BadRequestException({
+            message: errorMessage || 'Facebook API error',
+            code: errorCode,
+            type: errorType,
+          });
         } else {
           console.log(error);
+          throw new InternalServerErrorException({
+            message: error.message || 'Error interno del servidor',
+            isPermissionError: false,
+          });
         }
-        throw new InternalServerErrorException(error);
       }
     });
   }
