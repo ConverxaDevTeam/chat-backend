@@ -3,7 +3,7 @@ name: Blue-Green Deployment for Sofia Chat Backend
 on:
   push:
     branches:
-      - develop
+      - develop-v1
     paths:
       - '.github/workflows/**'
       - 'package.json'
@@ -120,8 +120,8 @@ jobs:
             
             # Pull latest changes
             git fetch origin
-            git checkout develop
-            git pull origin develop
+            git checkout develop-v1
+            git pull origin develop-v1
             
             # Create environment file
             cat <<EOF > .env
@@ -178,8 +178,15 @@ jobs:
             # Build new image with unique tag
             docker build -t sofia-chat-backend:${{ steps.image_tag.outputs.tag }} .
             
-            # Deploy using Blue-Green control script
-            /opt/sofia-chat/scripts/blue-green-control.sh deploy ${{ steps.image_tag.outputs.tag }}
+            # Use docker-compose to deploy to target slot
+            if [ "$TARGET_COLOR" = "green" ]; then
+              docker-compose --profile green up -d sofia-chat-backend-green
+            else
+              docker-compose up -d sofia-chat-backend-blue
+            fi
+            
+            # Update internal config to point to new slot
+            /opt/sofia-chat/scripts/update-internal-config.sh $TARGET_COLOR
 
       - name: Verify deployment health
         uses: appleboy/ssh-action@master
