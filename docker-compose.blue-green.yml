@@ -57,27 +57,7 @@ services:
     profiles:
       - green
 
-  # PostgreSQL Database (Shared between Blue and Green)
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: sofia-chat-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: ${DB_NAME:-sofia_chat}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    networks:
-      - sofia_chat_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-sofia_chat}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+
 
   # Nginx Load Balancer
   nginx:
@@ -95,8 +75,7 @@ services:
       - ./logs/nginx:/var/log/nginx
     networks:
       - sofia_chat_network
-    depends_on:
-      - sofia-chat-backend-blue
+
     healthcheck:
       test: ["CMD", "nginx", "-t"]
       interval: 30s
@@ -107,6 +86,3 @@ networks:
   sofia_chat_network:
     driver: bridge
 
-volumes:
-  postgres_data:
-    driver: local

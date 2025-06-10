@@ -7,7 +7,7 @@ set -e
 
 PROJECT_DIR="/root/repos/sofia-chat-backend-v2"
 STATE_FILE="$PROJECT_DIR/.blue-green-state"
-DOCKER_COMPOSE="docker-compose"
+DOCKER_COMPOSE="docker-compose -f docker-compose.yml"
 
 # Colores para output
 RED='\033[0;31m'
@@ -50,6 +50,43 @@ is_container_running() {
     docker ps --format "table {{.Names}}" | grep -q "^$container_name$"
 }
 
+# Limpiar cualquier contenedor postgres no deseado
+cleanup_postgres_containers() {
+    log "Verificando contenedores postgres no deseados..."
+    
+    # Detener y remover cualquier contenedor postgres que pueda estar corriendo
+    if docker ps -a --format "table {{.Names}}" | grep -q "sofia-chat-postgres"; then
+        warn "Deteniendo contenedor postgres no deseado..."
+        docker stop sofia-chat-postgres 2>/dev/null || true
+        docker rm sofia-chat-postgres 2>/dev/null || true
+        log "Contenedor postgres removido"
+    fi
+    
+    # Verificar otros contenedores postgres
+    if docker ps --filter "ancestor=pgvector/pgvector" --format "table {{.Names}}" | grep -v NAMES | wc -l | grep -q -v "^0$"; then
+        warn "Deteniendo otros contenedores postgres..."
+        docker ps --filter "ancestor=pgvector/pgvector" --format "table {{.Names}}" | grep -v NAMES | xargs -r docker stop 2>/dev/null || true
+        docker ps -a --filter "ancestor=pgvector/pgvector" --format "table {{.Names}}" | grep -v NAMES | xargs -r docker rm 2>/dev/null || true
+    fi
+}
+
+# Backup del estado actual antes de hacer cambios críticos
+backup_state() {
+    local backup_file="$PROJECT_DIR/.blue-green-backup-$(date +%s)"
+    local current_state=$(get_current_state)
+    
+    log "Creando backup del estado actual..."
+    
+    cat > "$backup_file" << EOF
+TIMESTAMP=$(date)
+CURRENT_STATE=$current_state
+BLUE_RUNNING=$(is_container_running "sofia-chat-backend-blue" && echo "yes" || echo "no")
+GREEN_RUNNING=$(is_container_running "sofia-chat-backend-green" && echo "yes" || echo "no")
+EOF
+    
+    log "Backup guardado en: $backup_file"
+}
+
 # Health check de un contenedor
 health_check() {
     local container_name="$1"
@@ -60,9 +97,28 @@ health_check() {
     log "Verificando salud de $container_name en puerto $port..."
 
     while [ $attempt -le $max_attempts ]; do
-        if curl -f -s "http://localhost:$port/health" > /dev/null 2>&1; then
-            log "✅ $container_name está saludable"
-            return 0
+        # Intentar con curl primero, luego con wget, luego con nc
+        if command -v curl >/dev/null 2>&1; then
+            if curl -f -s "http://localhost:$port/health" > /dev/null 2>&1; then
+                log "✅ $container_name está saludable"
+                return 0
+            fi
+        elif command -v wget >/dev/null 2>&1; then
+            if wget -q --spider "http://localhost:$port/health" 2>/dev/null; then
+                log "✅ $container_name está saludable"
+                return 0
+            fi
+        elif command -v nc >/dev/null 2>&1; then
+            if echo -e "GET /health HTTP/1.1\r\nHost: localhost\r\n\r\n" | nc localhost $port | grep -q "200 OK"; then
+                log "✅ $container_name está saludable"
+                return 0
+            fi
+        else
+            # Fallback: verificar si el contenedor está corriendo
+            if is_container_running "$container_name"; then
+                log "✅ $container_name está corriendo (health check básico)"
+                return 0
+            fi
         fi
         
         echo -n "."
@@ -96,11 +152,7 @@ show_status() {
         echo "🟢 Green (puerto 3002): STOPPED"
     fi
     
-    if is_container_running "sofia-chat-postgres"; then
-        echo "🗄️  Database: RUNNING"
-    else
-        echo "🗄️  Database: STOPPED"
-    fi
+    echo "🗄️  Database: External PostgreSQL (not managed)"
     
     echo "=================================="
 }
@@ -122,11 +174,19 @@ deploy() {
     
     cd "$PROJECT_DIR"
     
-    # Asegurar que la base de datos esté corriendo
-    if ! is_container_running "sofia-chat-postgres"; then
-        log "Iniciando base de datos..."
-        $DOCKER_COMPOSE up -d postgres
-        sleep 10
+    # Limpiar contenedores postgres antes de empezar
+    cleanup_postgres_containers
+    
+    log "DEBUG: Verificando archivos docker-compose..."
+    ls -la docker-compose*.yml
+    
+    log "DEBUG: Verificando servicios disponibles..."
+    AVAILABLE_SERVICES=$($DOCKER_COMPOSE config --services)
+    echo "Servicios disponibles: $AVAILABLE_SERVICES"
+    
+    # Verificar que no se ejecute nada relacionado con postgres
+    if echo "$AVAILABLE_SERVICES" | grep -q "postgres"; then
+        warn "ADVERTENCIA: Se detectó servicio postgres en docker-compose, pero será ignorado"
     fi
     
     # Build de la nueva imagen
@@ -136,9 +196,11 @@ deploy() {
     # Deploy al slot objetivo
     if [ "$target_slot" = "green" ]; then
         log "Desplegando a Green (puerto 3002)..."
+        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green"
         $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green
     else
         log "Desplegando a Blue (puerto 3001)..."
+        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d sofia-chat-backend-blue"
         $DOCKER_COMPOSE up -d sofia-chat-backend-blue
     fi
     
@@ -175,6 +237,9 @@ switch() {
     log "Verificando salud del nuevo slot antes del switch..."
     health_check "sofia-chat-backend-$new_state" "$new_port"
     
+    # Crear backup antes del switch
+    backup_state
+    
     # Hacer el switch
     log "Cambiando de $current_state a $new_state..."
     save_state "$new_state"
@@ -198,6 +263,9 @@ rollback() {
     fi
     
     warn "Haciendo rollback de $current_state a $rollback_state..."
+    
+    # Crear backup antes del rollback
+    backup_state
     
     # Verificar que el rollback slot esté disponible
     if ! is_container_running "sofia-chat-backend-$rollback_state"; then
