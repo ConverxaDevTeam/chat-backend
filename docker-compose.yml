@@ -12,7 +12,6 @@ services:
       - .env
     environment:
       - DEPLOYMENT_COLOR=blue
-      - PORT=3001
     ports:
       - '3001:3001'
     networks:
@@ -21,7 +20,7 @@ services:
       - ./uploads:/app/uploads
       - ./logs/blue:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3001/health || nc -z localhost 3001"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -38,9 +37,8 @@ services:
       - .env
     environment:
       - DEPLOYMENT_COLOR=green
-      - PORT=3002
     ports:
-      - '3002:3002'
+      - '3002:3001'
     networks:
       - sofia_chat_network
     volumes:
@@ -49,7 +47,7 @@ services:
     profiles:
       - green
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3002/health || nc -z localhost 3002"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 3
