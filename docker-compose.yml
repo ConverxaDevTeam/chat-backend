@@ -20,11 +20,11 @@ services:
       - ./uploads:/app/uploads
       - ./logs/blue:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
-      interval: 30s
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
+      interval: 10s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 4
+      start_period: 20s
 
   # Green Environment (Secondary/Staging)
   sofia-chat-backend-green:
@@ -47,7 +47,7 @@ services:
     profiles:
       - green
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
