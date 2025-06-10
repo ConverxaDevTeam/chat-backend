@@ -20,11 +20,11 @@ services:
       - ./uploads:/app/uploads
       - ./logs/blue:/app/logs
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3001/api/health']
       interval: 10s
       timeout: 10s
       retries: 4
-      start_period: 20s
+      start_period: 10s
 
   # Green Environment (Secondary/Staging)
   sofia-chat-backend-green:
@@ -47,29 +47,11 @@ services:
     profiles:
       - green
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
-      interval: 30s
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3001/api/health']
+      interval: 10s
       timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Legacy service name for backward compatibility
-  sofia-chat-backend-v2:
-    container_name: sofia-chat-backend-v2
-    build:
-      dockerfile: Dockerfile
-      context: .
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - '3001:3001'
-    networks:
-      - sofia_chat_network
-    volumes:
-      - ./uploads:/app/uploads
-    profiles:
-      - legacy
+      retries: 4
+      start_period: 10s
 
 networks:
   sofia_chat_network:

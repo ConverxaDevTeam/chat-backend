@@ -165,6 +165,56 @@ graph TD
 - Rotación automática de logs
 - Integración con sistema de monitoreo
 
+## Problema Conocido: Health Check Docker
+
+### Síntoma
+- Docker marca contenedores como "unhealthy" en producción
+- En local funciona correctamente
+- El servicio está funcionando pero Docker no lo detecta
+
+### Causa Raíz
+El health check en `docker-compose.yml` usa `localhost:3001/api/health` pero en el servidor de producción, `localhost` dentro del contenedor puede no resolver correctamente.
+
+### Configuración Actual
+```yaml
+healthcheck:
+  test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
+```
+
+### Soluciones Propuestas
+
+#### Opción 1: Usar 127.0.0.1 en lugar de localhost
+```yaml
+healthcheck:
+  test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3001/api/health']
+```
+
+#### Opción 2: Usar hostname del contenedor
+```yaml
+healthcheck:
+  test: ['CMD', 'curl', '-f', 'http://sofia-chat-backend-blue:3001/api/health']
+```
+
+#### Opción 3: Verificar solo el puerto
+```yaml
+healthcheck:
+  test: ['CMD', 'nc', '-z', '127.0.0.1', '3001']
+```
+
+### Endpoint de Health
+- **Ruta**: `/api/health`
+- **Prefijo global**: `api` (configurado en main.ts)
+- **Respuesta**: 
+  ```json
+  {
+    "status": "ok",
+    "timestamp": "2024-01-01T00:00:00.000Z",
+    "uptime": 123.45,
+    "memory": {...},
+    "deployment": "blue|green"
+  }
+  ```
+
 ## Recuperación ante Desastres
 
 ### Escenarios de Falla
@@ -172,3 +222,4 @@ graph TD
 2. **Falla después del switch**: Rollback inmediato
 3. **Falla de base de datos**: Rollback con restauración de DB
 4. **Falla de infraestructura**: Procedimiento de recuperación completa
+5. **Health Check Fallido**: Verificar conectividad de red en el servidor
