@@ -114,14 +114,14 @@ jobs:
           port: 22
           script: |
             cd ${{ env.PROJECT_PATH }}
-
+            
             # Determine action
             ACTION="${{ github.event.inputs.action || 'deploy' }}"
-
+            
             echo "Ejecutando acción Blue-Green: $ACTION"
-
-            # Execute the blue-green script that exists on server
-            /opt/sofia-chat/scripts/blue-green-control.sh $ACTION
+            
+            # Execute the blue-green script from project directory
+            PROJECT_DIR=${{ env.PROJECT_PATH }} /opt/sofia-chat/scripts/blue-green-control.sh $ACTION
 
       - name: Show deployment summary
         uses: appleboy/ssh-action@master
@@ -141,7 +141,7 @@ jobs:
             echo ""
 
             # Show current status
-            /opt/sofia-chat/scripts/blue-green-control.sh status
+            PROJECT_DIR=${{ env.PROJECT_PATH }} /opt/sofia-chat/scripts/blue-green-control.sh status
 
             echo ""
             echo "🔧 Comandos disponibles:"
@@ -175,5 +175,5 @@ jobs:
               echo "❌ Error en Blue-Green deployment"
               echo "🔍 Revisar logs para más detalles"
               echo "📋 Estado actual:"
-              /opt/sofia-chat/scripts/blue-green-control.sh status || echo "No se pudo obtener el estado"
+              PROJECT_DIR=${{ env.PROJECT_PATH }} /opt/sofia-chat/scripts/blue-green-control.sh status || echo "No se pudo obtener el estado"
             fi
