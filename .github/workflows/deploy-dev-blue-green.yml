@@ -23,11 +23,10 @@ on:
           - rollback
           - status
         default: 'deploy'
-
 env:
-  DEPLOY_HOST: ${{ secrets.DEV2_SSH_HOST }}
-  DEPLOY_USER: ${{ secrets.DEV2_SSH_USERNAME }}
-  SSH_KEY: ${{ secrets.DEV2_SSH_PRIVATE_KEY }}
+  DEPLOY_HOST: ${{ secrets.DEV_SSH_HOST }}
+  DEPLOY_USER: ${{ secrets.DEV_SSH_USERNAME }}
+  SSH_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
   PROJECT_PATH: /root/repos/sofia-chat-backend-v2
 
 jobs:
@@ -122,12 +121,12 @@ jobs:
           port: 22
           script: |
             cd ${{ env.PROJECT_PATH }}
-            
+
             # Determine action
             ACTION="${{ github.event.inputs.action || 'deploy' }}"
-            
+
             echo "Ejecutando acción Blue-Green: $ACTION"
-            
+
             # Execute the blue-green script
             /opt/sofia-chat/blue-green-simple.sh $ACTION
 
@@ -147,10 +146,10 @@ jobs:
             echo "Timestamp: $(date)"
             echo "=================================="
             echo ""
-            
+
             # Show current status
             /opt/sofia-chat/blue-green-simple.sh status
-            
+
             echo ""
             echo "🔧 Comandos disponibles:"
             echo "  - Ver estado: /opt/sofia-chat/blue-green-simple.sh status"
