@@ -11,8 +11,6 @@ services:
     env_file:
       - .env
     environment:
-      - TYPEORM_HOST=postgres
-      - TYPEORM_PORT=5432
       - DEPLOYMENT_COLOR=blue
       - PORT=3001
     ports:
@@ -22,10 +20,8 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./logs/blue:/app/logs
-    depends_on:
-      - postgres
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3001/health || nc -z localhost 3001"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -41,8 +37,6 @@ services:
     env_file:
       - .env
     environment:
-      - TYPEORM_HOST=postgres
-      - TYPEORM_PORT=5432
       - DEPLOYMENT_COLOR=green
       - PORT=3002
     ports:
@@ -52,12 +46,10 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./logs/green:/app/logs
-    depends_on:
-      - postgres
     profiles:
       - green
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3002/health || nc -z localhost 3002"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -72,44 +64,15 @@ services:
     restart: always
     env_file:
       - .env
-    environment:
-      - TYPEORM_HOST=postgres
-      - TYPEORM_PORT=5432
     ports:
       - '3001:3001'
     networks:
       - sofia_chat_network
     volumes:
       - ./uploads:/app/uploads
-    depends_on:
-      - postgres
     profiles:
       - legacy
-
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: sofia-chat-postgres
-    restart: always
-    environment:
-      POSTGRES_DB: ${TYPEORM_DB_NAME:-sofia_chat_db}
-      POSTGRES_USER: ${TYPEORM_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${TYPEORM_PASSWORD}
-    ports:
-      - '5432:5432'
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - sofia_chat_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${TYPEORM_USERNAME:-postgres} -d ${TYPEORM_DB_NAME:-sofia_chat_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 networks:
   sofia_chat_network:
     driver: bridge
-
-volumes:
-  postgres_data:
-    driver: local
