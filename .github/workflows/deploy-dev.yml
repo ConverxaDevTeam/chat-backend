@@ -1,4 +1,4 @@
-name: Auto deploy sofia-chat-backend-v2 development in VPS
+name: Blue-Green Deployment for Sofia Chat Backend
 
 on:
   push:
@@ -6,15 +6,31 @@ on:
       - develop-v1
     paths:
       - '.github/workflows/**'
-      - 'index.html'
       - 'package.json'
-      - 'public/**'
       - 'scripts/**'
       - 'src/**'
-      - 'vite.config.js'
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+  workflow_dispatch:
+    inputs:
+      force_color:
+        description: 'Force deployment to specific color (blue/green)'
+        required: false
+        type: choice
+        options:
+          - auto
+          - blue
+          - green
+        default: 'auto'
+
+env:
+  DEPLOY_HOST: ${{ secrets.DEV2_SSH_HOST }}
+  DEPLOY_USER: ${{ secrets.DEV2_SSH_USERNAME }}
+  SSH_KEY: ${{ secrets.DEV2_SSH_PRIVATE_KEY }}
+  PROJECT_PATH: /root/repos/sofia-chat-backend-v2
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,32 +39,94 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
-        run: npm install pg
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Install pgvector on server
+      - name: Generate image tag
+        id: image_tag
+        run: |
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          TIMESTAMP=$(date +%s)
+          IMAGE_TAG="${COMMIT_SHA}-${TIMESTAMP}"
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+
+      - name: Copy scripts to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          source: 'scripts/blue-green/*'
+          target: '/opt/sofia-chat/scripts/'
+          strip_components: 2
+
+      - name: Make scripts executable
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.DEV_SSH_HOST }}
-          username: ${{ secrets.DEV_SSH_USERNAME }}
-          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
           port: 22
           script: |
-            sudo apt-get update && sudo apt-get install -y postgresql-16-pgvector
+            chmod +x /opt/sofia-chat/scripts/*.sh
 
-      - name: Deploy using ssh
+      - name: Check current Blue-Green status
+        id: status_check
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.DEV_SSH_HOST }}
-          username: ${{ secrets.DEV_SSH_USERNAME }}
-          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
           port: 22
           script: |
-            cd /root/repos/sofia-chat-backend-v2
+            cd ${{ env.PROJECT_PATH }}
+            if [ -f .blue-green-state ]; then
+              CURRENT_STATE=$(cat .blue-green-state)
+            else
+              CURRENT_STATE="blue"
+              echo "blue" > .blue-green-state
+            fi
+
+            # Determine target color
+            if [ "${{ github.event.inputs.force_color }}" = "blue" ]; then
+              TARGET_COLOR="blue"
+            elif [ "${{ github.event.inputs.force_color }}" = "green" ]; then
+              TARGET_COLOR="green"
+            else
+              # Auto mode: deploy to inactive slot
+              if [ "$CURRENT_STATE" = "blue" ]; then
+                TARGET_COLOR="green"
+              else
+                TARGET_COLOR="blue"
+              fi
+            fi
+
+            echo "CURRENT_STATE=$CURRENT_STATE" >> $GITHUB_ENV
+            echo "TARGET_COLOR=$TARGET_COLOR" >> $GITHUB_ENV
+            echo "current_state=$CURRENT_STATE" >> $GITHUB_OUTPUT
+            echo "target_color=$TARGET_COLOR" >> $GITHUB_OUTPUT
+
+      - name: Update repository and environment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.PROJECT_PATH }}
+
+            # Pull latest changes
+            git fetch origin
+            git checkout develop-v1
             git pull origin develop-v1
+
+            # Create environment file
             cat <<EOF > .env
             NODE_ENV=development
-            LOG_LEVEL=debug
+            LOG_LEVEL=info
             TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }}
             TYPEORM_PORT=${{ secrets.DEV_TYPEORM_PORT }}
             TYPEORM_USERNAME=${{ secrets.DEV_TYPEORM_USERNAME }}
@@ -77,8 +155,130 @@ jobs:
             VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ secrets.DEV_CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
+            DOCKER_IMAGE_TAG=${{ steps.image_tag.outputs.tag }}
             EOF
-            node src/config/install-pgvector.js
-            docker-compose build
-            docker-compose down -v
-            docker-compose up -d
+
+            # Ensure pgvector is installed
+            node src/config/install-pgvector.js || true
+
+      - name: Deploy to target slot
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.PROJECT_PATH }}
+
+            # Get target color from previous step
+            TARGET_COLOR="${{ steps.status_check.outputs.target_color }}"
+
+            echo "Deploying to $TARGET_COLOR slot..."
+
+            # Build new image with unique tag
+            docker build -t sofia-chat-backend:${{ steps.image_tag.outputs.tag }} .
+
+            # Use docker-compose to deploy to target slot
+            if [ "$TARGET_COLOR" = "green" ]; then
+              docker-compose --profile green up -d sofia-chat-backend-green
+            else
+              docker-compose up -d sofia-chat-backend-blue
+            fi
+
+            # Update internal config to point to new slot
+            /opt/sofia-chat/scripts/update-internal-config.sh $TARGET_COLOR
+
+      - name: Verify deployment health
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            TARGET_COLOR="${{ steps.status_check.outputs.target_color }}"
+
+            echo "Verificando salud del deployment en $TARGET_COLOR..."
+
+            # Run health check on the deployed slot
+            /opt/sofia-chat/scripts/health-check.sh check $TARGET_COLOR
+
+            if [ $? -eq 0 ]; then
+              echo "✅ Deployment saludable en slot $TARGET_COLOR"
+            else
+              echo "❌ Problemas detectados en slot $TARGET_COLOR"
+              exit 1
+            fi
+
+      - name: Update DNS configuration (if needed)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            # Ensure internal domain is configured
+            if ! grep -q "internal-dev-sofia-chat.sofiacall.com" /etc/nginx/sites-enabled/internal-backend.conf 2>/dev/null; then
+              echo "Configurando dominio interno para pruebas..."
+
+              # Create SSL certificate for internal domain if not exists
+              if [ ! -f /etc/letsencrypt/live/internal-dev-sofia-chat.sofiacall.com/fullchain.pem ]; then
+                echo "AVISO: Certificado SSL para internal-dev-sofia-chat.sofiacall.com no encontrado"
+                echo "Ejecutar manualmente: certbot --nginx -d internal-dev-sofia-chat.sofiacall.com"
+              fi
+            fi
+
+      - name: Create deployment summary
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            echo "=================================="
+            echo "   DEPLOYMENT SUMMARY"
+            echo "=================================="
+            echo "Commit: ${{ steps.image_tag.outputs.commit_sha }}"
+            echo "Image Tag: ${{ steps.image_tag.outputs.tag }}"
+            echo "Current Production: ${{ steps.status_check.outputs.current_state }}"
+            echo "Deployed to Slot: ${{ steps.status_check.outputs.target_color }}"
+            echo "=================================="
+            echo ""
+            echo "🔍 Para probar el nuevo deployment:"
+            echo "   https://internal-dev-sofia-chat.sofiacall.com"
+            echo ""
+            echo "✅ Si las pruebas son exitosas, ejecutar switch:"
+            echo "   /opt/sofia-chat/scripts/blue-green-control.sh switch"
+            echo ""
+            echo "❌ Si hay problemas, descartar deployment:"
+            echo "   /opt/sofia-chat/scripts/blue-green-control.sh cleanup"
+            echo ""
+            echo "📊 Ver estado actual:"
+            echo "   /opt/sofia-chat/scripts/blue-green-control.sh status"
+            echo "=================================="
+
+  notify-deployment:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Notify deployment status
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            if [ "${{ needs.build-and-deploy.result }}" = "success" ]; then
+              echo "✅ Blue-Green deployment completado exitosamente"
+              echo "🧪 Nuevo código disponible para pruebas en internal-dev-sofia-chat.sofiacall.com"
+              echo "⚠️  Requiere switch manual para pasar a producción"
+            else
+              echo "❌ Error en Blue-Green deployment"
+              echo "🔍 Revisar logs para más detalles"
+            fi
