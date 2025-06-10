@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # Blue Environment (Production)
+  sofia-chat-backend-blue:
+    container_name: sofia-chat-backend-blue
+    build:
+      dockerfile: Dockerfile
+      context: .
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DEPLOYMENT_COLOR=blue
+      - PORT=3001
+    ports:
+      - '3001:3001'
+    networks:
+      - sofia_chat_network
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs/blue:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Green Environment (Staging/New Deployment)
+  sofia-chat-backend-green:
+    container_name: sofia-chat-backend-green
+    build:
+      dockerfile: Dockerfile
+      context: .
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DEPLOYMENT_COLOR=green
+      - PORT=3002
+    ports:
+      - '3002:3002'
+    networks:
+      - sofia_chat_network
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs/green:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    profiles:
+      - green
+
+  # PostgreSQL Database (Shared between Blue and Green)
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: sofia-chat-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sofia_chat}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - sofia_chat_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-sofia_chat}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    container_name: sofia-chat-nginx
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites-available:/etc/nginx/sites-available:ro
+      - ./nginx/sites-enabled:/etc/nginx/sites-enabled:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - sofia_chat_network
+    depends_on:
+      - sofia-chat-backend-blue
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  sofia_chat_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
