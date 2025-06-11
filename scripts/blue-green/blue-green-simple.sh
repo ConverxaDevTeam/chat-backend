@@ -50,23 +50,27 @@ is_container_running() {
     docker ps --format "table {{.Names}}" | grep -q "^$container_name$"
 }
 
-# Limpiar cualquier contenedor postgres no deseado
-cleanup_postgres_containers() {
-    log "Verificando contenedores postgres no deseados..."
+# Actualizar configuración de nginx para apuntar al slot correcto
+update_nginx_config() {
+    local target_color="$1"
+    local target_port=""
     
-    # Detener y remover cualquier contenedor postgres que pueda estar corriendo
-    if docker ps -a --format "table {{.Names}}" | grep -q "sofia-chat-postgres"; then
-        warn "Deteniendo contenedor postgres no deseado..."
-        docker stop sofia-chat-postgres 2>/dev/null || true
-        docker rm sofia-chat-postgres 2>/dev/null || true
-        log "Contenedor postgres removido"
+    if [ "$target_color" = "blue" ]; then
+        target_port="3001"
+    else
+        target_port="3002"
     fi
     
-    # Verificar otros contenedores postgres
-    if docker ps --filter "ancestor=pgvector/pgvector" --format "table {{.Names}}" | grep -v NAMES | wc -l | grep -q -v "^0$"; then
-        warn "Deteniendo otros contenedores postgres..."
-        docker ps --filter "ancestor=pgvector/pgvector" --format "table {{.Names}}" | grep -v NAMES | xargs -r docker stop 2>/dev/null || true
-        docker ps -a --filter "ancestor=pgvector/pgvector" --format "table {{.Names}}" | grep -v NAMES | xargs -r docker rm 2>/dev/null || true
+    log "Actualizando configuración de nginx para $target_color (puerto $target_port)..."
+    
+    # Usar el script de actualización de producción
+    if [ -f "/opt/sofia-chat/scripts/update-prod-config.sh" ]; then
+        /opt/sofia-chat/scripts/update-prod-config.sh "$target_color" || {
+            error "Error al actualizar configuración de nginx"
+        }
+        log "✅ Configuración de nginx actualizada"
+    else
+        warn "Script de actualización de nginx no encontrado - switch solo cambió estado interno"
     fi
 }
 
@@ -184,9 +188,6 @@ deploy() {
     
     cd "$PROJECT_DIR"
     
-    # Limpiar contenedores postgres antes de empezar
-    cleanup_postgres_containers
-    
     log "DEBUG: Verificando archivos docker-compose..."
     ls -la docker-compose*.yml
     
@@ -194,10 +195,7 @@ deploy() {
     AVAILABLE_SERVICES=$($DOCKER_COMPOSE config --services)
     echo "Servicios disponibles: $AVAILABLE_SERVICES"
     
-    # Verificar que no se ejecute nada relacionado con postgres
-    if echo "$AVAILABLE_SERVICES" | grep -q "postgres"; then
-        warn "ADVERTENCIA: Se detectó servicio postgres en docker-compose, pero será ignorado"
-    fi
+
     
     # Build de la nueva imagen
     log "Construyendo nueva imagen..."
@@ -254,8 +252,8 @@ switch() {
     log "Cambiando de $current_state a $new_state..."
     save_state "$new_state"
     
-    # Aquí puedes agregar lógica para actualizar nginx si es necesario
-    # update_nginx_config "$new_state"
+    # Actualizar configuración de nginx
+    update_nginx_config "$new_state"
     
     log "✅ Switch completado: $new_state ahora está en producción"
     log "🔄 Para hacer rollback, ejecuta: ./blue-green-simple.sh rollback"
