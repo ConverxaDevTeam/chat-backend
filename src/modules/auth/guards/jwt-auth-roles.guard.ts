@@ -21,7 +21,6 @@ export class JwtAuthRolesGuard implements CanActivate {
 
       const accessToken = authorization.replace(/bearer/gim, '').trim();
       const { user, sessionId } = await this.authService.validateSession(accessToken);
-
       if (!user) {
         throw new UnauthorizedException('Sesión inválida');
       }
@@ -33,9 +32,27 @@ export class JwtAuthRolesGuard implements CanActivate {
 
       const allowedRoles = this.reflector.get<string[]>(META_ROLES, context.getHandler());
       if (!allowedRoles) return true;
-      const hasRole = allowedRoles.some((role) => user.userOrganizations.some((userOrganization) => userOrganization.role?.includes(role)));
-      if (!hasRole) {
-        throw new ForbiddenException('No tienes el rol requerido para acceder a este recurso');
+      // Get organizationId from URL parameters
+      const organizationId = parseInt(request.params.organizationId);
+
+      if (!organizationId || isNaN(organizationId)) {
+        // If no organizationId in URL, check roles globally (backwards compatibility)
+        const hasRole = allowedRoles.some((role) => user.userOrganizations?.some((userOrganization) => userOrganization.role?.includes(role)));
+        if (!hasRole) {
+          throw new ForbiddenException('No tienes el rol requerido para acceder a este recurso');
+        }
+      } else {
+        // Check role specifically for the organization in the URL
+        const userOrgRole = user.userOrganizations?.find((uo) => uo.organizationId === organizationId)?.role;
+
+        if (!userOrgRole) {
+          throw new ForbiddenException('No tienes acceso a esta organización');
+        }
+
+        const hasRoleInOrg = allowedRoles.some((role) => userOrgRole.includes(role));
+        if (!hasRoleInOrg) {
+          throw new ForbiddenException(`No tienes el rol requerido (${allowedRoles.join(', ')}) en esta organización`);
+        }
       }
 
       return true;

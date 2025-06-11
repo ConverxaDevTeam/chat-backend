@@ -23,7 +23,6 @@ export class HitlTypesService {
   async create(user: User, organizationId: number, createHitlTypeDto: CreateHitlTypeDto): Promise<HitlType> {
     // Verificar que el usuario es OWNER
     const isOwner = user.userOrganizations?.some((uo) => uo.organizationId === organizationId && uo.role === OrganizationRoleType.OWNER);
-
     if (!isOwner) {
       throw new ForbiddenException('Solo los propietarios pueden crear tipos HITL');
     }
@@ -52,7 +51,6 @@ export class HitlTypesService {
   async findAll(user: User, organizationId: number): Promise<HitlType[]> {
     // Verificar que el usuario pertenece a la organización
     const belongsToOrg = user.userOrganizations?.some((uo) => uo.organizationId === organizationId);
-
     if (!belongsToOrg) {
       throw new ForbiddenException('No tienes acceso a esta organización');
     }
