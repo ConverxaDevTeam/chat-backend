@@ -77,7 +77,7 @@ check_container_health() {
         return 0
     elif [[ "$health_status" == "none" ]]; then
         # Si no hay health check de Docker, verificar manualmente
-        curl -sf "http://localhost:$port/health" > /dev/null 2>&1
+        wget --quiet --spider "http://localhost:$port/api/health" 2>/dev/null
         return $?
     else
         return 1
@@ -269,7 +269,7 @@ switch_traffic() {
     
     # Verificar que el nuevo entorno responda correctamente
     sleep 5
-    if curl -sf "https://dev-sofia-chat.sofiacall.com/health" > /dev/null; then
+    if wget --quiet --spider "https://dev-sofia-chat.sofiacall.com/api/health" 2>/dev/null; then
         log_info "Verificación post-switch exitosa"
     else
         log_error "Verificación post-switch falló. Considera hacer rollback."

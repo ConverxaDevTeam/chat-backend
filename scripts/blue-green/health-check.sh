@@ -76,9 +76,7 @@ check_http_endpoint() {
     local url="$1"
     local timeout="${2:-10}"
     
-    local response=$(curl -s -w "%{http_code}" -m "$timeout" "$url" -o /dev/null 2>/dev/null || echo "000")
-    
-    if [[ "$response" == "200" ]]; then
+    if wget --quiet --spider --timeout="$timeout" "$url" 2>/dev/null; then
         return 0
     else
         return 1
@@ -152,14 +150,14 @@ check_container_complete_health() {
     esac
     
     # Verificar endpoint HTTP local
-    if check_http_endpoint "http://localhost:$port/health" 5; then
+    if check_http_endpoint "http://localhost:$port/api/health" 5; then
         log_info "$color: HTTP health endpoint OK"
     else
         issues+=("HTTP health endpoint no responde")
     fi
     
     # Verificar respuesta de aplicación
-    local app_response=$(curl -s -m 5 "http://localhost:$port/health" 2>/dev/null || echo "")
+    local app_response=$(wget --quiet --timeout=5 -O - "http://localhost:$port/api/health" 2>/dev/null || echo "")
     if [[ -n "$app_response" ]]; then
         log_info "$color: Aplicación responde correctamente"
     else

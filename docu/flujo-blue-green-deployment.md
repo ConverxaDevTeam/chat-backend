@@ -165,40 +165,78 @@ graph TD
 - Rotación automática de logs
 - Integración con sistema de monitoreo
 
-## Problema Conocido: Health Check Docker
+## Problema Resuelto: Health Check Docker
 
-### Síntoma
+### Síntoma Original
 - Docker marca contenedores como "unhealthy" en producción
+- GitHub Actions no detectan contenedores saludables
 - En local funciona correctamente
 - El servicio está funcionando pero Docker no lo detecta
 
-### Causa Raíz
-El health check en `docker-compose.yml` usa `localhost:3001/api/health` pero en el servidor de producción, `localhost` dentro del contenedor puede no resolver correctamente.
+### Causa Raíz Identificada
+1. **curl no disponible**: El contenedor Docker no tiene `curl` instalado
+2. **Endpoint incorrecto**: Scripts usaban `/health` en lugar de `/api/health`
+3. **localhost vs 127.0.0.1**: Usar 127.0.0.1 es más confiable en producción
 
-### Configuración Actual
+### Solución Implementada
+
+#### Docker Compose Health Check
 ```yaml
 healthcheck:
-  test: ['CMD', 'curl', '-f', 'http://localhost:3001/api/health']
+  test: ['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1:3001/api/health']
+  interval: 10s
+  timeout: 10s
+  retries: 4
+  start_period: 5s
 ```
 
-### Soluciones Propuestas
+#### Scripts de Blue-Green Corregidos
+- `blue-green-control.sh`: Función `check_container_health()` corregida
+- `health-check.sh`: Función `check_http_endpoint()` corregida  
+- `install-blue-green.sh`: Verificaciones de health corregidas
 
-#### Opción 1: Usar 127.0.0.1 en lugar de localhost
-```yaml
-healthcheck:
-  test: ['CMD', 'curl', '-f', 'http://127.0.0.1:3001/api/health']
+### Debugging Realizado
+```bash
+# 1. Verificar que curl no existe en contenedor
+docker exec sofia-chat-backend-blue curl --version
+# Error: curl: executable file not found
+
+# 2. Verificar que wget sí existe y funciona
+docker exec sofia-chat-backend-blue wget -q -O - http://127.0.0.1:3001/api/health
+# Resultado exitoso:
+# {"status":"ok","timestamp":"2025-06-11T00:03:12.130Z","uptime":9760.174,...}
+
+# 3. Probar health check corregido
+docker exec sofia-chat-backend-blue wget --quiet --spider http://127.0.0.1:3001/api/health
+# Retorna código 0 (success)
+
+# 4. Verificar estado con script corregido
+/opt/sofia-chat/scripts/blue-green-control.sh status
+# Resultado: "BLUE (puerto 3001): CORRIENDO y SALUDABLE"
 ```
 
-#### Opción 2: Usar hostname del contenedor
-```yaml
-healthcheck:
-  test: ['CMD', 'curl', '-f', 'http://sofia-chat-backend-blue:3001/api/health']
-```
+### Cambios Aplicados
+1. **docker-compose.yml**: Reemplazar `curl -f` por `wget --quiet --spider`
+2. **Scripts**: Corregir todos los usos de `curl` a `wget`
+3. **Endpoints**: Cambiar `/health` a `/api/health` en todos los scripts
+4. **IP**: Usar `127.0.0.1` en lugar de `localhost`
+5. **Configuración aplicada en ambos entornos** (blue/green)
 
-#### Opción 3: Verificar solo el puerto
-```yaml
-healthcheck:
-  test: ['CMD', 'nc', '-z', '127.0.0.1', '3001']
+### Verificación Post-Fix
+```bash
+# Estado de contenedores
+docker ps
+# CONTAINER STATUS: Up X hours (healthy)
+
+# Estado desde scripts
+/opt/sofia-chat/scripts/blue-green-control.sh status
+# BLUE (puerto 3001): CORRIENDO y SALUDABLE
+
+# Health check detallado
+/opt/sofia-chat/scripts/health-check.sh check blue
+# ✅ Docker health check OK
+# ✅ HTTP health endpoint OK
+# ✅ Aplicación responde correctamente
 ```
 
 ### Endpoint de Health
