@@ -74,7 +74,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _getAudioText(audioName: string): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _getAudioText(_audioName: string): Promise<any> {
     throw new Error('Method not implemented');
   }
 
@@ -82,7 +83,8 @@ export abstract class BaseAgent {
     return this._getAudioText(audioName);
   }
 
-  protected static async _textToAudio(text: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _textToAudio(_text: string): Promise<string> {
     throw new Error('Method not implemented');
   }
 
@@ -114,7 +116,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _createVectorStore(agentId: number): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _createVectorStore(_agentId: number): Promise<string> {
     throw new Error('Method not implemented');
   }
 
@@ -149,7 +152,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _uploadFileToVectorStore(_file: any, _vectorStoreId: string): Promise<string> {
     throw new Error('Method not implemented');
   }
 
@@ -183,7 +187,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _deleteFileFromVectorStore(fileId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _deleteFileFromVectorStore(_fileId: string): Promise<void> {
     throw new Error('Method not implemented');
   }
 
@@ -210,7 +215,13 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _deleteVectorStore(vectorStoreId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _deleteVectorStore(_vectorStoreId: string): Promise<void> {
+    throw new Error('Method not implemented');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _updateVectorStore(_vectorStoreId: string): Promise<any> {
     throw new Error('Method not implemented');
   }
 
@@ -218,7 +229,8 @@ export abstract class BaseAgent {
     return this._listVectorStoreFiles(vectorStoreId);
   }
 
-  protected static async _listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _listVectorStoreFiles(_vectorStoreId: string): Promise<string[]> {
     throw new Error('Method not implemented');
   }
 
@@ -253,9 +265,12 @@ export abstract class BaseAgent {
   }
 
   protected static async _updateAssistantToolResources(
-    assistantId: string,
-    vectorStoreId: string | null,
-    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _assistantId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _vectorStoreId: string | null,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
   ): Promise<void> {
     throw new Error('Method not implemented');
   }

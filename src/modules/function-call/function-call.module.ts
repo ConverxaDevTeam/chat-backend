@@ -7,9 +7,19 @@ import { SocketModule } from '@modules/socket/socket.module';
 import { NotificationModule } from '@modules/notification/notification.module';
 import { SystemEventsModule } from '@modules/system-events/system-events.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
+import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
+import { AuthModule } from '@modules/auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Funcion, Conversation]), forwardRef(() => SocketModule), NotificationModule, SystemEventsModule, forwardRef(() => IntegrationRouterModule)],
+  imports: [
+    TypeOrmModule.forFeature([Funcion, Conversation]),
+    forwardRef(() => SocketModule),
+    forwardRef(() => AuthModule),
+    NotificationModule,
+    SystemEventsModule,
+    forwardRef(() => IntegrationRouterModule),
+    HitlTypesModule,
+  ],
   providers: [FunctionCallService],
   exports: [FunctionCallService],
 })
