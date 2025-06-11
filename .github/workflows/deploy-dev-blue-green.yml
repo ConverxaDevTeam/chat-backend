@@ -159,8 +159,8 @@ jobs:
             echo "  - Limpiar: /opt/sofia-chat/blue-green-simple.sh cleanup"
             echo ""
             echo "🌐 URLs de prueba:"
-            echo "  - Blue (3001): http://dev-sofia-chat.sofiacall.com:3001/health"
-            echo "  - Green (3002): http://dev-sofia-chat.sofiacall.com:3002/health"
+            echo "  - Blue (3001): http://dev-sofia-chat.sofiacall.com:3001/api/health"
+            echo "  - Green (3002): http://dev-sofia-chat.sofiacall.com:3002/api/health"
 
   notify-result:
     needs: blue-green-deployment

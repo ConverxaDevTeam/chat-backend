@@ -87,7 +87,7 @@ server {
 
     # Health check endpoint
     location /health {
-        proxy_pass http://localhost:$TARGET_PORT/health;
+        proxy_pass http://localhost:$TARGET_PORT/api/health;
         proxy_set_header Host \$host;
         access_log off;
         add_header X-Internal-Testing "true" always;
@@ -96,7 +96,7 @@ server {
 
     # Endpoint específico para verificar el color del deployment
     location /deployment-info {
-        proxy_pass http://localhost:$TARGET_PORT/health;
+        proxy_pass http://localhost:$TARGET_PORT/api/health;
         proxy_set_header Host \$host;
         add_header X-Deployment-Color "$TARGET_COLOR" always;
         add_header X-Environment "internal-testing" always;
