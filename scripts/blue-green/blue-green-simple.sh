@@ -76,10 +76,14 @@ update_nginx_config() {
 
 # Backup del estado actual y base de datos antes de hacer cambios críticos
 backup_state() {
-    local backup_file="$PROJECT_DIR/.blue-green-backup-$(date +%s)"
+    local backup_file="$PROJECT_DIR/.blue-green-backup"
     local current_state=$(get_current_state)
     
     log "Creando backup del estado actual y base de datos..."
+    
+    # Remover backup anterior si existe
+    rm -f "$backup_file"
+    rm -f "$PROJECT_DIR/db-backup.sql"
     
     # Backup de estado
     cat > "$backup_file" << EOF
@@ -89,21 +93,92 @@ BLUE_RUNNING=$(is_container_running "sofia-chat-backend-blue" && echo "yes" || e
 GREEN_RUNNING=$(is_container_running "sofia-chat-backend-green" && echo "yes" || echo "no")
 EOF
 
-    # Backup de base de datos usando las variables del contenedor
-    local db_backup_file="$PROJECT_DIR/db-backup-$(date +%s).sql"
-    if is_container_running "sofia-chat-backend-blue"; then
-        log "Creando backup de base de datos..."
-        docker exec sofia-chat-backend-blue bash -c "pg_dump -h \$TYPEORM_HOST -p \$TYPEORM_PORT -U \$TYPEORM_USERNAME -d \$TYPEORM_DB_NAME" > "$db_backup_file" 2>/dev/null || {
-            warn "No se pudo crear backup de base de datos - continuando sin backup de DB"
-            rm -f "$db_backup_file"
-        }
-        if [ -f "$db_backup_file" ]; then
-            log "Backup de DB guardado en: $db_backup_file"
-            echo "DB_BACKUP_FILE=$db_backup_file" >> "$backup_file"
+    # Backup de base de datos usando variables del archivo .env
+    local db_backup_file="$PROJECT_DIR/db-backup.sql"
+    
+    if [ -f "$PROJECT_DIR/.env" ]; then
+        log "Cargando variables de entorno desde .env..."
+        
+        # Cargar variables de base de datos desde .env
+        export $(grep -E '^TYPEORM_(HOST|PORT|USERNAME|PASSWORD|DB_NAME)=' "$PROJECT_DIR/.env" | xargs)
+        
+        if [ -n "$TYPEORM_HOST" ] && [ -n "$TYPEORM_USERNAME" ] && [ -n "$TYPEORM_DB_NAME" ]; then
+            log "Creando backup de base de datos desde $TYPEORM_HOST..."
+            log "Base de datos: $TYPEORM_DB_NAME"
+            log "Usuario: $TYPEORM_USERNAME"
+            
+            # Crear backup usando pg_dump
+            PGPASSWORD="$TYPEORM_PASSWORD" pg_dump \
+                -h "$TYPEORM_HOST" \
+                -p "$TYPEORM_PORT" \
+                -U "$TYPEORM_USERNAME" \
+                -d "$TYPEORM_DB_NAME" \
+                > "$db_backup_file" 2>/dev/null
+            
+            if [ $? -eq 0 ] && [ -s "$db_backup_file" ]; then
+                log "✅ Backup de DB guardado exitosamente en: $db_backup_file"
+                local backup_size=$(du -h "$db_backup_file" | cut -f1)
+                log "📊 Tamaño del backup: $backup_size"
+                echo "DB_BACKUP_FILE=$db_backup_file" >> "$backup_file"
+            else
+                warn "❌ No se pudo crear backup de base de datos o el archivo está vacío"
+                rm -f "$db_backup_file"
+            fi
+        else
+            warn "❌ Variables de base de datos incompletas en .env"
         fi
+        
+        # Limpiar variables de entorno
+        unset TYPEORM_HOST TYPEORM_PORT TYPEORM_USERNAME TYPEORM_PASSWORD TYPEORM_DB_NAME
+    else
+        warn "❌ Archivo .env no encontrado - saltando backup de DB"
     fi
     
-    log "Backup guardado en: $backup_file"
+    log "✅ Backup de estado guardado en: $backup_file"
+}
+
+# Restaurar base de datos desde backup
+restore_database() {
+    local db_backup_file="$PROJECT_DIR/db-backup.sql"
+    
+    if [ ! -f "$db_backup_file" ]; then
+        error "❌ Archivo de backup no encontrado: $db_backup_file"
+    fi
+    
+    if [ ! -f "$PROJECT_DIR/.env" ]; then
+        error "❌ Archivo .env no encontrado"
+    fi
+    
+    warn "⚠️  ADVERTENCIA: Esto sobrescribirá la base de datos actual"
+    log "Archivo de backup: $db_backup_file"
+    
+    # Cargar variables de base de datos desde .env
+    export $(grep -E '^TYPEORM_(HOST|PORT|USERNAME|PASSWORD|DB_NAME)=' "$PROJECT_DIR/.env" | xargs)
+    
+    if [ -n "$TYPEORM_HOST" ] && [ -n "$TYPEORM_USERNAME" ] && [ -n "$TYPEORM_DB_NAME" ]; then
+        log "Restaurando base de datos en $TYPEORM_HOST..."
+        log "Base de datos: $TYPEORM_DB_NAME"
+        log "Usuario: $TYPEORM_USERNAME"
+        
+        # Restaurar usando psql
+        PGPASSWORD="$TYPEORM_PASSWORD" psql \
+            -h "$TYPEORM_HOST" \
+            -p "$TYPEORM_PORT" \
+            -U "$TYPEORM_USERNAME" \
+            -d "$TYPEORM_DB_NAME" \
+            < "$db_backup_file" 2>/dev/null
+        
+        if [ $? -eq 0 ]; then
+            log "✅ Base de datos restaurada exitosamente"
+        else
+            error "❌ Error al restaurar la base de datos"
+        fi
+    else
+        error "❌ Variables de base de datos incompletas en .env"
+    fi
+    
+    # Limpiar variables de entorno
+    unset TYPEORM_HOST TYPEORM_PORT TYPEORM_USERNAME TYPEORM_PASSWORD TYPEORM_DB_NAME
 }
 
 # Health check de un contenedor
@@ -343,16 +418,23 @@ main() {
         "cleanup"|"clean")
             cleanup
             ;;
+        "restore")
+            restore_database
+            ;;
         "help"|"h"|"-h"|"--help")
-            echo "Uso: $0 [comando]"
+            echo "Uso: $0 [comando] [parámetros]"
             echo ""
             echo "Comandos:"
-            echo "  status    - Mostrar estado actual (default)"
-            echo "  deploy    - Desplegar a slot inactivo"
-            echo "  switch    - Cambiar tráfico al nuevo slot"
-            echo "  rollback  - Volver al slot anterior"
-            echo "  cleanup   - Limpiar slot inactivo"
-            echo "  help      - Mostrar esta ayuda"
+            echo "  status              - Mostrar estado actual (default)"
+            echo "  deploy              - Desplegar a slot inactivo"
+            echo "  switch              - Cambiar tráfico al nuevo slot"
+            echo "  rollback            - Volver al slot anterior"
+            echo "  cleanup             - Limpiar slot inactivo"
+            echo "  restore             - Restaurar DB desde último backup"
+            echo "  help                - Mostrar esta ayuda"
+            echo ""
+            echo "Ejemplos:"
+            echo "  $0 restore"
             ;;
         *)
             error "Comando desconocido: $1. Usa 'help' para ver opciones disponibles."
