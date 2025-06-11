@@ -353,9 +353,6 @@ rollback() {
     # Cambiar al directorio del proyecto
     cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
     
-    # Crear backup antes del rollback
-    backup_state
-    
     # Verificar que el rollback slot esté disponible
     if ! is_container_running "sofia-chat-backend-$rollback_state"; then
         error "❌ El contenedor $rollback_state no está disponible para rollback"
