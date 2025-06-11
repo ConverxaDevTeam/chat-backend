@@ -70,19 +70,34 @@ cleanup_postgres_containers() {
     fi
 }
 
-# Backup del estado actual antes de hacer cambios críticos
+# Backup del estado actual y base de datos antes de hacer cambios críticos
 backup_state() {
     local backup_file="$PROJECT_DIR/.blue-green-backup-$(date +%s)"
     local current_state=$(get_current_state)
     
-    log "Creando backup del estado actual..."
+    log "Creando backup del estado actual y base de datos..."
     
+    # Backup de estado
     cat > "$backup_file" << EOF
 TIMESTAMP=$(date)
 CURRENT_STATE=$current_state
 BLUE_RUNNING=$(is_container_running "sofia-chat-backend-blue" && echo "yes" || echo "no")
 GREEN_RUNNING=$(is_container_running "sofia-chat-backend-green" && echo "yes" || echo "no")
 EOF
+
+    # Backup de base de datos usando las variables del contenedor
+    local db_backup_file="$PROJECT_DIR/db-backup-$(date +%s).sql"
+    if is_container_running "sofia-chat-backend-blue"; then
+        log "Creando backup de base de datos..."
+        docker exec sofia-chat-backend-blue bash -c "pg_dump -h \$TYPEORM_HOST -p \$TYPEORM_PORT -U \$TYPEORM_USERNAME -d \$TYPEORM_DB_NAME" > "$db_backup_file" 2>/dev/null || {
+            warn "No se pudo crear backup de base de datos - continuando sin backup de DB"
+            rm -f "$db_backup_file"
+        }
+        if [ -f "$db_backup_file" ]; then
+            log "Backup de DB guardado en: $db_backup_file"
+            echo "DB_BACKUP_FILE=$db_backup_file" >> "$backup_file"
+        fi
+    fi
     
     log "Backup guardado en: $backup_file"
 }
@@ -250,31 +265,37 @@ switch() {
 rollback() {
     local current_state=$(get_current_state)
     local rollback_state=""
+    local rollback_port=""
     
     if [ "$current_state" = "blue" ]; then
         rollback_state="green"
+        rollback_port="3002"
     else
         rollback_state="blue"
+        rollback_port="3001"
     fi
     
     warn "Haciendo rollback de $current_state a $rollback_state..."
+    
+    # Cambiar al directorio del proyecto
+    cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
     
     # Crear backup antes del rollback
     backup_state
     
     # Verificar que el rollback slot esté disponible
     if ! is_container_running "sofia-chat-backend-$rollback_state"; then
-        error "El contenedor sofia-chat-backend-$rollback_state no está disponible para rollback"
+        error "❌ El contenedor $rollback_state no está disponible para rollback"
     fi
     
     # Verificar salud del rollback slot
-    local rollback_port=$([ "$rollback_state" = "green" ] && echo "3002" || echo "3001")
     health_check "sofia-chat-backend-$rollback_state" "$rollback_port"
     
     # Hacer rollback
     save_state "$rollback_state"
     
-    log "✅ Rollback completado: $rollback_state ahora está en producción"
+    log "✅ Rollback completado: $current_state → $rollback_state"
+    log "🔗 Estado restaurado: $rollback_state (puerto $rollback_port)"
 }
 
 # Limpiar slot inactivo
@@ -290,6 +311,9 @@ cleanup() {
     
     log "Limpiando slot inactivo: $inactive_slot"
     
+    # Cambiar al directorio del proyecto para ejecutar docker-compose
+    cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
+    
     if is_container_running "sofia-chat-backend-$inactive_slot"; then
         $DOCKER_COMPOSE stop "sofia-chat-backend-$inactive_slot"
         $DOCKER_COMPOSE rm -f "sofia-chat-backend-$inactive_slot"
@@ -297,6 +321,10 @@ cleanup() {
     else
         log "Slot $inactive_slot ya estaba detenido"
     fi
+    
+    # Limpiar imágenes huérfanas
+    docker image prune -f
+    log "✅ Imágenes huérfanas limpiadas"
 }
 
 # Función principal
