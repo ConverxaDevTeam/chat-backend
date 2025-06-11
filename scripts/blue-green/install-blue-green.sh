@@ -246,7 +246,7 @@ is_container_healthy() {
     local port="$2"
     
     if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
-        curl -sf "http://localhost:$port/health" > /dev/null 2>&1
+        wget --quiet --spider "http://localhost:$port/api/health" 2>/dev/null
         return $?
     else
         return 1
