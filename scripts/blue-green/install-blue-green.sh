@@ -180,7 +180,7 @@ server {
 
     # Health check endpoint
     location /health {
-        proxy_pass http://localhost:3001/health;
+        proxy_pass http://localhost:3001/api/health;
         proxy_set_header Host $host;
         access_log off;
         add_header X-Internal-Testing "true" always;

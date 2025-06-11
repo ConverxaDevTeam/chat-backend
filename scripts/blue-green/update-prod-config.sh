@@ -81,7 +81,7 @@ server {
 
     # Health check endpoint
     location /health {
-        proxy_pass http://localhost:$TARGET_PORT/health;
+        proxy_pass http://localhost:$TARGET_PORT/api/health;
         proxy_set_header Host \$host;
         access_log off;
     }
