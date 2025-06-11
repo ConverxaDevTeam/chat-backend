@@ -103,6 +103,14 @@ log_info "Producción ahora apunta a: $TARGET_COLOR (puerto $TARGET_PORT)"
 # Verificar configuración
 if nginx -t; then
     log_info "Configuración de Nginx válida"
+    
+    # Recargar nginx para aplicar cambios
+    if systemctl reload nginx; then
+        log_info "Nginx recargado exitosamente"
+    else
+        log_error "Error al recargar Nginx"
+        exit 1
+    fi
 else
     log_error "Error en configuración de Nginx"
     exit 1
