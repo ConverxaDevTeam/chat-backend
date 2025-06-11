@@ -49,13 +49,19 @@ sequenceDiagram
   - Envía notificación solo a usuarios con el tipo específico
   - Valida que el tipo existe en la organización
 
-### Endpoints API
-- **POST /api/hitl-types**: Crear tipo HITL (solo OWNER)
-- **GET /api/hitl-types**: Listar tipos de organización
-- **PUT /api/hitl-types/:id**: Actualizar tipo HITL
-- **DELETE /api/hitl-types/:id**: Eliminar tipo HITL
-- **POST /api/hitl-types/:id/users**: Asignar usuarios a tipo
-- **DELETE /api/hitl-types/:id/users/:userId**: Remover usuario de tipo
+### Endpoints API (Probados ✅)
+- **POST /api/organizations/{orgId}/hitl-types**: Crear tipo HITL (solo OWNER)
+- **GET /api/organizations/{orgId}/hitl-types**: Listar tipos de organización
+- **GET /api/organizations/{orgId}/hitl-types/{id}**: Obtener tipo específico
+- **PATCH /api/organizations/{orgId}/hitl-types/{id}**: Actualizar tipo HITL (solo OWNER)
+- **DELETE /api/organizations/{orgId}/hitl-types/{id}**: Eliminar tipo HITL (solo OWNER)
+- **POST /api/organizations/{orgId}/hitl-types/{id}/users**: Asignar usuarios a tipo (solo OWNER)
+- **DELETE /api/organizations/{orgId}/hitl-types/{id}/users/{userId}**: Remover usuario de tipo (solo OWNER)
+
+### Endpoints Relacionados
+- **GET /api/user**: Obtener perfil completo con todas las userOrganizations
+- **GET /api/user/all/{orgId}**: Obtener usuarios de organización (filtrar role === 'hitl' en frontend)
+- **POST /api/auth/log-in**: Autenticación para obtener JWT token
 
 ### Modificaciones al Sistema de Notificaciones
 - **NotificationService.createHitlNotification()**: Nueva función
@@ -73,6 +79,10 @@ sequenceDiagram
   organization_id: number;
   created_by: number;
   created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+  creator: User;
+  userHitlTypes: UserHitlType[];
 }
 ```
 
@@ -83,7 +93,10 @@ sequenceDiagram
   user_id: number;
   hitl_type_id: number;
   organization_id: number;
-  assigned_at: Date;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+  user: User;
 }
 ```
 
@@ -103,11 +116,58 @@ sequenceDiagram
 3. **Notificaciones**: Solo usuarios HITL asignados al tipo específico reciben la notificación
 4. **Rol Requerido**: El usuario debe tener rol HITL en la organización para ser asignado a tipos
 5. **Unicidad**: Un usuario puede estar asignado a múltiples tipos HITL
+6. **Verificación por Organización**: Todos los permisos se verifican específicamente por organización
+7. **Acceso Granular**: El sistema valida acceso basado en el organizationId de la URL del endpoint
+
+### Validaciones Implementadas
+- Verificación de rol OWNER para gestión de tipos HITL
+- Validación de pertenencia a organización específica
+- Verificación de rol HITL antes de asignación
+- Unicidad de nombres de tipos HITL por organización
+- Eliminación en cascada de asignaciones al eliminar tipos
 
 ## Consideraciones Técnicas
 
-- **Archivos nuevos**: HitlType.entity.ts, UserHitlType.entity.ts
-- **Módulo nuevo**: hitl-types.module.ts
-- **Función interna**: Agregar a function-call.service.ts
-- **Migraciones**: Nueva migración para tablas HitlType y UserHitlType
-- **Validaciones**: Verificar rol HITL antes de asignación a tipos
+### Archivos Modificados
+- **HitlType.entity.ts**: Nueva entidad para tipos HITL
+- **UserHitlType.entity.ts**: Nueva entidad relacional usuarios-tipos
+- **UserOrganization.entity.ts**: Agregado campo organizationId explícito
+- **hitl-types.module.ts**: Nuevo módulo con controller y service
+- **function-call.service.ts**: Función sofia__hitl_notify implementada
+- **user.service.ts**: Método findById corregido para retornar todas las organizaciones
+- **jwt-auth-roles.guard.ts**: Verificación de permisos por organización específica
+- **get-organization.decorator.ts**: ParseInt corregido para extraer organizationId
+
+### Base de Datos
+- **Tablas nuevas**: hitl_types, user_hitl_types
+- **Migraciones**: Ejecutadas automáticamente
+- **Relaciones**: UserOrganizations contiene organizationId directo
+
+### Dependencias
+- **AuthModule**: Importado en HitlTypesModule para JWT guards
+- **HitlTypesModule**: Importado en FunctionCallModule para función del agente
+- **TypeORM**: Configurado con relaciones y validaciones apropiadas
+
+## Estado de Implementación
+
+### ✅ Completado y Probado
+- Todas las entidades y relaciones
+- Todos los endpoints CRUD funcionando
+- Validaciones de permisos (solo OWNER puede gestionar)
+- Asignación y remoción de usuarios HITL
+- Función sofia__hitl_notify implementada
+- Sistema de notificaciones integrado
+- Verificación de permisos por organización específica
+
+### 🔧 Correcciones Críticas Realizadas
+- **UserService.findById()**: Removido select específico para retornar todas las userOrganizations del usuario
+- **GetOrganization decorator**: Corregido parseInt(organizationId, 10) en lugar de parseInt(organizationId, -1)
+- **JwtAuthRolesGuard**: Implementada verificación de roles por organización específica extraída de URL
+- **UserOrganization.entity**: Agregado campo organizationId explícito para compatibilidad
+- **Módulos**: HitlTypesModule correctamente importado en FunctionCallModule y AuthModule
+
+### 🔍 Problemas Identificados y Resueltos
+1. **Bucle infinito en frontend**: UserService retornaba solo 1 organización por problemas en select
+2. **Permisos incorrectos**: Guard verificaba roles globalmente en lugar de por organización
+3. **ParseInt malformado**: Decorador causaba NaN por radix inválido
+4. **Relaciones incompletas**: Select limitaba la carga completa de userOrganizations

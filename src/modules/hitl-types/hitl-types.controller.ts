@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseIntPipe } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiParam } from '@nestjs/swagger';
+import { ApiOperation, ApiTags, ApiParam } from '@nestjs/swagger';
 import { HitlTypesService } from './hitl-types.service';
 import { CreateHitlTypeDto } from './dto/create-hitl-type.dto';
 import { UpdateHitlTypeDto } from './dto/update-hitl-type.dto';
@@ -14,7 +14,6 @@ import { GetOrganization } from '@infrastructure/decorators/get-organization.dec
 @ApiTags('hitl-types')
 @Controller('organizations/:organizationId/hitl-types')
 @UseGuards(JwtAuthRolesGuard)
-@ApiBearerAuth()
 export class HitlTypesController {
   constructor(private readonly hitlTypesService: HitlTypesService) {}
 
