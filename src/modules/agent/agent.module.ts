@@ -11,6 +11,7 @@ import { NotificationModule } from '../notification/notification.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 import { VoyageModule } from '@modules/agent-knowledgebase/voyage.module';
 import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-knowledgebase.module';
+import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-kno
     NotificationModule,
     forwardRef(() => IntegrationRouterModule),
     AgentKnowledgebaseModule,
+    HitlTypesModule,
   ],
   providers: [AgentService, FunctionCallService],
   exports: [AgentService, FunctionCallService],

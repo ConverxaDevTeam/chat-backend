@@ -22,7 +22,7 @@ export class AppController {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      deployment: process.env.DEPLOYMENT_COLOR || 'blue'
+      deployment: process.env.DEPLOYMENT_COLOR || 'blue',
     };
   }
 }

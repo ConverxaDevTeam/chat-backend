@@ -23,6 +23,7 @@ import { NotificationType } from 'src/interfaces/notifications.interface';
 import { EventType, TableName } from '@models/SystemEvent.entity';
 import { NotificationType as NotificationTypeSystemEvents } from '@models/notification.entity';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
 
 @Injectable()
 export class FunctionCallService {
@@ -37,6 +38,7 @@ export class FunctionCallService {
     private readonly notificationService: NotificationService,
     @Inject(forwardRef(() => IntegrationRouterService))
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly hitlTypesService: HitlTypesService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
@@ -108,6 +110,79 @@ export class FunctionCallService {
           return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
         }
         return { message: 'conversacion enviada a agente humano' };
+      }
+
+      // Nueva función sofia__hitl_notify
+      if (functionName === 'sofia__hitl_notify') {
+        if (conversationId === -1) {
+          throw new Error('No se puede notificar HITL sin una conversación');
+        }
+
+        const conversation = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['departamento', 'departamento.organizacion'],
+        });
+
+        if (!conversation) {
+          throw new NotFoundException('Conversation not found');
+        }
+
+        const { tipo_hitl, mensaje } = params;
+
+        if (!tipo_hitl || !mensaje) {
+          throw new Error('Se requieren los parámetros tipo_hitl y mensaje');
+        }
+
+        // Obtener usuarios con el tipo HITL específico
+        const hitlUsers = await this.hitlTypesService.getUsersByHitlType(conversation.departamento.organizacion.id, tipo_hitl);
+
+        if (hitlUsers.length === 0) {
+          return { message: `No hay usuarios asignados al tipo HITL: ${tipo_hitl}` };
+        }
+
+        // Crear notificaciones para cada usuario HITL
+        for (const user of hitlUsers) {
+          await this.notificationService.createNotificationForUser(
+            user.id,
+            NotificationTypeSystemEvents.SYSTEM,
+            `[${tipo_hitl}] ${mensaje}`,
+            conversation.departamento.organizacion.id,
+            {
+              metadata: { conversationId },
+            },
+          );
+
+          // Enviar notificación por socket
+          this.socketService.sendNotificationToUser(user.id, {
+            type: NotificationType.MESSAGE_RECEIVED,
+            message: `[${tipo_hitl}] ${mensaje}`,
+            data: {
+              conversationId: conversationId,
+              hitlType: tipo_hitl,
+            },
+          });
+        }
+
+        // Registrar evento
+        await this.systemEventsService.create({
+          type: EventType.FUNCTION_EXECUTION_COMPLETED,
+          metadata: {
+            functionName: 'sofia__hitl_notify',
+            hitlType: tipo_hitl,
+            message: mensaje,
+            usersNotified: hitlUsers.length,
+            conversationId,
+          },
+          organization: conversation.departamento.organizacion,
+          table_name: TableName.CONVERSATIONS,
+          table_id: conversationId,
+          conversation: { id: conversationId } as any,
+        });
+
+        return {
+          message: `Notificación HITL enviada a ${hitlUsers.length} usuarios del tipo ${tipo_hitl}`,
+          usersNotified: hitlUsers.length,
+        };
       }
 
       const functionConfig = await this.functionRepository.findOne({
