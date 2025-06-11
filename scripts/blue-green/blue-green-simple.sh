@@ -364,6 +364,9 @@ rollback() {
     # Hacer rollback
     save_state "$rollback_state"
     
+    # Actualizar configuración de nginx
+    update_nginx_config "$rollback_state"
+    
     log "✅ Rollback completado: $current_state → $rollback_state"
     log "🔗 Estado restaurado: $rollback_state (puerto $rollback_port)"
 }
