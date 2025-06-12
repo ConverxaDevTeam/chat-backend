@@ -12,7 +12,6 @@ export class FileService {
 
   async saveFile(file: Express.Multer.File, path: string, fileName: string): Promise<string> {
     if (!file) throw new BadRequestException('No file uploaded');
-    console.log('File uploaded:', file.mimetype);
 
     const allowedMimeTypes = [
       // Imágenes
