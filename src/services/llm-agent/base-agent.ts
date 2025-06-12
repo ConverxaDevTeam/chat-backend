@@ -419,4 +419,29 @@ export abstract class BaseAgent {
     });
     return threadId;
   }
+
+  /**
+   * Renderiza la función sofia__save_user_info para guardar información del usuario
+   * Método genérico que debe ser usado por todos los agentes
+   */
+  protected renderSaveUserInfo(): any {
+    return {
+      name: 'sofia__save_user_info',
+      description: 'Guarda información personal del usuario durante la conversación. Usar solo cuando el usuario proporcione información voluntariamente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campo: {
+            type: 'string',
+            description: 'Nombre del campo a guardar (ej: "name", "email", "phone", "address", "empresa", "edad", etc.)',
+          },
+          valor: {
+            type: 'string',
+            description: 'Valor a almacenar para el campo especificado',
+          },
+        },
+        required: ['campo', 'valor'],
+      },
+    };
+  }
 }

@@ -9,6 +9,7 @@ import { SystemEventsModule } from '@modules/system-events/system-events.module'
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
 import { AuthModule } from '@modules/auth/auth.module';
+import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AuthModule } from '@modules/auth/auth.module';
     SystemEventsModule,
     forwardRef(() => IntegrationRouterModule),
     HitlTypesModule,
+    ChatUserModule,
   ],
   providers: [FunctionCallService],
   exports: [FunctionCallService],

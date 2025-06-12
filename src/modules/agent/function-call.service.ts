@@ -24,6 +24,7 @@ import { EventType, TableName } from '@models/SystemEvent.entity';
 import { NotificationType as NotificationTypeSystemEvents } from '@models/notification.entity';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
+import { ChatUserService } from '@modules/chat-user/chat-user.service';
 
 @Injectable()
 export class FunctionCallService {
@@ -39,6 +40,7 @@ export class FunctionCallService {
     @Inject(forwardRef(() => IntegrationRouterService))
     private readonly integrationRouterService: IntegrationRouterService,
     private readonly hitlTypesService: HitlTypesService,
+    private readonly chatUserService: ChatUserService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
@@ -193,6 +195,89 @@ export class FunctionCallService {
         const resultMessage = tipo_hitl && mensaje ? `Conversación escalada con tipo HITL: ${tipo_hitl}` : 'conversacion enviada a agente humano';
         console.log(`[HITL DEBUG] HITL function completed successfully: ${resultMessage}`);
         return { message: resultMessage };
+      }
+
+      // Función para guardar información del usuario
+      if (functionName === 'sofia__save_user_info') {
+        const { campo, valor } = params;
+
+        if (!campo || !valor) {
+          throw new Error('Los parámetros "campo" y "valor" son requeridos');
+        }
+
+        const conversation = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['chat_user'],
+        });
+
+        if (!conversation || !conversation.chat_user) {
+          throw new Error('No se encontró la conversación o el usuario del chat');
+        }
+
+        const chatUserId = conversation.chat_user.id;
+        const standardFields = ['name', 'email', 'phone', 'address', 'avatar'];
+
+        try {
+          if (standardFields.includes(campo)) {
+            // Actualizar campo estándar
+            await this.chatUserService.updateUserInfo(chatUserId, campo, valor);
+
+            // Registrar evento de éxito
+            await this.systemEventsService.create({
+              type: EventType.FUNCTION_EXECUTION_COMPLETED,
+              metadata: {
+                functionName: 'sofia__save_user_info',
+                campo,
+                valor,
+                chatUserId,
+                fieldType: 'standard',
+              },
+              organization: conversation.departamento?.organizacion || ({ id: 1 } as any),
+              table_name: TableName.CONVERSATIONS,
+              table_id: conversationId,
+              conversation: { id: conversationId } as any,
+            });
+          } else {
+            // Guardar como dato personalizado
+            await this.chatUserService.saveCustomUserData(chatUserId, campo, valor);
+
+            // Registrar evento de éxito
+            await this.systemEventsService.create({
+              type: EventType.FUNCTION_EXECUTION_COMPLETED,
+              metadata: {
+                functionName: 'sofia__save_user_info',
+                campo,
+                valor,
+                chatUserId,
+                fieldType: 'custom',
+              },
+              organization: conversation.departamento?.organizacion || ({ id: 1 } as any),
+              table_name: TableName.CONVERSATIONS,
+              table_id: conversationId,
+              conversation: { id: conversationId } as any,
+            });
+          }
+
+          return { message: `Información del usuario guardada: ${campo} = ${valor}` };
+        } catch (error) {
+          // Registrar evento de error
+          await this.systemEventsService.create({
+            type: EventType.FUNCTION_EXECUTION_FAILED,
+            metadata: {
+              functionName: 'sofia__save_user_info',
+              campo,
+              valor,
+              chatUserId,
+              error: error.message,
+            },
+            organization: conversation.departamento?.organizacion || ({ id: 1 } as any),
+            table_name: TableName.CONVERSATIONS,
+            table_id: conversationId,
+            conversation: { id: conversationId } as any,
+            error_message: error.message,
+          });
+          throw error;
+        }
       }
 
       const functionConfig = await this.functionRepository.findOne({

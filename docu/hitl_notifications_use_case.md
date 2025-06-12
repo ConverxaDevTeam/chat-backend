@@ -75,7 +75,7 @@ sequenceDiagram
 - **POST /api/auth/log-in**: Autenticación para obtener JWT token
 
 ### Modificaciones al Sistema de Notificaciones
-- **NotificationService.createHitlNotification()**: Nueva función
+- **NotificationService.createNotificationForUser()**: Notificaciones tipo USER para HITL
 - **SocketService**: Envío de notificaciones por tipo HITL
 - **NotificationController**: Endpoints para gestión HITL
 
