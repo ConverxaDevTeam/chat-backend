@@ -13,6 +13,7 @@ import * as uuid from 'uuid';
 import { MessageContentPartParam } from 'openai/resources/beta/threads/messages';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
 
 const tempMemory = new Map();
 const tempMemoryConversation = new Map();
@@ -107,6 +108,7 @@ export class SofiaLLMService extends BaseAgent {
     functionCallService: FunctionCallService,
     systemEventsService: SystemEventsService,
     integrationRouterService: IntegrationRouterService,
+    private hitlTypesService: HitlTypesService,
     identifier: agentIdentifier,
     agenteConfig: AgentConfig,
   ) {
@@ -127,7 +129,7 @@ export class SofiaLLMService extends BaseAgent {
     try {
       const assistantName = `${environment}_${config.name || 'Sofia Assistant'}_${organizationName}`;
       const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
-      this.renderHITL(true, tools);
+      await this.renderHITL(true, tools, config.organizationId);
       const assistant = await this.openai.beta.assistants.create({
         name: assistantName,
         instructions: config.instruccion,
@@ -439,7 +441,8 @@ export class SofiaLLMService extends BaseAgent {
   protected async _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void> {
     const tools = buildToolsArray({ funciones: funciones.map((f) => ({ ...f, name: f.normalizedName })) });
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
-    this.renderHITL(hasHitl, tools);
+    const organizationId = this.agenteConfig?.organizationId || 1; // Fallback a organización por defecto
+    await this.renderHITL(hasHitl, tools, organizationId);
     try {
       console.log('Updating functions...');
       await this.openai.beta.assistants.update(assistantId, {
@@ -451,20 +454,68 @@ export class SofiaLLMService extends BaseAgent {
     }
   }
 
-  private renderHITL(hasHitl: boolean, tools: OpenAI.Beta.Assistants.AssistantTool[]) {
-    if (hasHitl)
+  private async renderHITL(hasHitl: boolean, tools: OpenAI.Beta.Assistants.AssistantTool[], organizationId: number) {
+    if (!hasHitl) return;
+
+    try {
+      // Obtener tipos HITL disponibles para la organización
+      const hitlTypes = await this.hitlTypesService.findAll({ userOrganizations: [{ organizationId, role: 'OWNER' }] } as any, organizationId);
+
+      const functionDescription = 'Escala la conversación a un agente humano especializado o general';
+      const properties: any = {};
+      const required: string[] = [];
+
+      if (hitlTypes && hitlTypes.length > 0) {
+        // Si hay tipos HITL, incluir parámetros específicos
+        properties.tipo_hitl = {
+          type: 'string',
+          description: `Tipo de especialista requerido. Opciones disponibles: ${hitlTypes.map((t) => `${t.name} (${t.description || 'Sin descripción'})`).join(', ')}`,
+          enum: hitlTypes.map((t) => t.name),
+        };
+        properties.mensaje = {
+          type: 'string',
+          description: 'Mensaje específico para el tipo de especialista seleccionado',
+        };
+        required.push('tipo_hitl', 'mensaje');
+      }
+
       tools.push({
         type: 'function',
         function: {
           name: HitlName,
-          description: 'envia la conversacion a una persona',
+          description: functionDescription,
           parameters: {
             type: 'object',
-            properties: {},
+            properties,
+            required,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Error obteniendo tipos HITL, usando función legacy:', error);
+      // Fallback: función legacy sin parámetros
+      tools.push({
+        type: 'function',
+        function: {
+          name: HitlName,
+          description: 'Escala la conversación a un agente humano especializado o general',
+          parameters: {
+            type: 'object',
+            properties: {
+              tipo_hitl: {
+                type: 'string',
+                description: 'Tipo de especialista requerido (opcional)',
+              },
+              mensaje: {
+                type: 'string',
+                description: 'Mensaje específico para el especialista (opcional)',
+              },
+            },
             required: [],
           },
         },
       });
+    }
   }
 
   public static async createVectorStore(agentId: number): Promise<string> {
@@ -608,10 +659,19 @@ export class SofiaLLMService extends BaseAgent {
           type: 'function',
           function: {
             name: HitlName,
-            description: 'envia la conversacion a una persona',
+            description: 'Escala la conversación a un agente humano especializado o general',
             parameters: {
               type: 'object',
-              properties: {},
+              properties: {
+                tipo_hitl: {
+                  type: 'string',
+                  description: 'Tipo de especialista requerido (opcional)',
+                },
+                mensaje: {
+                  type: 'string',
+                  description: 'Mensaje específico para el especialista (opcional)',
+                },
+              },
               required: [],
             },
           },

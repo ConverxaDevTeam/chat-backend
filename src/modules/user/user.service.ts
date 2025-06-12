@@ -352,4 +352,22 @@ export class UserService {
     this.logger.log(`[UserService] Actualizando usuario ${userId} con datos de Google: ${JSON.stringify(data)}`);
     await this.userRepository.update(userId, data);
   }
+
+  /**
+   * Obtiene todos los usuarios de una organización con sus roles
+   * @param organizationId ID de la organización
+   * @returns Lista de usuarios con sus roles en la organización
+   */
+  async getUsersByOrganizationId(organizationId: number): Promise<UserOrganization[]> {
+    return this.userOrganizationRepository.find({
+      where: {
+        organization: { id: organizationId },
+      },
+      relations: ['user'],
+      order: {
+        role: 'ASC',
+        user: { email: 'ASC' },
+      },
+    });
+  }
 }

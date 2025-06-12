@@ -55,7 +55,7 @@ export class NotificationService {
     type: NotificationType,
     title: string,
     organizationId: number,
-    options: { metadata: { conversationId: number } },
+    options: { metadata: { conversationId: number; hitlType?: string } },
   ): Promise<Notification> {
     const notification = this.notificationRepository.create({
       user: { id: userId },

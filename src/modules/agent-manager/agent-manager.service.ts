@@ -14,6 +14,7 @@ import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { ClaudeSonetService } from 'src/services/llm-agent/claude-sonet.service';
 import { BaseAgent } from 'src/services/llm-agent/base-agent';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
 
 // Tipos para las configuraciones de agentes
 type SofiaAgente = Agente<SofiaLLMConfig>;
@@ -35,6 +36,7 @@ export class AgentManagerService {
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly hitlTypesService: HitlTypesService,
     private readonly configService: ConfigService,
   ) {
     this.agentServiceFactory = {
@@ -43,7 +45,7 @@ export class AgentManagerService {
         if (!config.DBagentId) {
           throw new Error('DBagentId debe estar definido cuando se crea SofiaLLMService');
         }
-        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
+        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
       },
       [AgenteType.CLAUDE]: (identifier, config) =>
         new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config, this.configService),
@@ -259,6 +261,7 @@ export class AgentManagerService {
       this.functionCallService,
       this.systemEventsService,
       this.integrationRouterService,
+      this.hitlTypesService,
       { type: AgentIdentifierType.CHAT, agentId },
       { agentId, organizationId, DBagentId },
     );

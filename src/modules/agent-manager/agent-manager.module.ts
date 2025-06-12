@@ -6,9 +6,10 @@ import { SocketModule } from '@modules/socket/socket.module';
 import { FunctionCallModule } from '@modules/function-call/function-call.module';
 import { SystemEventsModule } from '@modules/system-events/system-events.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
+import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Agente]), forwardRef(() => SocketModule), forwardRef(() => FunctionCallModule), SystemEventsModule, IntegrationRouterModule],
+  imports: [TypeOrmModule.forFeature([Agente]), forwardRef(() => SocketModule), forwardRef(() => FunctionCallModule), SystemEventsModule, IntegrationRouterModule, HitlTypesModule],
   providers: [AgentManagerService],
   exports: [AgentManagerService],
 })

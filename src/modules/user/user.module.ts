@@ -11,12 +11,13 @@ import { OrganizationModule } from '@modules/organization/organization.module';
 import { EmailModule } from '@modules/email/email.module';
 import { OrganizationService } from '@modules/organization/organization.service';
 import { Organization } from '@models/Organization.entity';
+import { UserOrganization } from '@models/UserOrganization.entity';
 
 @Module({
   providers: [UserService, OrganizationService],
   controllers: [UserController],
   imports: [
-    TypeOrmModule.forFeature([User, Session, Organization]),
+    TypeOrmModule.forFeature([User, Session, Organization, UserOrganization]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

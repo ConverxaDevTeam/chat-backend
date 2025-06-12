@@ -1,5 +1,5 @@
 import { Organization, OrganizationType } from '@models/Organization.entity';
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
@@ -233,5 +233,47 @@ export class OrganizationService {
    */
   async getOrganizationLimitInfo(organizationId: number) {
     return this.organizationLimitService.hasReachedConversationLimit(organizationId);
+  }
+
+  /**
+   * Cambia el rol de un usuario en una organización
+   * @param currentUser Usuario que solicita el cambio (debe ser OWNER)
+   * @param organizationId ID de la organización
+   * @param targetUserId ID del usuario al que se le cambiará el rol
+   * @param newRole Nuevo rol a asignar
+   * @returns Usuario con rol actualizado
+   */
+  async changeUserRole(currentUser: User, organizationId: number, targetUserId: number, newRole: OrganizationRoleType): Promise<UserOrganization> {
+    // Verificar que el usuario actual es OWNER de la organización
+    const currentUserRole = await this.getRolInOrganization(currentUser, organizationId);
+    if (currentUserRole !== OrganizationRoleType.OWNER) {
+      throw new ForbiddenException('Solo los propietarios pueden cambiar roles de usuarios');
+    }
+
+    // Verificar que el usuario objetivo existe en la organización
+    const targetUserOrg = await this.userOrganizationRepository.findOne({
+      where: {
+        user: { id: targetUserId },
+        organization: { id: organizationId },
+      },
+      relations: ['user', 'organization'],
+    });
+
+    if (!targetUserOrg) {
+      throw new NotFoundException('El usuario no pertenece a esta organización');
+    }
+
+    // Prevenir que el OWNER cambie su propio rol
+    if (currentUser.id === targetUserId && currentUserRole === OrganizationRoleType.OWNER) {
+      throw new BadRequestException('No puedes cambiar tu propio rol de propietario');
+    }
+
+    // Prevenir asignación del rol OWNER (debe hacerse mediante otro endpoint)
+    if (newRole === OrganizationRoleType.OWNER) {
+      throw new BadRequestException('No se puede asignar el rol de propietario mediante este endpoint');
+    }
+
+    // Actualizar el rol
+    return this.userOrganizationService.updateUserRole(targetUserId, organizationId, newRole);
   }
 }
