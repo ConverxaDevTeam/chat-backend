@@ -77,31 +77,41 @@ sequenceDiagram
 ### Endpoints Existentes
 - `DELETE /api/user/global/:userId`: Elimina un usuario global (solo superadmin)
 - `DELETE /api/user/role/:roleId`: Elimina un rol sin validaciones adicionales
+- `POST /api/user/change-password/:userId`: Cambiar contraseña (solo superadmin) - **MODIFICADO**
 
-### Nuevo Endpoint
+### Nuevos Endpoints
 - `DELETE /api/user/organization/:organizationId/user/:userId`: Elimina un usuario de una organización con validaciones de permisos y eliminación en cascada
 
 ## Diferencias entre Endpoints
 
-| Endpoint | Permisos | Validaciones | Eliminación en Cascada |
-|----------|----------|-------------|----------------------|
-| `DELETE /user/global/:userId` | Solo superadmin | Básicas | No |
-| `DELETE /user/role/:roleId` | Solo superadmin | Ninguna | No |
-| `DELETE /user/organization/:organizationId/user/:userId` | Superadmin u OWNER | Completas | Sí |
+| Endpoint | Permisos | Validaciones | Funcionalidad |
+|----------|----------|-------------|---------------|
+| `DELETE /user/global/:userId` | Solo superadmin | Básicas | Eliminación global |
+| `DELETE /user/role/:roleId` | Solo superadmin | Ninguna | Eliminación simple |
+| `DELETE /user/organization/:organizationId/user/:userId` | Superadmin u OWNER | Completas | Eliminación inteligente |
+| `POST /user/change-password/:userId` | Superadmin u OWNER (organizaciones compartidas) | Completas | Cambio contraseña inteligente |
 
-### Ventajas del Nuevo Endpoint
+### Ventajas de los Nuevos Endpoints
+
+#### Eliminación de Usuario
 1. **Permisos granulares**: Permite que owners de organización eliminen usuarios de su organización
 2. **Validaciones de negocio**: No permite eliminar el último OWNER
 3. **Eliminación inteligente**: Si el usuario queda sin roles, lo elimina automáticamente
 4. **Seguridad**: Verifica que el usuario tenga permisos sobre la organización específica
 
+#### Cambio de Contraseña (Endpoint Modificado)
+1. **Permisos descentralizados**: Owners pueden gestionar contraseñas de usuarios en organizaciones compartidas
+2. **Validación inteligente**: Verifica que ambos usuarios compartan al menos una organización donde el solicitante sea OWNER
+3. **Seguridad granular**: Sin necesidad de especificar organización en URL, valida automáticamente
+4. **Flexibilidad**: Mantiene acceso total para superadmins y URL original
+
 ## Estructura de Datos
 
-### Request
+### Request - Eliminación de Usuario
 - **userId**: ID del usuario a eliminar de la organización
 - **organizationId**: ID de la organización
 
-### Response
+### Response - Eliminación de Usuario
 ```json
 {
   "ok": true,
@@ -111,9 +121,23 @@ sequenceDiagram
 }
 ```
 
+### Request - Cambio de Contraseña
+- **userId**: ID del usuario al que cambiar la contraseña
+- **Body**: `{ "newPassword": string }`
+
+### Response - Cambio de Contraseña
+```json
+{
+  "ok": true,
+  "message": "Password actualizado exitosamente"
+}
+```
+
 ## Consideraciones Técnicas
 
 - Usar soft delete para mantener historial
 - Validar que no se elimine el último OWNER de una organización
-- Implementar logs de auditoría para eliminaciones
+- Implementar logs de auditoría para eliminaciones y cambios de contraseña
 - Verificar dependencias antes de eliminar usuarios completamente
+- Validar organizaciones compartidas entre solicitante y objetivo antes de cambios
+- Hashear contraseñas con bcrypt para seguridad
