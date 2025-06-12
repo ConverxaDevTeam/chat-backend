@@ -5,6 +5,8 @@ import { SystemEventsService } from '../../modules/system-events/system-events.s
 import { EventType } from '@models/SystemEvent.entity';
 import { ConversationType } from '@models/Conversation.entity';
 import { IntegrationRouterService } from '../../modules/integration-router/integration.router.service';
+import { HitlTypesService } from '../../modules/hitl-types/hitl-types.service';
+import { HitlType } from '@models/HitlType.entity';
 
 export abstract class BaseAgent {
   protected threadId: string | null = null;
@@ -17,6 +19,7 @@ export abstract class BaseAgent {
     protected functionCallService: FunctionCallService,
     protected systemEventsService: SystemEventsService,
     protected integrationRouterService: IntegrationRouterService,
+    protected hitlTypesService: HitlTypesService,
     protected agenteConfig?: AgentConfig,
   ) {
     if (!this.agenteConfig) return;
@@ -366,6 +369,33 @@ export abstract class BaseAgent {
   protected abstract _getResponse(): Promise<string>;
   protected abstract _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void>;
   protected abstract _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void>;
+
+  /**
+   * Obtiene los tipos HITL disponibles para la organización
+   * Método genérico que debe ser usado por todos los agentes
+   */
+  protected async getHitlTypes(organizationId: number): Promise<HitlType[]> {
+    console.log(`[HITL DEBUG] BaseAgent.getHitlTypes called for organizationId: ${organizationId}`);
+
+    try {
+      // Crear un usuario mock con permisos OWNER para obtener todos los tipos HITL
+      const mockUser = {
+        userOrganizations: [{ organizationId, role: 'OWNER' }],
+      } as any;
+
+      const hitlTypes = await this.hitlTypesService.findAll(mockUser, organizationId);
+
+      console.log(
+        `[HITL DEBUG] BaseAgent found ${hitlTypes.length} HITL types for organization ${organizationId}:`,
+        hitlTypes.map((t) => ({ id: t.id, name: t.name, description: t.description })),
+      );
+
+      return hitlTypes;
+    } catch (error) {
+      console.error('[HITL DEBUG] Error getting HITL types in BaseAgent:', error);
+      return [];
+    }
+  }
 
   protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
     return this._addMessageToThread(message, images);

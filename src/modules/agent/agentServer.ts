@@ -109,7 +109,7 @@ export class AgentService {
         return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
       },
       [AgenteType.CLAUDE]: (identifier, config) =>
-        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config, this.configService),
+        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config, this.configService),
     };
   }
 

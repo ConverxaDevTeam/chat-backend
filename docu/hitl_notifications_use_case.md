@@ -140,17 +140,25 @@ sequenceDiagram
 - Unicidad de nombres de tipos HITL por organización
 - Eliminación en cascada de asignaciones al eliminar tipos
 
-## Consideraciones Técnicas
+### Consideraciones Técnicas
+
+### Arquitectura Refactorizada
+- **BaseAgent**: Contiene lógica genérica para obtener tipos HITL usando `getHitlTypes()`
+- **SofiaLLMService**: Implementa renderizado específico para OpenAI con `renderHITL()`
+- **ClaudeSonetService**: Implementa renderizado específico para Anthropic con `renderHITLForClaude()`
+- **FunctionCallService**: Maneja ejecución de escalamientos HITL con logs detallados
 
 ### Archivos Modificados
 - **HitlType.entity.ts**: Nueva entidad para tipos HITL
 - **UserHitlType.entity.ts**: Nueva entidad relacional usuarios-tipos
 - **UserOrganization.entity.ts**: Agregado campo organizationId explícito
 - **hitl-types.module.ts**: Nuevo módulo con controller y service
-- **function-call.service.ts**: Función sofia__hitl consolidada con lógica inteligente
-- **sofia-llm.service.ts**: Función sofia__hitl con definición dinámica según tipos disponibles
-- **agentServer.ts**: Integración de HitlTypesService como dependencia
-- **agent-manager.service.ts**: Integración de HitlTypesService como dependencia
+- **function-call.service.ts**: Función sofia__hitl consolidada con lógica inteligente y logs detallados
+- **base-agent.ts**: Método genérico `getHitlTypes()` para obtener tipos HITL por organización
+- **sofia-llm.service.ts**: Renderizado específico OpenAI con definición dinámica según tipos disponibles
+- **claude-sonet.service.ts**: Renderizado específico Anthropic con soporte completo HITL
+- **agentServer.ts**: Integración de HitlTypesService como dependencia en ambos agentes
+- **agent-manager.service.ts**: Integración de HitlTypesService como dependencia en ambos agentes
 - **user.service.ts**: Método findById corregido para retornar todas las organizaciones
 - **jwt-auth-roles.guard.ts**: Verificación de permisos por organización específica
 - **get-organization.decorator.ts**: ParseInt corregido para extraer organizationId
@@ -165,6 +173,8 @@ sequenceDiagram
 - **HitlTypesModule**: Importado en AgentModule y AgentManagerModule para lógica consolidada
 - **TypeORM**: Configurado con relaciones y validaciones apropiadas
 - **OpenAI Integration**: Función sofia__hitl con parámetros dinámicos según tipos disponibles
+- **Anthropic Integration**: Función sofia__hitl con soporte completo para Claude
+- **BaseAgent**: Dependencia HitlTypesService inyectada para acceso genérico a tipos HITL
 
 ## Estado de Implementación
 
@@ -177,6 +187,9 @@ sequenceDiagram
 - Sistema de notificaciones integrado con escalamiento específico y general
 - Verificación de permisos por organización específica
 - Integración completa con servicios de agente (AgentService y AgentManagerService)
+- **Refactorización de Responsabilidades**: BaseAgent maneja lógica genérica, servicios específicos manejan formato de API
+- **Soporte Multi-Proveedor**: SofiaLLM (OpenAI) y ClaudeSonet (Anthropic) ambos soportan HITL
+- **Logs de Debugging**: Sistema completo de logs con prefijo [HITL DEBUG] para troubleshooting
 
 ### 🔧 Correcciones Críticas Realizadas
 - **UserService.findById()**: Removido select específico para retornar todas las userOrganizations del usuario
@@ -186,6 +199,9 @@ sequenceDiagram
 - **Consolidación de Funciones**: Eliminada sofia__hitl_notify, toda la lógica consolidada en sofia__hitl
 - **Definición Dinámica**: sofia__hitl ahora muestra parámetros dinámicamente según tipos HITL disponibles
 - **Módulos**: HitlTypesModule correctamente importado en AgentModule y AgentManagerModule
+- **Refactorización de Arquitectura**: Movida lógica genérica a BaseAgent, manteniendo compatibilidad específica por proveedor
+- **Inyección de Dependencias**: HitlTypesService correctamente inyectado en BaseAgent y propagado a servicios específicos
+- **Compatibilidad Multi-Proveedor**: ClaudeSonetService actualizado para soportar HITL con mismo comportamiento que SofiaLLM
 
 ### 🔍 Problemas Identificados y Resueltos
 1. **Bucle infinito en frontend**: UserService retornaba solo 1 organización por problemas en select

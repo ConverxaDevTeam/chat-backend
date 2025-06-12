@@ -43,7 +43,15 @@ export class FunctionCallService {
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
     try {
+      console.log(`[HITL DEBUG] executeFunctionCall called with:`, {
+        functionName,
+        agentId,
+        params,
+        conversationId,
+      });
+
       if (functionName === HitlName) {
+        console.log(`[HITL DEBUG] Processing HITL function with params:`, params);
         if (conversationId === -1) {
           // Registrar evento de error para HITL sin conversación
           await this.systemEventsService.create({
@@ -77,11 +85,19 @@ export class FunctionCallService {
         const organizationId = conversation.departamento.organizacion.id;
         const { tipo_hitl, mensaje } = params;
 
+        console.log(`[HITL DEBUG] Organization ID: ${organizationId}, tipo_hitl: ${tipo_hitl}, mensaje: ${mensaje}`);
+
         // Si se especifica un tipo HITL específico, enviar notificación dirigida
         if (tipo_hitl && mensaje) {
+          console.log(`[HITL DEBUG] Looking for users with HITL type: ${tipo_hitl} in organization: ${organizationId}`);
           const hitlUsers = await this.hitlTypesService.getUsersByHitlType(organizationId, tipo_hitl);
+          console.log(
+            `[HITL DEBUG] Found ${hitlUsers.length} users for HITL type ${tipo_hitl}:`,
+            hitlUsers.map((u) => ({ id: u.id, email: u.email })),
+          );
 
           if (hitlUsers.length === 0) {
+            console.log(`[HITL DEBUG] No users found for HITL type ${tipo_hitl}, falling back to general notification`);
             // Si no hay usuarios para el tipo específico, usar notificación general
             await this.notificationService.createNotificationForOrganization(
               organizationId,
@@ -99,9 +115,11 @@ export class FunctionCallService {
               },
             });
           } else {
+            console.log(`[HITL DEBUG] Sending specific notifications to ${hitlUsers.length} users`);
             // Crear notificaciones específicas para usuarios del tipo HITL
             for (const user of hitlUsers) {
-              await this.notificationService.createNotificationForUser(user.id, NotificationTypeSystemEvents.SYSTEM, `[${tipo_hitl}] ${mensaje}`, organizationId, {
+              console.log(`[HITL DEBUG] Sending notification to user ${user.id} (${user.email})`);
+              await this.notificationService.createNotificationForUser(user.id, NotificationTypeSystemEvents.USER, `[${tipo_hitl}] ${mensaje}`, organizationId, {
                 metadata: { conversationId, hitlType: tipo_hitl },
               });
 
@@ -135,6 +153,7 @@ export class FunctionCallService {
             conversation: { id: conversationId } as any,
           });
         } else {
+          console.log(`[HITL DEBUG] Using legacy general notification - no tipo_hitl or mensaje provided`);
           // Comportamiento legacy - notificación general a toda la organización
           await this.notificationService.createNotificationForOrganization(organizationId, NotificationTypeSystemEvents.SYSTEM, 'Usuario necesita ayuda de un agente humano', {
             metadata: { conversationId },
@@ -171,7 +190,9 @@ export class FunctionCallService {
           return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
         }
 
-        return tipo_hitl && mensaje ? { message: `Conversación escalada con tipo HITL: ${tipo_hitl}` } : { message: 'conversacion enviada a agente humano' };
+        const resultMessage = tipo_hitl && mensaje ? `Conversación escalada con tipo HITL: ${tipo_hitl}` : 'conversacion enviada a agente humano';
+        console.log(`[HITL DEBUG] HITL function completed successfully: ${resultMessage}`);
+        return { message: resultMessage };
       }
 
       const functionConfig = await this.functionRepository.findOne({
