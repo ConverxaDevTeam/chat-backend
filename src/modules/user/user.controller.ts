@@ -176,11 +176,36 @@ export class UserController {
     return this.userService.changePassword(user.id, changePasswordDto);
   }
 
-  @UseGuards(JwtAuthRolesGuard)
-  @ApiOperation({ summary: 'Cambiar contraseña de usuario (solo superadmin)' })
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Cambiar contraseña de usuario (superadmin o owner de organización compartida)' })
   @ApiBearerAuth()
   @Post('change-password/:userId')
-  async changePasswordAsAdmin(@Param('userId') userId: number, @Body() changePasswordDto: { newPassword: string }) {
+  async changePasswordAsAdmin(@Param('userId') userId: number, @Body() changePasswordDto: { newPassword: string }, @GetUser() user: User) {
+    // Validar permisos: solo superadmin o owner de organizaciones compartidas
+    if (!user.is_super_admin) {
+      // Obtener organizaciones del usuario solicitante donde sea OWNER
+      const requestingUser = await this.userService.findById(user.id);
+      const ownerOrganizations = requestingUser.userOrganizations
+        .filter((uo) => uo.role === OrganizationRoleType.OWNER)
+        .map((uo) => uo.organization?.id)
+        .filter((id) => id !== undefined);
+
+      if (ownerOrganizations.length === 0) {
+        throw new ForbiddenException('Solo los propietarios de organización o superadministradores pueden cambiar contraseñas de usuarios');
+      }
+
+      // Obtener organizaciones del usuario objetivo
+      const targetUser = await this.userService.findById(userId);
+      const targetOrganizations = targetUser.userOrganizations.map((uo) => uo.organization?.id).filter((id) => id !== undefined);
+
+      // Verificar si hay alguna organización en común donde el solicitante sea OWNER
+      const sharedOrganizations = ownerOrganizations.filter((orgId) => targetOrganizations.includes(orgId));
+
+      if (sharedOrganizations.length === 0) {
+        throw new ForbiddenException('No tienes permisos para cambiar la contraseña de este usuario. Debe pertenecer a una organización donde seas propietario.');
+      }
+    }
+
     return this.userService.changePasswordAsAdmin(userId, changePasswordDto.newPassword);
   }
 
