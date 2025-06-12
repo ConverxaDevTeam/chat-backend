@@ -2,14 +2,14 @@
 
 ## ✅ Funcionalidad Implementada
 
-Se ha implementado exitosamente la funcionalidad para **editar el tipo de usuario (rol) de una organización** siguiendo las reglas arquitecturales del proyecto.
+Se ha implementado exitosamente la funcionalidad para **editar el tipo de usuario (rol) de una organización** con **restricción a roles operativos** (`user` y `hitl` únicamente), siguiendo las reglas arquitecturales del proyecto.
 
 ## 📁 Archivos Creados/Modificados
 
 ### Nuevos Archivos
 1. **`docu/flujo-gestion-roles-usuario.md`** - Documentación del caso de uso
-2. **`docu/ejemplos-gestion-roles.md`** - Ejemplos prácticos de uso
-3. **`src/modules/user/change-user-role.dto.ts`** - DTO para validación del nuevo rol
+2. **`docu/ejemplos-cambio-roles.md`** - Ejemplos prácticos de uso (user ↔ hitl)
+3. **`src/modules/user/change-user-role.dto.ts`** - DTO con enum restringido para roles permitidos
 
 ### Archivos Modificados
 1. **`src/modules/organization/UserOrganization.service.ts`** - Agregado método `updateUserRole()`
@@ -32,16 +32,16 @@ GET /api/user/organization/:organizationId/users
 PATCH /api/user/organization/:organizationId/users/:userId/role
 ```
 - **Permisos**: Solo OWNER
-- **Body**: `{ "role": "admin" }`
+- **Body**: `{ "role": "user" | "hitl" }`
 - **Respuesta**: Usuario con rol actualizado
 
 ## 🔐 Validaciones de Seguridad
 
 1. **Solo OWNER puede cambiar roles** - Verificación estricta de permisos
 2. **Autoprotección de OWNER** - No puede cambiar su propio rol
-3. **Restricción de asignación de OWNER** - Solo mediante endpoints específicos
+3. **Restricción operativa** - Solo permite roles `user` y `hitl` para gestión diaria
 4. **Validación de existencia** - Usuario debe pertenecer a la organización
-5. **Validación de roles** - Solo roles válidos según enum
+5. **Enum restringido** - AllowedChangeRoleType previene asignación de roles administrativos
 
 ## 📝 Roles Soportados
 
@@ -49,11 +49,8 @@ PATCH /api/user/organization/:organizationId/users/:userId/role
 |-----|-------------|
 | `user` | Usuario básico (por defecto) |
 | `hitl` | Agente humano en el bucle |
-| `supervisor` | Supervisión de agentes |
-| `admin` | Administrador de organización |
-| `usr_tecnico` | Usuario técnico especial |
-| `ing_preventa` | Ingeniero de preventa |
-| ~~`owner`~~ | *No asignable por este endpoint* |
+
+**Nota**: Solo se permiten estos dos roles para mantener la simplicidad y seguridad operativa. Roles administrativos (`admin`, `owner`, `supervisor`, etc.) requieren endpoints específicos con mayor nivel de autorización.
 
 ## 🧪 Ejemplo de Uso
 
@@ -62,18 +59,19 @@ PATCH /api/user/organization/:organizationId/users/:userId/role
 curl -X GET "http://localhost:3001/api/user/organization/5/users" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
-# 2. Cambiar usuario a administrador
+# 2. Cambiar usuario a agente HITL
 curl -X PATCH "http://localhost:3001/api/user/organization/5/users/10/role" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"role": "admin"}'
+  -d '{"role": "hitl"}'
 ```
 
 ## ✨ Características Técnicas
 
-- **Tipado fuerte**: Uso de enums para roles
+- **Tipado fuerte**: Uso de enum `AllowedChangeRoleType` restringido
 - **Programación funcional**: Métodos puros sin efectos secundarios
-- **Validaciones robustas**: DTOs con decoradores de validación
+- **Validaciones robustas**: DTOs con enum específico previene roles no autorizados
+- **Conversión segura**: Mapeo explícito entre enums para evitar errores de tipo
 - **Arquitectura modular**: Separación clara de responsabilidades
 - **Manejo de errores**: Excepciones específicas para cada caso
 
@@ -102,10 +100,11 @@ sequenceDiagram
 
 ## 🎯 Siguientes Pasos
 
-1. **Pruebas**: Ejecutar tests de integración
-2. **Frontend**: Implementar interfaz de gestión de roles
-3. **Auditoría**: Agregar logs de cambios de roles
+1. **Pruebas**: Ejecutar tests de integración con roles restringidos
+2. **Frontend**: Implementar toggle simple user ↔ hitl
+3. **Auditoría**: Agregar logs de cambios de roles operativos
 4. **Notificaciones**: Enviar emails cuando cambie un rol
+5. **Roles administrativos**: Crear endpoints separados para admin, supervisor, etc.
 
 ## 📋 Consideraciones
 
@@ -113,3 +112,5 @@ sequenceDiagram
 - Mantiene compatibilidad con endpoints existentes
 - No altera inputs/outputs de funciones existentes
 - Sigue patrones de diseño establecidos en el proyecto
+- **Restricción de seguridad**: Solo roles operativos para prevenir escalación accidental de privilegios
+- **Diseño futuro**: Base sólida para endpoints administrativos específicos

@@ -54,7 +54,7 @@ sequenceDiagram
 - **Método**: `PATCH`
 - **Ruta**: `/api/organization/:organizationId/users/:userId/role`
 - **Permisos**: Solo `OWNER` de la organización
-- **Body**: `{ role: OrganizationRoleType }`
+- **Body**: `{ role: "user" | "hitl" }`
 
 ### Obtener Usuarios de Organización
 - **Método**: `GET` 
@@ -68,19 +68,14 @@ sequenceDiagram
 2. **OWNER no puede cambiar su propio rol** para evitar pérdida de control
 3. Usuario debe pertenecer a la organización objetivo
 
-### Roles Disponibles
+### Roles Disponibles para Cambio
 - `USER`: Usuario básico (por defecto)
 - `HITL`: Agente humano en el bucle
-- `SUPERVISOR`: Supervisión de agentes
-- `ADMIN`: Administrador de la organización
-- `USR_TECNICO`: Usuario técnico con permisos especiales
-- `ING_PREVENTA`: Ingeniero de preventa
-- `OWNER`: Propietario de la organización
 
 ### Restricciones
-1. No se puede asignar rol `OWNER` mediante este endpoint
-2. Solo puede haber un `OWNER` por organización
-3. El rol `USR_TECNICO` tiene permisos especiales globales
+1. Solo se permiten los roles `user` y `hitl`
+2. Roles administrativos (`admin`, `owner`, `supervisor`, etc.) no se pueden asignar por este endpoint
+3. Para cambios de roles administrativos se requieren endpoints específicos
 
 ## Componentes Involucrados
 
@@ -108,7 +103,7 @@ sequenceDiagram
 ### Request Body
 ```typescript
 {
-  role: 'admin' | 'hitl' | 'supervisor' | 'user' | 'usr_tecnico' | 'ing_preventa'
+  role: 'user' | 'hitl'
 }
 ```
 
@@ -135,5 +130,4 @@ sequenceDiagram
 
 - **403 Forbidden**: Usuario no es OWNER de la organización
 - **404 Not Found**: Usuario objetivo no existe en la organización  
-- **400 Bad Request**: Intento de cambiar propio rol de OWNER o rol inválido
-- **409 Conflict**: Intento de asignar rol OWNER (no permitido por este endpoint)
+- **400 Bad Request**: Intento de cambiar propio rol de OWNER o rol inválido (solo se permiten 'user' y 'hitl')
