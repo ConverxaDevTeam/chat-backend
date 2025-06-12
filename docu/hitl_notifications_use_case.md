@@ -1,7 +1,7 @@
 # Caso de Uso: Notificaciones HITL (Human In The Loop)
 
 ## Descripción
-Sistema de notificaciones especializadas por tipo de HITL que permite al owner definir tipos específicos de intervención humana y asignar usuarios especializados para cada tipo. El agente puede invocar notificaciones dirigidas únicamente a usuarios con el tipo de HITL correspondiente.
+Sistema de notificaciones especializadas por tipo de HITL que permite al owner definir tipos específicos de intervención humana y asignar usuarios especializados para cada tipo. El agente puede escalamientos dirigidos a usuarios especializados cuando existen tipos HITL configurados, o usar escalamiento general cuando no hay tipos específicos definidos.
 
 ## Flujo Principal
 
@@ -17,10 +17,18 @@ sequenceDiagram
     Owner->>System: Crear tipo HITL
     Owner->>System: Asignar usuarios a tipo HITL
     
-    Note over Agent, System: Proceso de Notificación
-    Agent->>System: sofia__hitl_notify(tipo, mensaje)
-    System->>System: Buscar usuarios con tipo HITL
-    System->>HitlUser: Enviar notificación específica
+    Note over Agent, System: Proceso de Escalamiento
+    Agent->>System: sofia__hitl(tipo_hitl?, mensaje?)
+    System->>System: ¿Existen tipos HITL configurados?
+    alt Tipos HITL disponibles
+        System->>System: Mostrar tipos disponibles a IA
+        System->>System: IA selecciona tipo apropiado
+        System->>System: Buscar usuarios con tipo HITL
+        System->>HitlUser: Enviar notificación específica
+    else Sin tipos HITL
+        System->>System: Escalamiento general
+        System->>System: Notificar a toda la organización
+    end
     
     Note over HitlUser, System: Respuesta del Usuario
     HitlUser->>System: Marcar notificación como leída
@@ -44,10 +52,13 @@ sequenceDiagram
   - `organization_id`: Organización
 
 ### Funciones del Agente
-- **sofia__hitl_notify**: Nueva función interna
-  - Parámetros: `tipo_hitl`, `mensaje`, `conversacion_id`
-  - Envía notificación solo a usuarios con el tipo específico
-  - Valida que el tipo existe en la organización
+- **sofia__hitl**: Función consolidada de escalamiento
+  - Parámetros opcionales: `tipo_hitl`, `mensaje`
+  - Comportamiento inteligente:
+    - Si la organización tiene tipos HITL: la IA puede elegir entre los tipos disponibles
+    - Si no hay tipos HITL: escalamiento general legacy
+    - Si se especifica tipo_hitl pero no hay usuarios: fallback a escalamiento general
+  - Valida automáticamente disponibilidad de tipos y usuarios
 
 ### Endpoints API (Probados ✅)
 - **POST /api/organizations/{orgId}/hitl-types**: Crear tipo HITL (solo OWNER)
@@ -100,12 +111,11 @@ sequenceDiagram
 }
 ```
 
-### Función sofia__hitl_notify
+### Función sofia__hitl
 ```typescript
 {
-  tipo_hitl: string;
-  mensaje: string;
-  conversacion_id: number;
+  tipo_hitl?: string; // Opcional - mostrado dinámicamente según tipos disponibles
+  mensaje?: string;   // Opcional - requerido solo cuando se usa tipo_hitl
 }
 ```
 
@@ -113,11 +123,15 @@ sequenceDiagram
 
 1. **Permisos**: Solo usuarios con rol OWNER pueden crear y gestionar tipos HITL
 2. **Validación**: Un usuario solo puede ser asignado a tipos HITL de su organización
-3. **Notificaciones**: Solo usuarios HITL asignados al tipo específico reciben la notificación
+3. **Escalamiento Inteligente**: 
+   - Con tipos HITL: notificación dirigida a usuarios especializados
+   - Sin tipos HITL: escalamiento general a toda la organización
+   - Fallback automático si no hay usuarios del tipo específico
 4. **Rol Requerido**: El usuario debe tener rol HITL en la organización para ser asignado a tipos
 5. **Unicidad**: Un usuario puede estar asignado a múltiples tipos HITL
 6. **Verificación por Organización**: Todos los permisos se verifican específicamente por organización
 7. **Acceso Granular**: El sistema valida acceso basado en el organizationId de la URL del endpoint
+8. **Compatibilidad**: Mantiene compatibilidad con escalamiento legacy sin tipos HITL
 
 ### Validaciones Implementadas
 - Verificación de rol OWNER para gestión de tipos HITL
@@ -133,7 +147,10 @@ sequenceDiagram
 - **UserHitlType.entity.ts**: Nueva entidad relacional usuarios-tipos
 - **UserOrganization.entity.ts**: Agregado campo organizationId explícito
 - **hitl-types.module.ts**: Nuevo módulo con controller y service
-- **function-call.service.ts**: Función sofia__hitl_notify implementada
+- **function-call.service.ts**: Función sofia__hitl consolidada con lógica inteligente
+- **sofia-llm.service.ts**: Función sofia__hitl con definición dinámica según tipos disponibles
+- **agentServer.ts**: Integración de HitlTypesService como dependencia
+- **agent-manager.service.ts**: Integración de HitlTypesService como dependencia
 - **user.service.ts**: Método findById corregido para retornar todas las organizaciones
 - **jwt-auth-roles.guard.ts**: Verificación de permisos por organización específica
 - **get-organization.decorator.ts**: ParseInt corregido para extraer organizationId
@@ -145,8 +162,9 @@ sequenceDiagram
 
 ### Dependencias
 - **AuthModule**: Importado en HitlTypesModule para JWT guards
-- **HitlTypesModule**: Importado en FunctionCallModule para función del agente
+- **HitlTypesModule**: Importado en AgentModule y AgentManagerModule para lógica consolidada
 - **TypeORM**: Configurado con relaciones y validaciones apropiadas
+- **OpenAI Integration**: Función sofia__hitl con parámetros dinámicos según tipos disponibles
 
 ## Estado de Implementación
 
@@ -155,19 +173,25 @@ sequenceDiagram
 - Todos los endpoints CRUD funcionando
 - Validaciones de permisos (solo OWNER puede gestionar)
 - Asignación y remoción de usuarios HITL
-- Función sofia__hitl_notify implementada
-- Sistema de notificaciones integrado
+- Función sofia__hitl consolidada con lógica inteligente
+- Sistema de notificaciones integrado con escalamiento específico y general
 - Verificación de permisos por organización específica
+- Integración completa con servicios de agente (AgentService y AgentManagerService)
 
 ### 🔧 Correcciones Críticas Realizadas
 - **UserService.findById()**: Removido select específico para retornar todas las userOrganizations del usuario
 - **GetOrganization decorator**: Corregido parseInt(organizationId, 10) en lugar de parseInt(organizationId, -1)
 - **JwtAuthRolesGuard**: Implementada verificación de roles por organización específica extraída de URL
 - **UserOrganization.entity**: Agregado campo organizationId explícito para compatibilidad
-- **Módulos**: HitlTypesModule correctamente importado en FunctionCallModule y AuthModule
+- **Consolidación de Funciones**: Eliminada sofia__hitl_notify, toda la lógica consolidada en sofia__hitl
+- **Definición Dinámica**: sofia__hitl ahora muestra parámetros dinámicamente según tipos HITL disponibles
+- **Módulos**: HitlTypesModule correctamente importado en AgentModule y AgentManagerModule
 
 ### 🔍 Problemas Identificados y Resueltos
 1. **Bucle infinito en frontend**: UserService retornaba solo 1 organización por problemas en select
 2. **Permisos incorrectos**: Guard verificaba roles globalmente en lugar de por organización
 3. **ParseInt malformado**: Decorador causaba NaN por radix inválido
 4. **Relaciones incompletas**: Select limitaba la carga completa de userOrganizations
+5. **Duplicación de Responsabilidades**: Consolidada lógica de escalamiento en una sola función
+6. **Definición Estática**: Función ahora es dinámica según configuración de la organización
+7. **Dependencias Faltantes**: HitlTypesService integrado en todos los servicios de agente necesarios

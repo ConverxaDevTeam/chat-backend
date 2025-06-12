@@ -12,6 +12,7 @@ import { AgentManagerService } from '@modules/agent-manager/agent-manager.servic
 import { LlmAgentService } from 'src/services/llm-agent/llm-agent.service';
 import { SystemEventsModule } from '@modules/system-events/system-events.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
+import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { IntegrationRouterModule } from '@modules/integration-router/integration
     forwardRef(() => AgentModule),
     SystemEventsModule,
     IntegrationRouterModule,
+    HitlTypesModule,
   ],
   controllers: [LlmAgentController],
   providers: [LlmAgentService, AgentManagerService],

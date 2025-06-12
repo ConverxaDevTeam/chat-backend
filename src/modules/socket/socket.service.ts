@@ -225,6 +225,7 @@ export class SocketService {
       message: string;
       data: {
         conversationId: number;
+        hitlType?: string;
       };
     },
   ) {

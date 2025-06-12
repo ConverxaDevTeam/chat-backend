@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
@@ -9,6 +9,7 @@ import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { AddUserInOrganizationDto } from '@modules/socket/dto/add-user-in-organization.dto';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 import { UpdateUserDto } from './update-user.dto';
+import { ChangeUserRoleDto } from './change-user-role.dto';
 import { ForbiddenException } from '@nestjs/common';
 
 @Controller('user')
@@ -182,6 +183,50 @@ export class UserController {
     return {
       ok: true,
       users: formattedUsers,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Obtener usuarios de una organización' })
+  @ApiBearerAuth()
+  @Get('organization/:organizationId/users')
+  async getOrganizationUsers(@GetUser() user: User, @Param('organizationId') organizationId: number) {
+    const rolInOrganization = await this.organizationService.getRolInOrganization(user, organizationId);
+    const allowedRoles = [OrganizationRoleType.OWNER, OrganizationRoleType.ADMIN, OrganizationRoleType.SUPERVISOR];
+
+    if (!allowedRoles.includes(rolInOrganization)) {
+      throw new ForbiddenException('No tienes permisos para ver los usuarios de esta organización');
+    }
+
+    const users = await this.userService.getUsersByOrganizationId(organizationId);
+
+    const formattedUsers = users.map((userOrg) => ({
+      id: userOrg.user.id,
+      email: userOrg.user.email,
+      name: `${userOrg.user.first_name || ''} ${userOrg.user.last_name || ''}`.trim(),
+      role: userOrg.role,
+    }));
+
+    return {
+      ok: true,
+      users: formattedUsers,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Cambiar rol de usuario en organización' })
+  @ApiBearerAuth()
+  @Patch('organization/:organizationId/users/:userId/role')
+  async changeUserRole(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('userId') userId: number, @Body() changeUserRoleDto: ChangeUserRoleDto) {
+    const updatedUserOrg = await this.organizationService.changeUserRole(user, organizationId, userId, changeUserRoleDto.role);
+
+    return {
+      ok: true,
+      user: {
+        id: updatedUserOrg.user.id,
+        email: updatedUserOrg.user.email,
+        role: updatedUserOrg.role,
+      },
     };
   }
 }

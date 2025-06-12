@@ -66,42 +66,103 @@ export class FunctionCallService {
           relations: ['departamento', 'departamento.organizacion'],
         });
 
-        await this.conversationRepository.update(conversationId, {
-          need_human: true,
-        });
         if (!conversation) {
           throw new NotFoundException('Conversation not found');
         }
 
-        await this.notificationService.createNotificationForOrganization(
-          conversation.departamento.organizacion.id,
-          NotificationTypeSystemEvents.SYSTEM,
-          'Usuario necesita ayuda de un agente humano',
-          { metadata: { conversationId } },
-        );
-
-        this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
-          type: NotificationType.MESSAGE_RECEIVED,
-          message: 'Usuario necesita ayuda de un agente humano',
-          data: {
-            conversationId: conversationId,
-          },
+        await this.conversationRepository.update(conversationId, {
+          need_human: true,
         });
 
-        // Registrar evento de asignación de conversación
-        await this.systemEventsService.create({
-          type: EventType.CONVERSATION_ASSIGNED,
-          metadata: {
-            agentId,
-            conversationId,
-            functionName,
-            humanAssistanceRequested: true,
-          },
-          organization: conversation.departamento.organizacion,
-          table_name: TableName.CONVERSATIONS,
-          table_id: conversationId,
-          conversation: { id: conversationId } as any,
-        });
+        const organizationId = conversation.departamento.organizacion.id;
+        const { tipo_hitl, mensaje } = params;
+
+        // Si se especifica un tipo HITL específico, enviar notificación dirigida
+        if (tipo_hitl && mensaje) {
+          const hitlUsers = await this.hitlTypesService.getUsersByHitlType(organizationId, tipo_hitl);
+
+          if (hitlUsers.length === 0) {
+            // Si no hay usuarios para el tipo específico, usar notificación general
+            await this.notificationService.createNotificationForOrganization(
+              organizationId,
+              NotificationTypeSystemEvents.SYSTEM,
+              `[${tipo_hitl}] ${mensaje} - No hay usuarios asignados, escalando a todos los agentes`,
+              { metadata: { conversationId, hitlType: tipo_hitl } },
+            );
+
+            this.socketService.sendNotificationToOrganization(organizationId, {
+              type: NotificationType.MESSAGE_RECEIVED,
+              message: `[${tipo_hitl}] ${mensaje} - No hay usuarios asignados, escalando a todos los agentes`,
+              data: {
+                conversationId: conversationId,
+                hitlType: tipo_hitl,
+              },
+            });
+          } else {
+            // Crear notificaciones específicas para usuarios del tipo HITL
+            for (const user of hitlUsers) {
+              await this.notificationService.createNotificationForUser(user.id, NotificationTypeSystemEvents.SYSTEM, `[${tipo_hitl}] ${mensaje}`, organizationId, {
+                metadata: { conversationId, hitlType: tipo_hitl },
+              });
+
+              // Enviar notificación por socket
+              this.socketService.sendNotificationToUser(user.id, {
+                type: NotificationType.MESSAGE_RECEIVED,
+                message: `[${tipo_hitl}] ${mensaje}`,
+                data: {
+                  conversationId: conversationId,
+                  hitlType: tipo_hitl,
+                },
+              });
+            }
+          }
+
+          // Registrar evento específico para tipo HITL
+          await this.systemEventsService.create({
+            type: EventType.CONVERSATION_ASSIGNED,
+            metadata: {
+              agentId,
+              conversationId,
+              functionName,
+              humanAssistanceRequested: true,
+              hitlType: tipo_hitl,
+              message: mensaje,
+              usersNotified: hitlUsers.length,
+            },
+            organization: conversation.departamento.organizacion,
+            table_name: TableName.CONVERSATIONS,
+            table_id: conversationId,
+            conversation: { id: conversationId } as any,
+          });
+        } else {
+          // Comportamiento legacy - notificación general a toda la organización
+          await this.notificationService.createNotificationForOrganization(organizationId, NotificationTypeSystemEvents.SYSTEM, 'Usuario necesita ayuda de un agente humano', {
+            metadata: { conversationId },
+          });
+
+          this.socketService.sendNotificationToOrganization(organizationId, {
+            type: NotificationType.MESSAGE_RECEIVED,
+            message: 'Usuario necesita ayuda de un agente humano',
+            data: {
+              conversationId: conversationId,
+            },
+          });
+
+          // Registrar evento legacy
+          await this.systemEventsService.create({
+            type: EventType.CONVERSATION_ASSIGNED,
+            metadata: {
+              agentId,
+              conversationId,
+              functionName,
+              humanAssistanceRequested: true,
+            },
+            organization: conversation.departamento.organizacion,
+            table_name: TableName.CONVERSATIONS,
+            table_id: conversationId,
+            conversation: { id: conversationId } as any,
+          });
+        }
 
         // Notificar al usuario sobre el cambio de estado
         await this.integrationRouterService.sendEventToUser(conversationId, EventType.CONVERSATION_ASSIGNED, conversation.type, conversation.chat_user?.id);
@@ -109,80 +170,8 @@ export class FunctionCallService {
         if (!conversation.need_human) {
           return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
         }
-        return { message: 'conversacion enviada a agente humano' };
-      }
 
-      // Nueva función sofia__hitl_notify
-      if (functionName === 'sofia__hitl_notify') {
-        if (conversationId === -1) {
-          throw new Error('No se puede notificar HITL sin una conversación');
-        }
-
-        const conversation = await this.conversationRepository.findOne({
-          where: { id: conversationId },
-          relations: ['departamento', 'departamento.organizacion'],
-        });
-
-        if (!conversation) {
-          throw new NotFoundException('Conversation not found');
-        }
-
-        const { tipo_hitl, mensaje } = params;
-
-        if (!tipo_hitl || !mensaje) {
-          throw new Error('Se requieren los parámetros tipo_hitl y mensaje');
-        }
-
-        // Obtener usuarios con el tipo HITL específico
-        const hitlUsers = await this.hitlTypesService.getUsersByHitlType(conversation.departamento.organizacion.id, tipo_hitl);
-
-        if (hitlUsers.length === 0) {
-          return { message: `No hay usuarios asignados al tipo HITL: ${tipo_hitl}` };
-        }
-
-        // Crear notificaciones para cada usuario HITL
-        for (const user of hitlUsers) {
-          await this.notificationService.createNotificationForUser(
-            user.id,
-            NotificationTypeSystemEvents.SYSTEM,
-            `[${tipo_hitl}] ${mensaje}`,
-            conversation.departamento.organizacion.id,
-            {
-              metadata: { conversationId },
-            },
-          );
-
-          // Enviar notificación por socket
-          this.socketService.sendNotificationToUser(user.id, {
-            type: NotificationType.MESSAGE_RECEIVED,
-            message: `[${tipo_hitl}] ${mensaje}`,
-            data: {
-              conversationId: conversationId,
-              hitlType: tipo_hitl,
-            },
-          });
-        }
-
-        // Registrar evento
-        await this.systemEventsService.create({
-          type: EventType.FUNCTION_EXECUTION_COMPLETED,
-          metadata: {
-            functionName: 'sofia__hitl_notify',
-            hitlType: tipo_hitl,
-            message: mensaje,
-            usersNotified: hitlUsers.length,
-            conversationId,
-          },
-          organization: conversation.departamento.organizacion,
-          table_name: TableName.CONVERSATIONS,
-          table_id: conversationId,
-          conversation: { id: conversationId } as any,
-        });
-
-        return {
-          message: `Notificación HITL enviada a ${hitlUsers.length} usuarios del tipo ${tipo_hitl}`,
-          usersNotified: hitlUsers.length,
-        };
+        return tipo_hitl && mensaje ? { message: `Conversación escalada con tipo HITL: ${tipo_hitl}` } : { message: 'conversacion enviada a agente humano' };
       }
 
       const functionConfig = await this.functionRepository.findOne({
