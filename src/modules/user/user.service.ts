@@ -1,5 +1,5 @@
 import { In, Repository } from 'typeorm';
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@models/User.entity';
 import * as bcrypt from 'bcrypt';
@@ -29,9 +29,6 @@ export class UserService {
         id: true,
         is_super_admin: true,
         email: true,
-        userOrganizations: {
-          role: true,
-        },
       },
       relations: ['userOrganizations'],
       where: { id: userId },
@@ -271,7 +268,7 @@ export class UserService {
   private async updateUserPassword(userId: number, newPassword: string) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const result = await this.userRepository.update(userId, { password: hashedPassword });
-  
+
     if (result.affected === 0) {
       throw new NotFoundException('Usuario no encontrado');
     }
@@ -354,5 +351,68 @@ export class UserService {
   async updateUserWithGoogleInfo(userId: number, data: any): Promise<void> {
     this.logger.log(`[UserService] Actualizando usuario ${userId} con datos de Google: ${JSON.stringify(data)}`);
     await this.userRepository.update(userId, data);
+  }
+
+  /**
+   * Elimina un usuario de una organización y si no tiene más roles, elimina el usuario
+   * @param userId ID del usuario a eliminar de la organización
+   * @param organizationId ID de la organización
+   * @returns Objeto con información de lo que se eliminó
+   */
+  async removeUserFromOrganization(userId: number, organizationId: number): Promise<{ userDeleted: boolean; roleDeleted: boolean; message: string }> {
+    // Buscar el rol del usuario en la organización específica
+    const userOrganization = await this.userOrganizationRepository.findOne({
+      where: {
+        user: { id: userId },
+        organization: { id: organizationId },
+      },
+      relations: ['user', 'organization'],
+    });
+
+    if (!userOrganization) {
+      throw new NotFoundException('El usuario no tiene un rol en la organización especificada');
+    }
+
+    // Si es OWNER, verificar que no sea el último OWNER de la organización
+    if (userOrganization.role === OrganizationRoleType.OWNER && userOrganization.organization) {
+      const ownersCount = await this.userOrganizationRepository.count({
+        where: {
+          organization: { id: userOrganization.organization.id },
+          role: OrganizationRoleType.OWNER,
+        },
+        withDeleted: false,
+      });
+
+      if (ownersCount <= 1) {
+        throw new ConflictException('No se puede eliminar el último propietario de la organización');
+      }
+    }
+
+    const roleId = userOrganization.id;
+
+    // Eliminar el rol (soft delete)
+    await this.userOrganizationRepository.softRemove({ id: roleId });
+
+    // Verificar si el usuario tiene otros roles activos
+    const remainingRoles = await this.userOrganizationRepository.find({
+      where: { user: { id: userId } },
+      withDeleted: false,
+    });
+
+    let userDeleted = false;
+    let message = 'Usuario removido de la organización';
+
+    // Si no tiene más roles, eliminar el usuario
+    if (remainingRoles.length === 0) {
+      await this.userRepository.softRemove({ id: userId });
+      userDeleted = true;
+      message = 'Usuario removido de la organización y eliminado completamente (no tenía más roles)';
+    }
+
+    return {
+      userDeleted,
+      roleDeleted: true,
+      message,
+    };
   }
 }
