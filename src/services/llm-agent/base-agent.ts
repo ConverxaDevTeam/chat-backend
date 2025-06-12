@@ -375,8 +375,6 @@ export abstract class BaseAgent {
    * Método genérico que debe ser usado por todos los agentes
    */
   protected async getHitlTypes(organizationId: number): Promise<HitlType[]> {
-    console.log(`[HITL DEBUG] BaseAgent.getHitlTypes called for organizationId: ${organizationId}`);
-
     try {
       // Crear un usuario mock con permisos OWNER para obtener todos los tipos HITL
       const mockUser = {
@@ -385,14 +383,9 @@ export abstract class BaseAgent {
 
       const hitlTypes = await this.hitlTypesService.findAll(mockUser, organizationId);
 
-      console.log(
-        `[HITL DEBUG] BaseAgent found ${hitlTypes.length} HITL types for organization ${organizationId}:`,
-        hitlTypes.map((t) => ({ id: t.id, name: t.name, description: t.description })),
-      );
-
       return hitlTypes;
     } catch (error) {
-      console.error('[HITL DEBUG] Error getting HITL types in BaseAgent:', error);
+      console.error('Error getting HITL types in BaseAgent:', error);
       return [];
     }
   }

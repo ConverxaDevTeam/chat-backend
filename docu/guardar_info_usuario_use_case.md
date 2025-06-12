@@ -16,7 +16,7 @@ sequenceDiagram
     Note over User, UserData: Recopilación de Información
     User->>Agent: Proporciona información personal
     Agent->>System: sofia__save_user_info(campo, valor)
-    
+
     alt Campo estándar (name, email, phone, address)
         System->>ChatUser: Actualizar campo directo
         ChatUser->>System: Confirmación actualización
@@ -24,10 +24,10 @@ sequenceDiagram
         System->>UserData: Crear/actualizar clave-valor
         UserData->>System: Confirmación guardado
     end
-    
+
     System->>Agent: Confirmación guardado exitoso
     Agent->>User: Información guardada correctamente
-    
+
     Note over Agent, System: Recuperación de Información
     Agent->>System: Consultar información del usuario
     System->>ChatUser: Obtener campos estándar
@@ -79,42 +79,6 @@ sequenceDiagram
 - **GET /api/chat-users/:id/info**: Obtener información completa del usuario
 - **PUT /api/chat-users/:id/info**: Actualizar información del usuario (admin)
 
-## Estructura de Datos
-
-### ChatUser (Existente - Extendido)
-```typescript
-{
-  id: number;
-  name?: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  avatar?: string;
-  // ... otros campos existentes
-  customData?: ChatUserData[]; // Relación con datos personalizados
-}
-```
-
-### ChatUserData (Nuevo)
-```typescript
-{
-  id: number;
-  chat_user_id: number;
-  key: string;
-  value: string;
-  created_at: Date;
-  updated_at: Date;
-  chatUser: ChatUser;
-}
-```
-
-### Función sofia__save_user_info
-```typescript
-{
-  campo: string;  // Requerido - nombre del campo a guardar
-  valor: string;  // Requerido - valor a almacenar
-}
-```
 
 ## Reglas de Negocio
 
@@ -162,19 +126,3 @@ sequenceDiagram
 - **TypeORM**: Para nueva entidad y relaciones
 - **class-validator**: Para validaciones de entrada
 - **AgentModule**: Integración con sistema de funciones del agente
-
-## Estado de Implementación
-
-### 🔄 Por Implementar
-- Entidad ChatUserData
-- Servicio ChatUserDataService
-- Extensión de ChatUserService
-- Función sofia__save_user_info en FunctionCallService
-- Migración de base de datos
-- Integración con agentes (Sofia LLM y Claude)
-- Endpoints API para consulta de información
-- Validaciones y sanitización de datos
-- Tests unitarios
-
-### 🎯 Objetivo
-Permitir que el agente recopile y almacene información del usuario de forma natural durante las conversaciones, mejorando la personalización y el contexto para futuras interacciones.

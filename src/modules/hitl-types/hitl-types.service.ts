@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { HitlType } from '@models/HitlType.entity';
 import { UserHitlType } from '@models/UserHitlType.entity';
 import { User } from '@models/User.entity';
@@ -49,16 +49,9 @@ export class HitlTypesService {
   }
 
   async findAll(user: User, organizationId: number): Promise<HitlType[]> {
-    console.log(`[HITL DEBUG] findAll called with organizationId: ${organizationId}`);
-    console.log(
-      `[HITL DEBUG] User organizations:`,
-      user.userOrganizations?.map((uo) => ({ orgId: uo.organizationId, role: uo.role })),
-    );
-
     // Verificar que el usuario pertenece a la organización
     const belongsToOrg = user.userOrganizations?.some((uo) => uo.organizationId === organizationId);
     if (!belongsToOrg) {
-      console.log(`[HITL DEBUG] User does not belong to organization ${organizationId}`);
       throw new ForbiddenException('No tienes acceso a esta organización');
     }
 
@@ -67,11 +60,6 @@ export class HitlTypesService {
       relations: ['creator', 'userHitlTypes', 'userHitlTypes.user'],
       order: { created_at: 'DESC' },
     });
-
-    console.log(
-      `[HITL DEBUG] Found ${hitlTypes.length} HITL types in organization ${organizationId}:`,
-      hitlTypes.map((ht) => ({ id: ht.id, name: ht.name, description: ht.description, userCount: ht.userHitlTypes?.length || 0 })),
-    );
 
     return hitlTypes;
   }
@@ -148,42 +136,51 @@ export class HitlTypesService {
     // Verificar que el tipo HITL existe
     await this.findOne(user, organizationId, hitlTypeId);
 
-    // Verificar que todos los usuarios existen y tienen rol HITL en la organización
-    for (const userId of assignUsersDto.userIds) {
-      const targetUser = await this.userRepository.findOne({
-        where: { id: userId },
-        relations: ['userOrganizations'],
-      });
+    // Obtener todos los usuarios de una sola vez para evitar N+1 queries
+    const targetUsers = await this.userRepository.find({
+      where: { id: In(assignUsersDto.userIds) },
+      relations: ['userOrganizations'],
+    });
 
-      if (!targetUser) {
-        throw new BadRequestException(`Usuario con ID ${userId} no encontrado`);
-      }
+    // Verificar que todos los usuarios existen
+    const foundUserIds = targetUsers.map((u) => u.id);
+    const missingUserIds = assignUsersDto.userIds.filter((id) => !foundUserIds.includes(id));
+    if (missingUserIds.length > 0) {
+      throw new BadRequestException(`Usuarios con IDs ${missingUserIds.join(', ')} no encontrados`);
+    }
 
+    // Verificar que todos tienen rol HITL
+    for (const targetUser of targetUsers) {
       const hasHitlRole = targetUser.userOrganizations?.some((uo) => uo.organizationId === organizationId && uo.role === OrganizationRoleType.HITL);
 
       if (!hasHitlRole) {
         throw new BadRequestException(`El usuario ${targetUser.email} no tiene rol HITL en la organización`);
       }
+    }
 
-      // Verificar si ya está asignado
-      const existingAssignment = await this.userHitlTypeRepository.findOne({
-        where: {
+    // Obtener asignaciones existentes de una sola vez
+    const existingAssignments = await this.userHitlTypeRepository.find({
+      where: {
+        user_id: In(assignUsersDto.userIds),
+        hitl_type_id: hitlTypeId,
+        organization_id: organizationId,
+      },
+    });
+
+    const existingUserIds = existingAssignments.map((assignment) => assignment.user_id);
+    const newUserIds = assignUsersDto.userIds.filter((userId) => !existingUserIds.includes(userId));
+
+    // Crear nuevas asignaciones en lote
+    if (newUserIds.length > 0) {
+      const newAssignments = newUserIds.map((userId) =>
+        this.userHitlTypeRepository.create({
           user_id: userId,
           hitl_type_id: hitlTypeId,
           organization_id: organizationId,
-        },
-      });
+        }),
+      );
 
-      if (!existingAssignment) {
-        // Crear nueva asignación
-        const userHitlType = this.userHitlTypeRepository.create({
-          user_id: userId,
-          hitl_type_id: hitlTypeId,
-          organization_id: organizationId,
-        });
-
-        await this.userHitlTypeRepository.save(userHitlType);
-      }
+      await this.userHitlTypeRepository.save(newAssignments);
     }
   }
 
@@ -213,8 +210,6 @@ export class HitlTypesService {
   }
 
   async getUsersByHitlType(organizationId: number, hitlTypeName: string): Promise<User[]> {
-    console.log(`[HITL DEBUG] getUsersByHitlType called with organizationId: ${organizationId}, hitlTypeName: ${hitlTypeName}`);
-
     const hitlType = await this.hitlTypeRepository.findOne({
       where: {
         name: hitlTypeName,
@@ -222,10 +217,7 @@ export class HitlTypesService {
       },
     });
 
-    console.log(`[HITL DEBUG] Found HITL type:`, hitlType ? { id: hitlType.id, name: hitlType.name, description: hitlType.description } : 'null');
-
     if (!hitlType) {
-      console.log(`[HITL DEBUG] No HITL type found with name ${hitlTypeName} in organization ${organizationId}`);
       return [];
     }
 
@@ -237,12 +229,7 @@ export class HitlTypesService {
       relations: ['user'],
     });
 
-    console.log(`[HITL DEBUG] Found ${userHitlTypes.length} user assignments for HITL type ${hitlTypeName}`);
     const users = userHitlTypes.map((uht) => uht.user);
-    console.log(
-      `[HITL DEBUG] Returning users:`,
-      users.map((u) => ({ id: u.id, email: u.email })),
-    );
 
     return users;
   }
