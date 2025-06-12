@@ -49,17 +49,31 @@ export class HitlTypesService {
   }
 
   async findAll(user: User, organizationId: number): Promise<HitlType[]> {
+    console.log(`[HITL DEBUG] findAll called with organizationId: ${organizationId}`);
+    console.log(
+      `[HITL DEBUG] User organizations:`,
+      user.userOrganizations?.map((uo) => ({ orgId: uo.organizationId, role: uo.role })),
+    );
+
     // Verificar que el usuario pertenece a la organización
     const belongsToOrg = user.userOrganizations?.some((uo) => uo.organizationId === organizationId);
     if (!belongsToOrg) {
+      console.log(`[HITL DEBUG] User does not belong to organization ${organizationId}`);
       throw new ForbiddenException('No tienes acceso a esta organización');
     }
 
-    return this.hitlTypeRepository.find({
+    const hitlTypes = await this.hitlTypeRepository.find({
       where: { organization_id: organizationId },
       relations: ['creator', 'userHitlTypes', 'userHitlTypes.user'],
       order: { created_at: 'DESC' },
     });
+
+    console.log(
+      `[HITL DEBUG] Found ${hitlTypes.length} HITL types in organization ${organizationId}:`,
+      hitlTypes.map((ht) => ({ id: ht.id, name: ht.name, description: ht.description, userCount: ht.userHitlTypes?.length || 0 })),
+    );
+
+    return hitlTypes;
   }
 
   async findOne(user: User, organizationId: number, id: number): Promise<HitlType> {
@@ -199,6 +213,8 @@ export class HitlTypesService {
   }
 
   async getUsersByHitlType(organizationId: number, hitlTypeName: string): Promise<User[]> {
+    console.log(`[HITL DEBUG] getUsersByHitlType called with organizationId: ${organizationId}, hitlTypeName: ${hitlTypeName}`);
+
     const hitlType = await this.hitlTypeRepository.findOne({
       where: {
         name: hitlTypeName,
@@ -206,7 +222,10 @@ export class HitlTypesService {
       },
     });
 
+    console.log(`[HITL DEBUG] Found HITL type:`, hitlType ? { id: hitlType.id, name: hitlType.name, description: hitlType.description } : 'null');
+
     if (!hitlType) {
+      console.log(`[HITL DEBUG] No HITL type found with name ${hitlTypeName} in organization ${organizationId}`);
       return [];
     }
 
@@ -218,6 +237,13 @@ export class HitlTypesService {
       relations: ['user'],
     });
 
-    return userHitlTypes.map((uht) => uht.user);
+    console.log(`[HITL DEBUG] Found ${userHitlTypes.length} user assignments for HITL type ${hitlTypeName}`);
+    const users = userHitlTypes.map((uht) => uht.user);
+    console.log(
+      `[HITL DEBUG] Returning users:`,
+      users.map((u) => ({ id: u.id, email: u.email })),
+    );
+
+    return users;
   }
 }

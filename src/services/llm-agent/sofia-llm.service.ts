@@ -108,11 +108,11 @@ export class SofiaLLMService extends BaseAgent {
     functionCallService: FunctionCallService,
     systemEventsService: SystemEventsService,
     integrationRouterService: IntegrationRouterService,
-    private hitlTypesService: HitlTypesService,
+    protected hitlTypesService: HitlTypesService,
     identifier: agentIdentifier,
     agenteConfig: AgentConfig,
   ) {
-    super(identifier, functionCallService, systemEventsService, integrationRouterService, agenteConfig);
+    super(identifier, functionCallService, systemEventsService, integrationRouterService, hitlTypesService, agenteConfig);
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -129,6 +129,7 @@ export class SofiaLLMService extends BaseAgent {
     try {
       const assistantName = `${environment}_${config.name || 'Sofia Assistant'}_${organizationName}`;
       const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
+      console.log('render HITL tools', tools);
       await this.renderHITL(true, tools, config.organizationId);
       const assistant = await this.openai.beta.assistants.create({
         name: assistantName,
@@ -457,9 +458,11 @@ export class SofiaLLMService extends BaseAgent {
   private async renderHITL(hasHitl: boolean, tools: OpenAI.Beta.Assistants.AssistantTool[], organizationId: number) {
     if (!hasHitl) return;
 
+    console.log(`[HITL DEBUG] SofiaLLM.renderHITL called for organizationId: ${organizationId}`);
+
     try {
-      // Obtener tipos HITL disponibles para la organización
-      const hitlTypes = await this.hitlTypesService.findAll({ userOrganizations: [{ organizationId, role: 'OWNER' }] } as any, organizationId);
+      // Usar método genérico de BaseAgent para obtener tipos HITL
+      const hitlTypes = await this.getHitlTypes(organizationId);
 
       const functionDescription = 'Escala la conversación a un agente humano especializado o general';
       const properties: any = {};
@@ -477,9 +480,12 @@ export class SofiaLLMService extends BaseAgent {
           description: 'Mensaje específico para el tipo de especialista seleccionado',
         };
         required.push('tipo_hitl', 'mensaje');
+        console.log(`[HITL DEBUG] SofiaLLM function defined with specific HITL types. Required params: ${required.join(', ')}`);
+      } else {
+        console.log(`[HITL DEBUG] SofiaLLM no HITL types found, using legacy function without required params`);
       }
 
-      tools.push({
+      const functionDefinition: OpenAI.Beta.Assistants.AssistantTool = {
         type: 'function',
         function: {
           name: HitlName,
@@ -490,11 +496,15 @@ export class SofiaLLMService extends BaseAgent {
             required,
           },
         },
-      });
+      };
+
+      console.log(`[HITL DEBUG] SofiaLLM final function definition:`, JSON.stringify(functionDefinition, null, 2));
+
+      tools.push(functionDefinition);
     } catch (error) {
-      console.error('Error obteniendo tipos HITL, usando función legacy:', error);
+      console.error('SofiaLLM error obteniendo tipos HITL, usando función legacy:', error);
       // Fallback: función legacy sin parámetros
-      tools.push({
+      const fallbackFunction: OpenAI.Beta.Assistants.AssistantTool = {
         type: 'function',
         function: {
           name: HitlName,
@@ -514,7 +524,9 @@ export class SofiaLLMService extends BaseAgent {
             required: [],
           },
         },
-      });
+      };
+      console.log(`[HITL DEBUG] SofiaLLM using fallback function definition:`, JSON.stringify(fallbackFunction, null, 2));
+      tools.push(fallbackFunction);
     }
   }
 

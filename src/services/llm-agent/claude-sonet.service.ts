@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Anthropic } from '@anthropic-ai/sdk';
 import { BaseAgent } from './base-agent';
-import { AgentConfig, agentIdentifier, CreateAgentConfig } from 'src/interfaces/agent';
+import { AgentConfig, agentIdentifier, CreateAgentConfig, HitlName } from 'src/interfaces/agent';
 import { Message, MessageType } from '@models/Message.entity';
 import { FunctionCallService } from '@modules/agent/function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
 import { Funcion } from '@models/agent/Function.entity';
 import { ContentBlock } from '@anthropic-ai/sdk/resources';
 
@@ -105,11 +106,12 @@ export class ClaudeSonetService extends BaseAgent {
     functionCallService: FunctionCallService,
     systemEventsService: SystemEventsService,
     integrationRouterService: IntegrationRouterService,
+    hitlTypesService: HitlTypesService,
     identifier: agentIdentifier,
     agenteConfig: AgentConfig,
     private configService: ConfigService,
   ) {
-    super(identifier, functionCallService, systemEventsService, integrationRouterService, agenteConfig);
+    super(identifier, functionCallService, systemEventsService, integrationRouterService, hitlTypesService, agenteConfig);
 
     ClaudeSonetService.configService = configService;
     const apiKey = this.configService.get<string>('CLAUDE_API_KEY');
@@ -197,7 +199,7 @@ export class ClaudeSonetService extends BaseAgent {
       });
 
       // Obtener herramientas configuradas para este agente
-      const tools =
+      let tools =
         this.agenteConfig?.funciones?.map((func) => {
           // Construir propiedades de schema
           const properties: Record<string, any> = {};
@@ -238,6 +240,15 @@ export class ClaudeSonetService extends BaseAgent {
             },
           };
         }) || [];
+
+      // Agregar herramienta HITL si está habilitada
+      if (this.organizationId) {
+        const hitlTool = await this.renderHITLForClaude(this.organizationId);
+        if (hitlTool) {
+          tools.push(hitlTool);
+        }
+      }
+
       const messagesObject = {
         messages: messages as any,
         system: this.system,
@@ -394,6 +405,83 @@ export class ClaudeSonetService extends BaseAgent {
   protected async _updateFunctions(_funciones: Funcion[], _assistantId: string, _hasKnowledgeBase: boolean, _hasHitl: boolean): Promise<void> {
     // Implementación mínima que no lanza error
     return;
+  }
+
+  /**
+   * Renderiza la función HITL específica para Claude
+   */
+  private async renderHITLForClaude(organizationId: number): Promise<any | null> {
+    console.log(`[HITL DEBUG] Claude.renderHITLForClaude called for organizationId: ${organizationId}`);
+
+    try {
+      // Usar método genérico de BaseAgent para obtener tipos HITL
+      const hitlTypes = await this.getHitlTypes(organizationId);
+
+      const properties: any = {};
+      const required: string[] = [];
+
+      if (hitlTypes && hitlTypes.length > 0) {
+        // Si hay tipos HITL, incluir parámetros específicos
+        properties.tipo_hitl = {
+          type: 'string',
+          description: `Tipo de especialista requerido. Opciones disponibles: ${hitlTypes.map((t) => `${t.name} (${t.description || 'Sin descripción'})`).join(', ')}`,
+          enum: hitlTypes.map((t) => t.name),
+        };
+        properties.mensaje = {
+          type: 'string',
+          description: 'Mensaje específico para el tipo de especialista seleccionado',
+        };
+        required.push('tipo_hitl', 'mensaje');
+        console.log(`[HITL DEBUG] Claude function defined with specific HITL types. Required params: ${required.join(', ')}`);
+      } else {
+        console.log(`[HITL DEBUG] Claude no HITL types found, using legacy function without required params`);
+        properties.tipo_hitl = {
+          type: 'string',
+          description: 'Tipo de especialista requerido (opcional)',
+        };
+        properties.mensaje = {
+          type: 'string',
+          description: 'Mensaje específico para el especialista (opcional)',
+        };
+      }
+
+      const hitlTool = {
+        name: HitlName,
+        description: 'Escala la conversación a un agente humano especializado o general',
+        input_schema: {
+          type: 'object',
+          properties,
+          required,
+        },
+      };
+
+      console.log(`[HITL DEBUG] Claude final function definition:`, JSON.stringify(hitlTool, null, 2));
+
+      return hitlTool;
+    } catch (error) {
+      console.error('Claude error obteniendo tipos HITL, usando función legacy:', error);
+      // Fallback: función legacy sin parámetros
+      const fallbackTool = {
+        name: HitlName,
+        description: 'Escala la conversación a un agente humano especializado o general',
+        input_schema: {
+          type: 'object',
+          properties: {
+            tipo_hitl: {
+              type: 'string',
+              description: 'Tipo de especialista requerido (opcional)',
+            },
+            mensaje: {
+              type: 'string',
+              description: 'Mensaje específico para el especialista (opcional)',
+            },
+          },
+          required: [],
+        },
+      };
+      console.log(`[HITL DEBUG] Claude using fallback function definition:`, JSON.stringify(fallbackTool, null, 2));
+      return fallbackTool;
+    }
   }
 
   // Implementación de métodos estáticos protegidos
