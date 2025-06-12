@@ -1,17 +1,22 @@
 import { IsEnum, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { OrganizationRoleType } from '@models/UserOrganization.entity';
+
+// Enum restringido para roles permitidos en cambio de rol
+export enum AllowedChangeRoleType {
+  USER = 'user',
+  HITL = 'hitl',
+}
 
 export class ChangeUserRoleDto {
   @ApiProperty({
-    description: 'Nuevo rol del usuario en la organización',
-    enum: OrganizationRoleType,
-    example: OrganizationRoleType.ADMIN,
-    enumName: 'OrganizationRoleType',
+    description: 'Nuevo rol del usuario en la organización (solo user o hitl)',
+    enum: AllowedChangeRoleType,
+    example: AllowedChangeRoleType.HITL,
+    enumName: 'AllowedChangeRoleType',
   })
-  @IsEnum(OrganizationRoleType, {
-    message: 'El rol debe ser uno de los siguientes: admin, hitl, supervisor, user, usr_tecnico, ing_preventa',
+  @IsEnum(AllowedChangeRoleType, {
+    message: 'El rol debe ser uno de los siguientes: user, hitl',
   })
   @IsNotEmpty({ message: 'El rol es requerido' })
-  role: OrganizationRoleType;
+  role: AllowedChangeRoleType;
 }

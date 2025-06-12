@@ -13,6 +13,7 @@ import { AgenteType } from 'src/interfaces/agent';
 import { Agente } from '@models/agent/Agente.entity';
 import { OrganizationLimitService } from './organization-limit.service';
 import { OrganizationLimit } from '@models/OrganizationLimit.entity';
+import { AllowedChangeRoleType } from '@modules/user/change-user-role.dto';
 
 @Injectable()
 export class OrganizationService {
@@ -240,10 +241,10 @@ export class OrganizationService {
    * @param currentUser Usuario que solicita el cambio (debe ser OWNER)
    * @param organizationId ID de la organización
    * @param targetUserId ID del usuario al que se le cambiará el rol
-   * @param newRole Nuevo rol a asignar
+   * @param newRole Nuevo rol a asignar (solo user o hitl)
    * @returns Usuario con rol actualizado
    */
-  async changeUserRole(currentUser: User, organizationId: number, targetUserId: number, newRole: OrganizationRoleType): Promise<UserOrganization> {
+  async changeUserRole(currentUser: User, organizationId: number, targetUserId: number, newRole: AllowedChangeRoleType): Promise<UserOrganization> {
     // Verificar que el usuario actual es OWNER de la organización
     const currentUserRole = await this.getRolInOrganization(currentUser, organizationId);
     if (currentUserRole !== OrganizationRoleType.OWNER) {
@@ -268,12 +269,10 @@ export class OrganizationService {
       throw new BadRequestException('No puedes cambiar tu propio rol de propietario');
     }
 
-    // Prevenir asignación del rol OWNER (debe hacerse mediante otro endpoint)
-    if (newRole === OrganizationRoleType.OWNER) {
-      throw new BadRequestException('No se puede asignar el rol de propietario mediante este endpoint');
-    }
+    // Convertir el rol permitido a OrganizationRoleType para la base de datos
+    const organizationRole = newRole === AllowedChangeRoleType.USER ? OrganizationRoleType.USER : OrganizationRoleType.HITL;
 
     // Actualizar el rol
-    return this.userOrganizationService.updateUserRole(targetUserId, organizationId, newRole);
+    return this.userOrganizationService.updateUserRole(targetUserId, organizationId, organizationRole);
   }
 }
