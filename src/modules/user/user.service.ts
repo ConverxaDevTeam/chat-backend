@@ -29,9 +29,6 @@ export class UserService {
         id: true,
         is_super_admin: true,
         email: true,
-        userOrganizations: {
-          role: true,
-        },
       },
       relations: ['userOrganizations'],
       where: { id: userId },
@@ -271,7 +268,7 @@ export class UserService {
   private async updateUserPassword(userId: number, newPassword: string) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     const result = await this.userRepository.update(userId, { password: hashedPassword });
-  
+
     if (result.affected === 0) {
       throw new NotFoundException('Usuario no encontrado');
     }
