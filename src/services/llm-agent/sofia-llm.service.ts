@@ -131,6 +131,7 @@ export class SofiaLLMService extends BaseAgent {
       const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
       console.log('render HITL tools', tools);
       await this.renderHITL(true, tools, config.organizationId);
+      this.renderSaveUserInfoForOpenAI(tools);
       const assistant = await this.openai.beta.assistants.create({
         name: assistantName,
         instructions: config.instruccion,
@@ -444,6 +445,7 @@ export class SofiaLLMService extends BaseAgent {
     if (hasKnowledgeBase) tools.push({ type: 'file_search' });
     const organizationId = this.agenteConfig?.organizationId || 1; // Fallback a organización por defecto
     await this.renderHITL(hasHitl, tools, organizationId);
+    this.renderSaveUserInfoForOpenAI(tools);
     try {
       console.log('Updating functions...');
       await this.openai.beta.assistants.update(assistantId, {
@@ -528,6 +530,17 @@ export class SofiaLLMService extends BaseAgent {
       console.log(`[HITL DEBUG] SofiaLLM using fallback function definition:`, JSON.stringify(fallbackFunction, null, 2));
       tools.push(fallbackFunction);
     }
+  }
+
+  private renderSaveUserInfoForOpenAI(tools: OpenAI.Beta.Assistants.AssistantTool[]) {
+    const functionDefinition = this.renderSaveUserInfo();
+
+    const openAIFunction: OpenAI.Beta.Assistants.AssistantTool = {
+      type: 'function',
+      function: functionDefinition,
+    };
+
+    tools.push(openAIFunction);
   }
 
   public static async createVectorStore(agentId: number): Promise<string> {

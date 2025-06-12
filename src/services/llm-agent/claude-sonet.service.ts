@@ -199,7 +199,7 @@ export class ClaudeSonetService extends BaseAgent {
       });
 
       // Obtener herramientas configuradas para este agente
-      let tools =
+      const tools =
         this.agenteConfig?.funciones?.map((func) => {
           // Construir propiedades de schema
           const properties: Record<string, any> = {};
@@ -248,6 +248,10 @@ export class ClaudeSonetService extends BaseAgent {
           tools.push(hitlTool);
         }
       }
+
+      // Agregar herramienta para guardar información del usuario
+      const saveUserInfoTool = this.renderSaveUserInfoForClaude();
+      tools.push(saveUserInfoTool);
 
       const messagesObject = {
         messages: messages as any,
@@ -584,5 +588,18 @@ export class ClaudeSonetService extends BaseAgent {
       console.error('Error al generar contenido con Claude:', error);
       throw error;
     }
+  }
+
+  /**
+   * Renderiza la función sofia__save_user_info específica para Claude
+   */
+  private renderSaveUserInfoForClaude(): any {
+    const functionDefinition = this.renderSaveUserInfo();
+
+    return {
+      name: functionDefinition.name,
+      description: functionDefinition.description,
+      input_schema: functionDefinition.parameters,
+    };
   }
 }

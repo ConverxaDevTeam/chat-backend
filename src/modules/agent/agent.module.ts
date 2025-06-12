@@ -12,6 +12,7 @@ import { IntegrationRouterModule } from '@modules/integration-router/integration
 import { VoyageModule } from '@modules/agent-knowledgebase/voyage.module';
 import { AgentKnowledgebaseModule } from '@modules/agent-knowledgebase/agent-knowledgebase.module';
 import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
+import { ChatUserModule } from '@modules/chat-user/chat-user.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
     forwardRef(() => IntegrationRouterModule),
     AgentKnowledgebaseModule,
     HitlTypesModule,
+    ChatUserModule,
   ],
   providers: [AgentService, FunctionCallService],
   exports: [AgentService, FunctionCallService],

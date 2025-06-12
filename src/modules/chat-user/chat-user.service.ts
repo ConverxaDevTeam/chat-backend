@@ -1,8 +1,9 @@
 import { Repository } from 'typeorm';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ChatUser, ChatUserType } from '@models/ChatUser.entity';
 import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
+import { ChatUserDataService } from '@modules/chat-user-data/chat-user-data.service';
 
 @Injectable()
 export class ChatUserService {
@@ -11,6 +12,7 @@ export class ChatUserService {
   constructor(
     @InjectRepository(ChatUser)
     private readonly chatUserRepository: Repository<ChatUser>,
+    private readonly chatUserDataService: ChatUserDataService,
   ) {}
 
   async findByIdWithSecret(id: number): Promise<string | null> {
@@ -79,5 +81,67 @@ export class ChatUserService {
   async findByIdentifiedId(identified: string): Promise<ChatUser | null> {
     const chatUser = await this.chatUserRepository.findOne({ where: { identified: identified } });
     return chatUser;
+  }
+
+  async updateUserInfo(chatUserId: number, field: string, value: string): Promise<ChatUser> {
+    const chatUser = await this.chatUserRepository.findOne({ where: { id: chatUserId } });
+    if (!chatUser) {
+      throw new BadRequestException(`ChatUser con ID ${chatUserId} no encontrado`);
+    }
+
+    // Campos estándar que se pueden actualizar directamente
+    const standardFields = ['name', 'email', 'phone', 'address', 'avatar'];
+
+    if (standardFields.includes(field)) {
+      // Validaciones específicas
+      if (field === 'email' && value) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) {
+          throw new BadRequestException('El formato del email no es válido');
+        }
+      }
+
+      if (field === 'phone' && value) {
+        // Normalizar teléfono (remover caracteres no numéricos excepto +)
+        value = value.replace(/[^\d+]/g, '');
+      }
+
+      chatUser[field] = value.trim();
+      return await this.chatUserRepository.save(chatUser);
+    } else {
+      throw new BadRequestException(`El campo '${field}' no es un campo estándar válido`);
+    }
+  }
+
+  async saveCustomUserData(chatUserId: number, key: string, value: string): Promise<void> {
+    await this.chatUserDataService.createOrUpdate(chatUserId, key, value);
+  }
+
+  async getUserCompleteInfo(chatUserId: number): Promise<{
+    standardInfo: Partial<ChatUser>;
+    customData: Record<string, string>;
+  }> {
+    const chatUser = await this.chatUserRepository.findOne({
+      where: { id: chatUserId },
+      select: ['id', 'name', 'email', 'phone', 'address', 'avatar'],
+    });
+
+    if (!chatUser) {
+      throw new BadRequestException(`ChatUser con ID ${chatUserId} no encontrado`);
+    }
+
+    const customDataArray = await this.chatUserDataService.findAllByUser(chatUserId);
+    const customData = customDataArray.reduce(
+      (acc, item) => {
+        acc[item.key] = item.value;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+
+    return {
+      standardInfo: chatUser,
+      customData,
+    };
   }
 }

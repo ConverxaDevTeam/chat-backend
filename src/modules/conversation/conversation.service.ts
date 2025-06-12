@@ -15,6 +15,7 @@ import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 import { NotificationStatus } from '@models/notification.entity';
 import { Notification } from '@models/notification.entity';
 import { OrganizationLimitService } from '@modules/organization/organization-limit.service';
+import { OrganizationRoleType } from '@models/UserOrganization.entity';
 
 @Injectable()
 export class ConversationService {
@@ -171,7 +172,7 @@ export class ConversationService {
             .select(
               `
             m."conversationId",
-            CASE 
+            CASE
               WHEN lh.last_staff_date IS NULL THEN 0
               ELSE COUNT(m.id)
             END as unread_count
@@ -198,6 +199,11 @@ export class ConversationService {
       .innerJoin('Organizations', 'o', 'o.id = d.organization_id')
       .innerJoin('ChatUsers', 'cu', 'cu.id = c."chatUserId"')
       .where('o.id = :organizationId', { organizationId });
+
+    // Restricción específica para usuarios HITL: solo ven conversaciones asignadas a ellos
+    if (userOrganization.role === OrganizationRoleType.HITL) {
+      queryBuilder.andWhere('c."userId" = :userId', { userId: user.id });
+    }
 
     if (searchParams?.conversationId) {
       queryBuilder.andWhere('c.id = :conversationId', { conversationId: searchParams.conversationId });
