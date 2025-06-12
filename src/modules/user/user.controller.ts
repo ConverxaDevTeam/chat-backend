@@ -144,6 +144,31 @@ export class UserController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Elimina un usuario de una organización. Solo superadmin o owner de la organización pueden hacerlo. Si el usuario queda sin roles, se elimina completamente.',
+  })
+  @ApiBearerAuth()
+  @Delete('organization/:organizationId/user/:userId')
+  async removeUserFromOrganization(@Param('userId') userId: number, @Param('organizationId') organizationId: number, @GetUser() user: User) {
+    // Validar permisos: solo superadmin o owner de la organización
+    if (!user.is_super_admin) {
+      const userRole = await this.organizationService.getRolInOrganization(user, organizationId);
+
+      if (userRole !== OrganizationRoleType.OWNER) {
+        throw new ForbiddenException('Solo el propietario de la organización o un superadministrador pueden eliminar usuarios de esta organización');
+      }
+    }
+
+    // Ejecutar eliminación
+    const result = await this.userService.removeUserFromOrganization(userId, organizationId);
+
+    return {
+      ok: true,
+      ...result,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cambiar password del usuario' })
   @ApiBearerAuth()
   @Post('change-password')
