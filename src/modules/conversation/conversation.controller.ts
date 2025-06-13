@@ -2,10 +2,13 @@ import { Controller, Get, Param, UseGuards, Post, Query, Delete } from '@nestjs/
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ConversationService } from './conversation.service';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 import { User } from '@models/User.entity';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { ParseIntPipe } from '@nestjs/common';
 import { SearchConversationDto } from './dto/search-conversation.dto';
+import { Roles } from '@infrastructure/decorators/role-protected.decorator';
+import { OrganizationRoleType } from '@models/UserOrganization.entity';
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
@@ -16,6 +19,8 @@ export class ConversationController {
 
   @ApiOperation({ summary: 'get conversations by organization id' })
   @Get('organization/:organizationId')
+  @UseGuards(JwtAuthRolesGuard)
+  @Roles(OrganizationRoleType.HITL, OrganizationRoleType.OWNER, OrganizationRoleType.USER)
   async getConversationsByOrganizationId(@GetUser() user: User, @Param('organizationId', ParseIntPipe) organizationId: number, @Query() searchParams: SearchConversationDto) {
     const conversations = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user, searchParams);
     return { ok: true, conversations };

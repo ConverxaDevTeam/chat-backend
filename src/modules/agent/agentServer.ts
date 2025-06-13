@@ -14,6 +14,7 @@ import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
 import { FunctionCallService } from './function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
 import { FileService } from '../file/file.service'; // Correct import path
 import { InputType, VoyageService } from '../agent-knowledgebase/voyage.service'; // Correct import path
 import { VectorStoreService } from '../agent-knowledgebase/vector-store.service'; // Correct import path
@@ -96,6 +97,7 @@ export class AgentService {
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly hitlTypesService: HitlTypesService,
     private readonly configService: ConfigService,
   ) {
     this.agentServiceFactory = {
@@ -104,10 +106,10 @@ export class AgentService {
         if (!config.DBagentId) {
           throw new Error('DBagentId debe estar definido cuando se crea SofiaLLMService');
         }
-        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
+        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
       },
       [AgenteType.CLAUDE]: (identifier, config) =>
-        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config, this.configService),
+        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config, this.configService),
     };
   }
 
@@ -118,7 +120,6 @@ export class AgentService {
    */
   async getAgentResponse(props: getAgentResponseProps): Promise<AgentResponse | null> {
     const { message, identifier, agentId, conversationId, images, chatUserId, userId } = props;
-    console.time('configure-agent');
     let agenteConfig: AgentConfig | null = null;
     if ([AgentIdentifierType.CHAT, AgentIdentifierType.CHAT_TEST, AgentIdentifierType.TEST].includes(identifier.type)) {
       const queryBuilder = this.agenteRepository
@@ -183,7 +184,6 @@ export class AgentService {
     }
 
     const llmService = createAgentService(identifier, agenteConfig);
-    console.timeEnd('configure-agent');
     const response = await llmService.response(message, conversationId, images, chatUserId);
     if (response === '') return null;
 
@@ -309,10 +309,6 @@ export class AgentService {
 
       // Mostrar documentos relevantes en consola
       if (top3Documents.length > 0) {
-        console.log('Documentos relevantes:');
-        top3Documents.forEach((doc) => {
-          console.log(`Texto: "${doc.content.substring(0, 100)}..."`);
-        });
       }
 
       return context;
@@ -339,8 +335,6 @@ export class AgentService {
     let currentIndex = 0;
 
     const extractTextPromises = fileIds.map(async (fileId) => {
-      const filePath = `uploads/organizations/${organizationId}/files/${fileId}`;
-      console.log(`Procesando archivo: ${filePath}`);
       const text = await this.fileService.findAndExtractText(`uploads/organizations/${organizationId}/files`, fileId);
       const paragraphs = this.fileService.splitTextIntoParagraphs(text);
 
@@ -353,7 +347,6 @@ export class AgentService {
     await Promise.all(extractTextPromises);
 
     const allEmbeddings = await this.voyageService.getEmbedding(allParagraphs, InputType.Document);
-    console.log('Total embeddings generados:', allEmbeddings.length);
 
     // Guardar los documentos con sus embeddings en la base de datos si se proporciona un agentId
     if (agentId) {

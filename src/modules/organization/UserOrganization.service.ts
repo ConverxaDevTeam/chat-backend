@@ -63,4 +63,21 @@ export class UserOrganizationService {
     });
     return userOrganization;
   }
+
+  async updateUserRole(userId: number, organizationId: number, newRole: OrganizationRoleType): Promise<UserOrganization> {
+    const userOrganization = await this.userOrganizationRepository.findOne({
+      where: {
+        user: { id: userId },
+        organization: { id: organizationId },
+      },
+      relations: ['user', 'organization'],
+    });
+
+    if (!userOrganization) {
+      throw new NotFoundException('El usuario no pertenece a esta organización');
+    }
+
+    userOrganization.role = newRole;
+    return this.userOrganizationRepository.save(userOrganization);
+  }
 }

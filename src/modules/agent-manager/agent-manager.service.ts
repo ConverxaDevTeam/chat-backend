@@ -1,4 +1,5 @@
 import { forwardRef, Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { OnEvent } from '@nestjs/event-emitter';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
@@ -14,6 +15,8 @@ import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
 import { ClaudeSonetService } from 'src/services/llm-agent/claude-sonet.service';
 import { BaseAgent } from 'src/services/llm-agent/base-agent';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
+import { HitlEventType, HitlEvent } from 'src/interfaces/hitl-events';
 
 // Tipos para las configuraciones de agentes
 type SofiaAgente = Agente<SofiaLLMConfig>;
@@ -35,6 +38,7 @@ export class AgentManagerService {
     private readonly functionCallService: FunctionCallService,
     private readonly systemEventsService: SystemEventsService,
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly hitlTypesService: HitlTypesService,
     private readonly configService: ConfigService,
   ) {
     this.agentServiceFactory = {
@@ -43,10 +47,10 @@ export class AgentManagerService {
         if (!config.DBagentId) {
           throw new Error('DBagentId debe estar definido cuando se crea SofiaLLMService');
         }
-        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config);
+        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
       },
       [AgenteType.CLAUDE]: (identifier, config) =>
-        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, identifier, config, this.configService),
+        new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config, this.configService),
     };
   }
 
@@ -259,10 +263,97 @@ export class AgentManagerService {
       this.functionCallService,
       this.systemEventsService,
       this.integrationRouterService,
+      this.hitlTypesService,
       { type: AgentIdentifierType.CHAT, agentId },
       { agentId, organizationId, DBagentId },
     );
     return llmService.updateFunctions(functions, agentId, hasVectorStore, canEscalateToHuman);
+  }
+
+  async updateAgentAfterHitlChange(organizationId: number): Promise<void> {
+    try {
+      // Buscar TODOS los agentes asociados a la organización (uno por departamento)
+      const agentes = await this.agenteRepository.find({
+        where: {
+          departamento: {
+            organizacion: {
+              id: organizationId,
+            },
+          },
+        },
+        relations: ['funciones', 'departamento', 'departamento.organizacion'],
+      });
+
+      if (!agentes || agentes.length === 0) {
+        console.log(`No se encontraron agentes para la organización ${organizationId}`);
+        return;
+      }
+
+      console.log(`[HITL UPDATE] Actualizando ${agentes.length} agentes para organización ${organizationId}`);
+
+      // Actualizar funciones de TODOS los agentes de la organización
+      for (const agente of agentes) {
+        if (!agente.config?.agentId) {
+          console.log(`[HITL UPDATE] Agente ${agente.id} del departamento "${agente.departamento.name}" no tiene agentId configurado, saltando`);
+          continue;
+        }
+
+        console.log(`[HITL UPDATE] Actualizando agente ${agente.id} del departamento "${agente.departamento.name}"`);
+
+        try {
+          await this.updateFunctions(
+            agente.funciones || [],
+            agente.config.agentId as string,
+            !!agente.config.vectorStoreId,
+            agente.canEscalateToHuman || false,
+            organizationId,
+            agente.id,
+          );
+          console.log(`[HITL UPDATE] ✅ Agente ${agente.id} actualizado correctamente`);
+        } catch (agentError) {
+          console.error(`[HITL UPDATE] ❌ Error actualizando agente ${agente.id} del departamento "${agente.departamento.name}":`, agentError);
+          // Continuamos con el siguiente agente aunque uno falle
+        }
+      }
+
+      console.log(`[HITL UPDATE] Finalizada actualización de agentes para organización ${organizationId}`);
+    } catch (error) {
+      console.error(`[HITL UPDATE] Error general actualizando agentes para organización ${organizationId}:`, error);
+      // No lanzamos el error para no afectar el flujo principal
+    }
+  }
+
+  /**
+   * Event listeners para cambios en tipos HITL
+   */
+  @OnEvent(HitlEventType.TYPE_CREATED)
+  async handleHitlTypeCreated(event: HitlEvent): Promise<void> {
+    console.log(`[HITL EVENT] Tipo HITL creado: ${event.hitlTypeName} en organización ${event.organizationId}`);
+    await this.updateAgentAfterHitlChange(event.organizationId);
+  }
+
+  @OnEvent(HitlEventType.TYPE_UPDATED)
+  async handleHitlTypeUpdated(event: HitlEvent): Promise<void> {
+    console.log(`[HITL EVENT] Tipo HITL actualizado: ${event.hitlTypeName} en organización ${event.organizationId}`);
+    await this.updateAgentAfterHitlChange(event.organizationId);
+  }
+
+  @OnEvent(HitlEventType.TYPE_DELETED)
+  async handleHitlTypeDeleted(event: HitlEvent): Promise<void> {
+    console.log(`[HITL EVENT] Tipo HITL eliminado: ${event.hitlTypeName} en organización ${event.organizationId}`);
+    await this.updateAgentAfterHitlChange(event.organizationId);
+  }
+
+  @OnEvent(HitlEventType.USER_ASSIGNED)
+  async handleHitlUserAssigned(event: HitlEvent): Promise<void> {
+    console.log(`[HITL EVENT] Usuario ${event.userId} asignado al tipo HITL: ${event.hitlTypeName} en organización ${event.organizationId}`);
+    await this.updateAgentAfterHitlChange(event.organizationId);
+  }
+
+  @OnEvent(HitlEventType.USER_REMOVED)
+  async handleHitlUserRemoved(event: HitlEvent): Promise<void> {
+    console.log(`[HITL EVENT] Usuario ${event.userId} removido del tipo HITL: ${event.hitlTypeName} en organización ${event.organizationId}`);
+    await this.updateAgentAfterHitlChange(event.organizationId);
   }
 
   async getAudioText(audioName: string) {

@@ -5,6 +5,8 @@ import { SystemEventsService } from '../../modules/system-events/system-events.s
 import { EventType } from '@models/SystemEvent.entity';
 import { ConversationType } from '@models/Conversation.entity';
 import { IntegrationRouterService } from '../../modules/integration-router/integration.router.service';
+import { HitlTypesService } from '../../modules/hitl-types/hitl-types.service';
+import { HitlType } from '@models/HitlType.entity';
 
 export abstract class BaseAgent {
   protected threadId: string | null = null;
@@ -17,6 +19,7 @@ export abstract class BaseAgent {
     protected functionCallService: FunctionCallService,
     protected systemEventsService: SystemEventsService,
     protected integrationRouterService: IntegrationRouterService,
+    protected hitlTypesService: HitlTypesService,
     protected agenteConfig?: AgentConfig,
   ) {
     if (!this.agenteConfig) return;
@@ -74,7 +77,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _getAudioText(audioName: string): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _getAudioText(_audioName: string): Promise<any> {
     throw new Error('Method not implemented');
   }
 
@@ -82,7 +86,8 @@ export abstract class BaseAgent {
     return this._getAudioText(audioName);
   }
 
-  protected static async _textToAudio(text: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _textToAudio(_text: string): Promise<string> {
     throw new Error('Method not implemented');
   }
 
@@ -114,7 +119,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _createVectorStore(agentId: number): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _createVectorStore(_agentId: number): Promise<string> {
     throw new Error('Method not implemented');
   }
 
@@ -149,7 +155,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _uploadFileToVectorStore(file: any, vectorStoreId: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _uploadFileToVectorStore(_file: any, _vectorStoreId: string): Promise<string> {
     throw new Error('Method not implemented');
   }
 
@@ -183,7 +190,8 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _deleteFileFromVectorStore(fileId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _deleteFileFromVectorStore(_fileId: string): Promise<void> {
     throw new Error('Method not implemented');
   }
 
@@ -210,7 +218,13 @@ export abstract class BaseAgent {
     }
   }
 
-  protected static async _deleteVectorStore(vectorStoreId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _deleteVectorStore(_vectorStoreId: string): Promise<void> {
+    throw new Error('Method not implemented');
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _updateVectorStore(_vectorStoreId: string): Promise<any> {
     throw new Error('Method not implemented');
   }
 
@@ -218,7 +232,8 @@ export abstract class BaseAgent {
     return this._listVectorStoreFiles(vectorStoreId);
   }
 
-  protected static async _listVectorStoreFiles(vectorStoreId: string): Promise<string[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected static async _listVectorStoreFiles(_vectorStoreId: string): Promise<string[]> {
     throw new Error('Method not implemented');
   }
 
@@ -253,9 +268,12 @@ export abstract class BaseAgent {
   }
 
   protected static async _updateAssistantToolResources(
-    assistantId: string,
-    vectorStoreId: string | null,
-    updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _assistantId: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _vectorStoreId: string | null,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _updateToolFunction: { add: boolean; funciones: Funcion[]; hitl: boolean },
   ): Promise<void> {
     throw new Error('Method not implemented');
   }
@@ -352,6 +370,26 @@ export abstract class BaseAgent {
   protected abstract _updateAgent(config: CreateAgentConfig, assistantId: string): Promise<void>;
   protected abstract _updateFunctions(funciones: Funcion[], assistantId: string, hasKnowledgeBase: boolean, hasHitl: boolean): Promise<void>;
 
+  /**
+   * Obtiene los tipos HITL disponibles para la organización
+   * Método genérico que debe ser usado por todos los agentes
+   */
+  protected async getHitlTypes(organizationId: number): Promise<HitlType[]> {
+    try {
+      // Crear un usuario mock con permisos OWNER para obtener todos los tipos HITL
+      const mockUser = {
+        userOrganizations: [{ organizationId, role: 'OWNER' }],
+      } as any;
+
+      const hitlTypes = await this.hitlTypesService.findAll(mockUser, organizationId);
+
+      return hitlTypes;
+    } catch (error) {
+      console.error('Error getting HITL types in BaseAgent:', error);
+      return [];
+    }
+  }
+
   protected async addMessageToThread(message: string, images?: string[]): Promise<void> {
     return this._addMessageToThread(message, images);
   }
@@ -373,5 +411,30 @@ export abstract class BaseAgent {
       conversationId,
     });
     return threadId;
+  }
+
+  /**
+   * Renderiza la función sofia__save_user_info para guardar información del usuario
+   * Método genérico que debe ser usado por todos los agentes
+   */
+  protected renderSaveUserInfo(): any {
+    return {
+      name: 'sofia__save_user_info',
+      description: 'Guarda información personal del usuario durante la conversación. Usar solo cuando el usuario proporcione información voluntariamente.',
+      parameters: {
+        type: 'object',
+        properties: {
+          campo: {
+            type: 'string',
+            description: 'Nombre del campo a guardar (ej: "name", "email", "phone", "address", "empresa", "edad", etc.)',
+          },
+          valor: {
+            type: 'string',
+            description: 'Valor a almacenar para el campo especificado',
+          },
+        },
+        required: ['campo', 'valor'],
+      },
+    };
   }
 }
