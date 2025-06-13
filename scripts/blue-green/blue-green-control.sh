@@ -180,7 +180,7 @@ deploy_to_slot() {
     # Construir nueva imagen si es necesario
     log_info "Construyendo imagen Docker..."
     cd "$PROJECT_DIR"
-    docker build -t "sofia-chat-backend:$image_tag" .
+    docker build --no-cache -t "sofia-chat-backend:$image_tag" .
 
     # Iniciar nuevo contenedor
     log_info "Iniciando contenedor $container_name en puerto $port..."
