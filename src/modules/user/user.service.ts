@@ -25,13 +25,13 @@ export class UserService {
 
   async findById(userId: number): Promise<User> {
     const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['userOrganizations'],
       select: {
         id: true,
         is_super_admin: true,
         email: true,
       },
-      relations: ['userOrganizations'],
-      where: { id: userId },
     });
     if (!user) {
       throw new NotFoundException('El usuario no existe.');
@@ -414,5 +414,23 @@ export class UserService {
       roleDeleted: true,
       message,
     };
+  }
+
+  /**
+   * Obtiene todos los usuarios de una organización con sus roles
+   * @param organizationId ID de la organización
+   * @returns Lista de usuarios con sus roles en la organización
+   */
+  async getUsersByOrganizationId(organizationId: number): Promise<UserOrganization[]> {
+    return this.userOrganizationRepository.find({
+      where: {
+        organization: { id: organizationId },
+      },
+      relations: ['user'],
+      order: {
+        role: 'ASC',
+        user: { email: 'ASC' },
+      },
+    });
   }
 }

@@ -54,7 +54,6 @@ export class AgentKnowledgebaseController {
   })
   async create(@Param('agentId', ParseIntPipe) agentId: number, @UploadedFiles() files: Array<Express.Multer.File>) {
     if (!files || files.length === 0) {
-      console.log('No files received');
       throw new BadRequestException('No files uploaded');
     }
 

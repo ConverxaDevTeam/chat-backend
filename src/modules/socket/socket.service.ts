@@ -8,9 +8,9 @@ import { Message, MessageFormatType, MessageType } from '@models/Message.entity'
 import { NotificationMessage, NotificationType } from 'src/interfaces/notifications.interface';
 import { MessageService } from '@modules/message/message.service';
 import { Conversation, ConversationType } from '@models/Conversation.entity';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { UserOrganization } from '@models/UserOrganization.entity';
+import { UserOrganization, OrganizationRoleType } from '@models/UserOrganization.entity';
 import { MessagerService } from '@modules/facebook/messager.service';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
@@ -225,11 +225,56 @@ export class SocketService {
       message: string;
       data: {
         conversationId: number;
+        hitlType?: string;
       };
     },
   ) {
     const listRonnOrganization = await this.countClientInRoom(`organization-${organizationId}`);
-    for (const clientId of listRonnOrganization) {
+
+    // Convertir Set a Array y obtener datos de clientes conectados
+    const clientIds = Array.from(listRonnOrganization);
+    const connectedClientsData = clientIds
+      .map((clientId) => this.connectedClients.getClientById(clientId))
+      .filter((clientData): clientData is NonNullable<typeof clientData> => clientData !== null);
+
+    // Si no hay clientes conectados, salir temprano
+    if (connectedClientsData.length === 0) {
+      return;
+    }
+
+    // Obtener userIds únicos
+    const userIds = [...new Set(connectedClientsData.map((clientData) => clientData.userId))];
+
+    // Obtener todos los roles de usuarios en una sola consulta
+    const userOrganizations = await this.userOrganizationRepository.find({
+      where: {
+        user: { id: In(userIds) },
+        organizationId: organizationId,
+      },
+      relations: ['user'],
+    });
+
+    // Crear mapa de userId -> role para búsqueda rápida
+    const userRoleMap = new Map<number, OrganizationRoleType>();
+    userOrganizations.forEach((userOrg) => {
+      userRoleMap.set(userOrg.user.id, userOrg.role);
+    });
+
+    // Enviar notificaciones a clientes filtrados
+    for (const clientId of clientIds) {
+      const clientData = this.connectedClients.getClientById(clientId);
+
+      if (clientData) {
+        const userRole = userRoleMap.get(clientData.userId);
+
+        // Si el usuario es HITL y la notificación es escalamiento general (sin usuario específico),
+        // no enviar la notificación (consistente con filtro de DB)
+        if (userRole === OrganizationRoleType.HITL) {
+          console.log(`[SOCKET FILTER] No enviando notificación de escalamiento general a usuario HITL ${clientData.userId}`);
+          continue;
+        }
+      }
+
       this.socketServer.to(clientId).emit('notification', event);
     }
   }

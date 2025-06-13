@@ -18,7 +18,7 @@ export class ClientMap {
 
   public getClientsByUserId(userId: number): ClientData[] {
     const clientsWithUserId: ClientData[] = [];
-    for (const [_, clientData] of this.connectedClients) {
+    for (const [, clientData] of this.connectedClients) {
       if (clientData.userId === userId) {
         clientsWithUserId.push(clientData);
       }
