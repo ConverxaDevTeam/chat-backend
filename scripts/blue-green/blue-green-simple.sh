@@ -54,15 +54,15 @@ is_container_running() {
 update_nginx_config() {
     local target_color="$1"
     local target_port=""
-    
+
     if [ "$target_color" = "blue" ]; then
         target_port="3001"
     else
         target_port="3002"
     fi
-    
+
     log "Actualizando configuración de nginx para $target_color (puerto $target_port)..."
-    
+
     # Usar el script de actualización de producción
     if [ -f "/opt/sofia-chat/scripts/update-prod-config.sh" ]; then
         /opt/sofia-chat/scripts/update-prod-config.sh "$target_color" || {
@@ -78,13 +78,13 @@ update_nginx_config() {
 backup_state() {
     local backup_file="$PROJECT_DIR/.blue-green-backup"
     local current_state=$(get_current_state)
-    
+
     log "Creando backup del estado actual y base de datos..."
-    
+
     # Remover backup anterior si existe
     rm -f "$backup_file"
     rm -f "$PROJECT_DIR/db-backup.sql"
-    
+
     # Backup de estado
     cat > "$backup_file" << EOF
 TIMESTAMP=$(date)
@@ -95,18 +95,18 @@ EOF
 
     # Backup de base de datos usando variables del archivo .env
     local db_backup_file="$PROJECT_DIR/db-backup.sql"
-    
+
     if [ -f "$PROJECT_DIR/.env" ]; then
         log "Cargando variables de entorno desde .env..."
-        
+
         # Cargar variables de base de datos desde .env
         export $(grep -E '^TYPEORM_(HOST|PORT|USERNAME|PASSWORD|DB_NAME)=' "$PROJECT_DIR/.env" | xargs)
-        
+
         if [ -n "$TYPEORM_HOST" ] && [ -n "$TYPEORM_USERNAME" ] && [ -n "$TYPEORM_DB_NAME" ]; then
             log "Creando backup de base de datos desde $TYPEORM_HOST..."
             log "Base de datos: $TYPEORM_DB_NAME"
             log "Usuario: $TYPEORM_USERNAME"
-            
+
             # Crear backup usando pg_dump
             PGPASSWORD="$TYPEORM_PASSWORD" pg_dump \
                 -h "$TYPEORM_HOST" \
@@ -114,7 +114,7 @@ EOF
                 -U "$TYPEORM_USERNAME" \
                 -d "$TYPEORM_DB_NAME" \
                 > "$db_backup_file" 2>/dev/null
-            
+
             if [ $? -eq 0 ] && [ -s "$db_backup_file" ]; then
                 log "✅ Backup de DB guardado exitosamente en: $db_backup_file"
                 local backup_size=$(du -h "$db_backup_file" | cut -f1)
@@ -127,39 +127,39 @@ EOF
         else
             warn "❌ Variables de base de datos incompletas en .env"
         fi
-        
+
         # Limpiar variables de entorno
         unset TYPEORM_HOST TYPEORM_PORT TYPEORM_USERNAME TYPEORM_PASSWORD TYPEORM_DB_NAME
     else
         warn "❌ Archivo .env no encontrado - saltando backup de DB"
     fi
-    
+
     log "✅ Backup de estado guardado en: $backup_file"
 }
 
 # Restaurar base de datos desde backup
 restore_database() {
     local db_backup_file="$PROJECT_DIR/db-backup.sql"
-    
+
     if [ ! -f "$db_backup_file" ]; then
         error "❌ Archivo de backup no encontrado: $db_backup_file"
     fi
-    
+
     if [ ! -f "$PROJECT_DIR/.env" ]; then
         error "❌ Archivo .env no encontrado"
     fi
-    
+
     warn "⚠️  ADVERTENCIA: Esto sobrescribirá la base de datos actual"
     log "Archivo de backup: $db_backup_file"
-    
+
     # Cargar variables de base de datos desde .env
     export $(grep -E '^TYPEORM_(HOST|PORT|USERNAME|PASSWORD|DB_NAME)=' "$PROJECT_DIR/.env" | xargs)
-    
+
     if [ -n "$TYPEORM_HOST" ] && [ -n "$TYPEORM_USERNAME" ] && [ -n "$TYPEORM_DB_NAME" ]; then
         log "Restaurando base de datos en $TYPEORM_HOST..."
         log "Base de datos: $TYPEORM_DB_NAME"
         log "Usuario: $TYPEORM_USERNAME"
-        
+
         # Restaurar usando psql
         PGPASSWORD="$TYPEORM_PASSWORD" psql \
             -h "$TYPEORM_HOST" \
@@ -167,7 +167,7 @@ restore_database() {
             -U "$TYPEORM_USERNAME" \
             -d "$TYPEORM_DB_NAME" \
             < "$db_backup_file" 2>/dev/null
-        
+
         if [ $? -eq 0 ]; then
             log "✅ Base de datos restaurada exitosamente"
         else
@@ -176,7 +176,7 @@ restore_database() {
     else
         error "❌ Variables de base de datos incompletas en .env"
     fi
-    
+
     # Limpiar variables de entorno
     unset TYPEORM_HOST TYPEORM_PORT TYPEORM_USERNAME TYPEORM_PASSWORD TYPEORM_DB_NAME
 }
@@ -209,7 +209,7 @@ health_check() {
                 return 0
             fi
         fi
-        
+
         echo -n "."
         sleep 2
         attempt=$((attempt + 1))
@@ -221,28 +221,28 @@ health_check() {
 # Mostrar estado actual
 show_status() {
     local current_state=$(get_current_state)
-    
+
     echo "=================================="
     echo "   ESTADO BLUE-GREEN DEPLOYMENT"
     echo "=================================="
     echo "Estado actual: $current_state"
     echo ""
-    
+
     # Verificar contenedores
     if is_container_running "sofia-chat-backend-blue"; then
         echo "🔵 Blue (puerto 3001): RUNNING"
     else
         echo "🔵 Blue (puerto 3001): STOPPED"
     fi
-    
+
     if is_container_running "sofia-chat-backend-green"; then
         echo "🟢 Green (puerto 3002): RUNNING"
     else
         echo "🟢 Green (puerto 3002): STOPPED"
     fi
-    
+
     echo "🗄️  Database: External PostgreSQL (not managed)"
-    
+
     echo "=================================="
 }
 
@@ -250,33 +250,40 @@ show_status() {
 deploy() {
     local current_state=$(get_current_state)
     local target_slot=""
-    
+
     # Determinar slot objetivo
     if [ "$current_state" = "blue" ]; then
         target_slot="green"
     else
         target_slot="blue"
     fi
-    
+
     log "Desplegando a slot: $target_slot"
     log "Slot actual en producción: $current_state"
-    
+
     cd "$PROJECT_DIR"
-    
+
     log "DEBUG: Verificando archivos docker-compose..."
     ls -la docker-compose*.yml
-    
+
     log "DEBUG: Verificando servicios disponibles..."
     AVAILABLE_SERVICES=$($DOCKER_COMPOSE config --services)
     echo "Servicios disponibles: $AVAILABLE_SERVICES"
-    
 
-    
-    # Build de la nueva imagen
+
+
+    # Detener y remover contenedor existente si está corriendo
+    if is_container_running "sofia-chat-backend-$target_slot"; then
+        log "Deteniendo contenedor existente: sofia-chat-backend-$target_slot"
+        $DOCKER_COMPOSE stop sofia-chat-backend-$target_slot
+        $DOCKER_COMPOSE rm -f sofia-chat-backend-$target_slot
+    fi
+
+    # Build de la nueva imagen con --no-cache para garantizar imagen fresca
     log "Construyendo nueva imagen..."
-    $DOCKER_COMPOSE build sofia-chat-backend-$target_slot
-    
-    # Deploy al slot objetivo
+    $DOCKER_COMPOSE build --no-cache sofia-chat-backend-$target_slot
+
+    # Deploy al slot objetivo usando nueva imagen
     if [ "$target_slot" = "green" ]; then
         log "Desplegando a Green (puerto 3002)..."
         log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green"
@@ -286,14 +293,14 @@ deploy() {
         log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d sofia-chat-backend-blue"
         $DOCKER_COMPOSE up -d sofia-chat-backend-blue
     fi
-    
+
     # Verificar salud del nuevo deployment
     if [ "$target_slot" = "green" ]; then
         health_check "sofia-chat-backend-green" "3002"
     else
         health_check "sofia-chat-backend-blue" "3001"
     fi
-    
+
     log "✅ Deployment a $target_slot completado exitosamente"
     log "🧪 Puedes probar el nuevo deployment en puerto $([ "$target_slot" = "green" ] && echo "3002" || echo "3001")"
     log "⚠️  Para hacer switch a producción, ejecuta: ./blue-green-simple.sh switch"
@@ -303,7 +310,7 @@ deploy() {
 switch() {
     local current_state=$(get_current_state)
     local new_state=""
-    
+
     if [ "$current_state" = "blue" ]; then
         new_state="green"
         local new_port="3002"
@@ -311,25 +318,25 @@ switch() {
         new_state="blue"
         local new_port="3001"
     fi
-    
+
     # Verificar que el nuevo slot esté corriendo y saludable
     if ! is_container_running "sofia-chat-backend-$new_state"; then
         error "El contenedor sofia-chat-backend-$new_state no está corriendo. Ejecuta deploy primero."
     fi
-    
+
     log "Verificando salud del nuevo slot antes del switch..."
     health_check "sofia-chat-backend-$new_state" "$new_port"
-    
+
     # Crear backup antes del switch
     backup_state
-    
+
     # Hacer el switch
     log "Cambiando de $current_state a $new_state..."
     save_state "$new_state"
-    
+
     # Actualizar configuración de nginx
     update_nginx_config "$new_state"
-    
+
     log "✅ Switch completado: $new_state ahora está en producción"
     log "🔄 Para hacer rollback, ejecuta: ./blue-green-simple.sh rollback"
 }
@@ -339,7 +346,7 @@ rollback() {
     local current_state=$(get_current_state)
     local rollback_state=""
     local rollback_port=""
-    
+
     if [ "$current_state" = "blue" ]; then
         rollback_state="green"
         rollback_port="3002"
@@ -347,26 +354,26 @@ rollback() {
         rollback_state="blue"
         rollback_port="3001"
     fi
-    
+
     warn "Haciendo rollback de $current_state a $rollback_state..."
-    
+
     # Cambiar al directorio del proyecto
     cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
-    
+
     # Verificar que el rollback slot esté disponible
     if ! is_container_running "sofia-chat-backend-$rollback_state"; then
         error "❌ El contenedor $rollback_state no está disponible para rollback"
     fi
-    
+
     # Verificar salud del rollback slot
     health_check "sofia-chat-backend-$rollback_state" "$rollback_port"
-    
+
     # Hacer rollback
     save_state "$rollback_state"
-    
+
     # Actualizar configuración de nginx
     update_nginx_config "$rollback_state"
-    
+
     log "✅ Rollback completado: $current_state → $rollback_state"
     log "🔗 Estado restaurado: $rollback_state (puerto $rollback_port)"
 }
@@ -375,18 +382,18 @@ rollback() {
 cleanup() {
     local current_state=$(get_current_state)
     local inactive_slot=""
-    
+
     if [ "$current_state" = "blue" ]; then
         inactive_slot="green"
     else
         inactive_slot="blue"
     fi
-    
+
     log "Limpiando slot inactivo: $inactive_slot"
-    
+
     # Cambiar al directorio del proyecto para ejecutar docker-compose
     cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
-    
+
     if is_container_running "sofia-chat-backend-$inactive_slot"; then
         $DOCKER_COMPOSE stop "sofia-chat-backend-$inactive_slot"
         $DOCKER_COMPOSE rm -f "sofia-chat-backend-$inactive_slot"
@@ -394,7 +401,7 @@ cleanup() {
     else
         log "Slot $inactive_slot ya estaba detenido"
     fi
-    
+
     # Limpiar imágenes huérfanas
     docker image prune -f
     log "✅ Imágenes huérfanas limpiadas"
