@@ -12,10 +12,14 @@ sequenceDiagram
     participant Agent
     participant HitlUser
     participant System
+    participant OpenAI as OpenAI API
 
-    Note over Owner, System: Configuración de Tipos HITL
+    Note over Owner, OpenAI: Configuración de Tipos HITL
     Owner->>System: Crear tipo HITL
+    System->>System: Guardar tipo HITL
+    System->>OpenAI: Actualizar agente con nueva función HITL
     Owner->>System: Asignar usuarios a tipo HITL
+    System->>OpenAI: Actualizar agente con tipos disponibles
     
     Note over Agent, System: Proceso de Escalamiento
     Agent->>System: sofia__hitl(tipo_hitl?, mensaje?)
@@ -142,26 +146,38 @@ sequenceDiagram
 
 ### Consideraciones Técnicas
 
+### Arquitectura Multi-Agente
+- **Relación Organizacional**: Una organización puede tener múltiples departamentos, cada uno con su propio agente
+- **Actualización Completa**: Cuando se modifican tipos HITL, se actualizan TODOS los agentes de la organización
+- **Event-Driven Updates**: Sistema de eventos desacoplado para evitar dependencias circulares
+- **Logging Detallado**: Logs específicos para troubleshooting de actualizaciones multi-agente
+
 ### Arquitectura Refactorizada
 - **BaseAgent**: Contiene lógica genérica para obtener tipos HITL usando `getHitlTypes()`
 - **SofiaLLMService**: Implementa renderizado específico para OpenAI con `renderHITL()`
 - **ClaudeSonetService**: Implementa renderizado específico para Anthropic con `renderHITLForClaude()`
 - **FunctionCallService**: Maneja ejecución de escalamientos HITL con logs detallados
+- **AgentManagerService**: Event listeners para actualización automática de múltiples agentes
+- **HitlTypesService**: Emisión de eventos en lugar de llamadas directas para evitar ciclos
 
 ### Archivos Modificados
 - **HitlType.entity.ts**: Nueva entidad para tipos HITL
 - **UserHitlType.entity.ts**: Nueva entidad relacional usuarios-tipos
 - **UserOrganization.entity.ts**: Agregado campo organizationId explícito
-- **hitl-types.module.ts**: Nuevo módulo con controller y service
+- **core.module.ts**: Nuevo módulo centralizado con HitlTypesService y EventEmitter
+- **hitl-types.module.ts**: Simplificado, solo controller, importa CoreModule
+- **hitl-types.service.ts**: Sistema de eventos en lugar de llamadas directas a AgentManager
+- **agent-manager.service.ts**: Event listeners y actualización de TODOS los agentes por organización
 - **function-call.service.ts**: Función sofia__hitl consolidada con lógica inteligente y logs detallados
 - **base-agent.ts**: Método genérico `getHitlTypes()` para obtener tipos HITL por organización
 - **sofia-llm.service.ts**: Renderizado específico OpenAI con definición dinámica según tipos disponibles
 - **claude-sonet.service.ts**: Renderizado específico Anthropic con soporte completo HITL
 - **agentServer.ts**: Integración de HitlTypesService como dependencia en ambos agentes
-- **agent-manager.service.ts**: Integración de HitlTypesService como dependencia en ambos agentes
 - **user.service.ts**: Método findById corregido para retornar todas las organizaciones
 - **jwt-auth-roles.guard.ts**: Verificación de permisos por organización específica
 - **get-organization.decorator.ts**: ParseInt corregido para extraer organizationId
+- **hitl-events.ts**: Nuevas interfaces para eventos HITL
+- **app.module.ts**: Importación de CoreModule
 
 ### Base de Datos
 - **Tablas nuevas**: hitl_types, user_hitl_types
@@ -169,12 +185,13 @@ sequenceDiagram
 - **Relaciones**: UserOrganizations contiene organizationId directo
 
 ### Dependencias
-- **AuthModule**: Importado en HitlTypesModule para JWT guards
-- **HitlTypesModule**: Importado en AgentModule y AgentManagerModule para lógica consolidada
+- **CoreModule**: HitlTypesService centralizado sin dependencias circulares
+- **EventEmitterModule**: Sistema de eventos para actualización de agentes desacoplada
 - **TypeORM**: Configurado con relaciones y validaciones apropiadas
 - **OpenAI Integration**: Función sofia__hitl con parámetros dinámicos según tipos disponibles
 - **Anthropic Integration**: Función sofia__hitl con soporte completo para Claude
 - **BaseAgent**: Dependencia HitlTypesService inyectada para acceso genérico a tipos HITL
+- **AgentManagerService**: Listeners de eventos para actualización automática de agentes
 
 ## Estado de Implementación
 
@@ -190,6 +207,9 @@ sequenceDiagram
 - **Refactorización de Responsabilidades**: BaseAgent maneja lógica genérica, servicios específicos manejan formato de API
 - **Soporte Multi-Proveedor**: SofiaLLM (OpenAI) y ClaudeSonet (Anthropic) ambos soportan HITL
 - **Logs de Debugging**: Sistema completo de logs con prefijo [HITL DEBUG] para troubleshooting
+- **Actualización Multi-Agente**: Sistema actualiza TODOS los agentes de TODOS los departamentos de una organización
+- **Sistema de Eventos**: Arquitectura desacoplada con EventEmitter para actualización automática de agentes
+- **Eliminación de Dependencias Circulares**: CoreModule centraliza servicios sin crear ciclos
 
 ### 🔧 Correcciones Críticas Realizadas
 - **UserService.findById()**: Removido select específico para retornar todas las userOrganizations del usuario
@@ -202,6 +222,9 @@ sequenceDiagram
 - **Refactorización de Arquitectura**: Movida lógica genérica a BaseAgent, manteniendo compatibilidad específica por proveedor
 - **Inyección de Dependencias**: HitlTypesService correctamente inyectado en BaseAgent y propagado a servicios específicos
 - **Compatibilidad Multi-Proveedor**: ClaudeSonetService actualizado para soportar HITL con mismo comportamiento que SofiaLLM
+- **Actualización Multi-Departamento**: Corregido para actualizar TODOS los agentes de TODOS los departamentos en una organización
+- **Event-Driven Architecture**: Implementado sistema de eventos para desacoplar actualización de agentes
+- **CoreModule Integration**: HitlTypesService movido a CoreModule eliminando dependencias circulares
 
 ### 🔍 Problemas Identificados y Resueltos
 1. **Bucle infinito en frontend**: UserService retornaba solo 1 organización por problemas en select
@@ -210,4 +233,7 @@ sequenceDiagram
 4. **Relaciones incompletas**: Select limitaba la carga completa de userOrganizations
 5. **Duplicación de Responsabilidades**: Consolidada lógica de escalamiento en una sola función
 6. **Definición Estática**: Función ahora es dinámica según configuración de la organización
-7. **Dependencias Faltantes**: HitlTypesService integrado en todos los servicios de agente necesarios
+- **Dependencias Faltantes**: HitlTypesService integrado en todos los servicios de agente necesarios
+8. **Actualización Parcial de Agentes**: Solo se actualizaba el primer agente encontrado por organización, no todos los departamentos
+9. **Sistema de Eventos Implementado**: EventEmitter2 para comunicación desacoplada entre HitlTypesService y AgentManagerService
+10. **Logs Mejorados**: Sistema de logging detallado para troubleshooting de actualizaciones multi-agente
