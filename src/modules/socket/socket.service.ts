@@ -267,10 +267,10 @@ export class SocketService {
       if (clientData) {
         const userRole = userRoleMap.get(clientData.userId);
 
-        // Si el usuario es HITL y la notificación es de tipo MESSAGE_RECEIVED (escalamiento general),
-        // no enviar la notificación
-        if (userRole === OrganizationRoleType.HITL && event.type === NotificationType.) {
-          console.log(`[SOCKET FILTER] No enviando notificación de sistema a usuario HITL ${clientData.userId}`);
+        // Si el usuario es HITL y la notificación es escalamiento general (sin usuario específico),
+        // no enviar la notificación (consistente con filtro de DB)
+        if (userRole === OrganizationRoleType.HITL) {
+          console.log(`[SOCKET FILTER] No enviando notificación de escalamiento general a usuario HITL ${clientData.userId}`);
           continue;
         }
       }
