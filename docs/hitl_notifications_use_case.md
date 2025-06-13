@@ -80,7 +80,7 @@ sequenceDiagram
 
 ### Modificaciones al Sistema de Notificaciones
 - **NotificationService.createNotificationForUser()**: Notificaciones tipo USER para HITL
-- **SocketService**: Envío de notificaciones por tipo HITL
+- **SocketService.sendNotificationToOrganization()**: Filtrado HITL con consulta única de roles por organización
 - **NotificationController**: Endpoints para gestión HITL
 
 ## Estructura de Datos
@@ -146,11 +146,26 @@ sequenceDiagram
 
 ### Consideraciones Técnicas
 
+### Optimización de Notificaciones WebSocket
+- **Consulta Única**: UserOrganizationRepository.find() con `In(userIds)` en lugar de N consultas
+- **Deduplicación**: Solo userIds únicos con `[...new Set()]`
+- **Búsqueda Eficiente**: Map<userId, role> para acceso O(1)
+- **Early Return**: Salida temprana si no hay clientes conectados
+- **Type Safety**: Filtros de tipo para valores null/undefined
+
 ### Arquitectura Multi-Agente
 - **Relación Organizacional**: Una organización puede tener múltiples departamentos, cada uno con su propio agente
 - **Actualización Completa**: Cuando se modifican tipos HITL, se actualizan TODOS los agentes de la organización
 - **Event-Driven Updates**: Sistema de eventos desacoplado para evitar dependencias circulares
 - **Logging Detallado**: Logs específicos para troubleshooting de actualizaciones multi-agente
+
+### Optimización de Notificaciones WebSocket
+- **Consulta Única**: Eliminación del patrón N+1 queries en `sendNotificationToOrganization()`
+- **Rendimiento**: De N consultas DB (una por cliente conectado) a 1 consulta con `In(userIds)`
+- **Map Lookup**: Búsqueda O(1) de roles usando `Map<userId, role>` después de consulta única
+- **Deduplicación**: Solo consulta userIds únicos para minimizar datos transferidos
+- **Early Return**: Salida temprana si no hay clientes conectados
+- **Type Safety**: Filtros de tipo para manejar valores null/undefined correctamente
 
 ### Arquitectura Refactorizada
 - **BaseAgent**: Contiene lógica genérica para obtener tipos HITL usando `getHitlTypes()`
@@ -178,6 +193,7 @@ sequenceDiagram
 - **get-organization.decorator.ts**: ParseInt corregido para extraer organizationId
 - **hitl-events.ts**: Nuevas interfaces para eventos HITL
 - **app.module.ts**: Importación de CoreModule
+- **socket.service.ts**: Optimización de consultas en `sendNotificationToOrganization()` para eliminar N+1 queries
 
 ### Base de Datos
 - **Tablas nuevas**: hitl_types, user_hitl_types
