@@ -9,6 +9,10 @@ sofia-chat-backend-v2/
 ├── src/                    # Código fuente principal
 │   ├── config/            # Configuraciones (DB, JWT, etc.)
 │   ├── modules/           # Módulos funcionales (auth, organizations, etc.)
+│   │   ├── core/          # CoreModule - servicios fundamentales compartidos
+│   │   ├── hitl-types/    # Gestión de tipos HITL
+│   │   ├── agent/         # Servicios de agentes
+│   │   └── ...            # Otros módulos especializados
 │   ├── common/            # Utilidades compartidas y decoradores
 │   └── main.ts            # Punto de entrada de la aplicación
 ├── scripts/               # Scripts de automatización y configuración
@@ -34,10 +38,12 @@ sofia-chat-backend-v2/
 ### Patrones Arquitecturales
 
 1. **Modular por Dominio**: Cada funcionalidad en su propio módulo
-2. **Inyección de Dependencias**: Uso de decoradores NestJS
-3. **Programación Funcional**: Preferencia por funciones puras
-4. **Tipado Fuerte**: TypeScript con interfaces estrictas
-5. **Casos de Uso**: Un hook/servicio por responsabilidad específica
+2. **CoreModule Centralizado**: Servicios fundamentales compartidos sin dependencias circulares
+3. **Inyección de Dependencias**: Uso de decoradores NestJS con arquitectura lineal
+4. **Programación Funcional**: Preferencia por funciones puras
+5. **Tipado Fuerte**: TypeScript con interfaces estrictas
+6. **Casos de Uso**: Un hook/servicio por responsabilidad específica
+7. **Separación de Responsabilidades**: Controladores, servicios y módulos con propósitos específicos
 
 ### Flujo de Datos Principal
 
@@ -58,13 +64,32 @@ graph TD
 
 ### Responsabilidades por Capa
 
+#### CoreModule
+- **HitlTypesService**: Gestión de tipos HITL y asignaciones de usuarios
+- **SystemEventsModule**: Logging y auditoría de eventos del sistema
+- **NotificationModule**: Sistema de notificaciones unificado
+- **AuthModule**: Autenticación y autorización base
+
 #### Controllers
+- **Endpoints API**: Definición de rutas y validación de entrada
+- **Decoradores**: Aplicación de guards, validaciones y transformaciones
+- **Respuestas HTTP**: Formateo de respuestas y manejo de errores
 
 #### Services (Casos de Uso)
+- **Lógica de Negocio**: Implementación de reglas y procesos específicos
+- **Orquestación**: Coordinación entre diferentes servicios
+- **Validaciones**: Verificación de datos y permisos de negocio
 
 #### Repositories
+- **Acceso a Datos**: Operaciones CRUD con TypeORM
+- **Consultas Complejas**: Queries optimizadas y relaciones
+- **Transacciones**: Manejo de consistencia de datos
 
 #### Common
+- **Decoradores**: Funcionalidades transversales reutilizables
+- **Guards**: Validaciones de seguridad y autorización
+- **Interceptors**: Transformación de requests/responses
+- **Pipes**: Validación y transformación de datos
 
 ### Reglas de Desarrollo
 
@@ -76,12 +101,17 @@ graph TD
 - Usar enums en lugar de union types de strings
 - No queries dentro de ciclos
 - Flujo lineal con inyección de dependencias
+- **Dependencias**: Servicios compartidos en CoreModule, específicos en módulos especializados
+- **Módulos**: Sin dependencias circulares, arquitectura unidireccional
+- **Servicios**: Responsabilidad única, interfaces claras
 
 #### Patrones de Implementación
-- BaseAgent: Lógica genérica compartida
-- Servicios específicos: Renderizado por proveedor (OpenAI, Claude)
-- FunctionCallService: Ejecución centralizada de funciones
-- Validaciones y logs: Trazabilidad completa de ejecución
+- **CoreModule**: Servicios fundamentales (HitlTypes, SystemEvents, Notifications, Auth)
+- **BaseAgent**: Lógica genérica compartida entre agentes
+- **Servicios específicos**: Renderizado por proveedor (OpenAI, Claude)
+- **FunctionCallService**: Ejecución centralizada de funciones con dependencias del CoreModule
+- **Validaciones y logs**: Trazabilidad completa de ejecución
+- **Arquitectura sin ciclos**: Dependencias unidireccionales hacia CoreModule
 
 ### Sistema de Permisos
 

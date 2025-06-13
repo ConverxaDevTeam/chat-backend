@@ -35,6 +35,7 @@ import { PlanModule } from '@modules/plan/plan.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
+import { CoreModule } from '@modules/core/core.module';
 
 @Module({
   imports: [
@@ -118,6 +119,7 @@ import { HitlTypesModule } from '@modules/hitl-types/hitl-types.module';
     FunctionTemplateModule,
     PlanModule,
     SchedulerModule,
+    CoreModule,
     HitlTypesModule,
   ],
   controllers: [AppController],

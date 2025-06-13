@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { HitlType } from '@models/HitlType.entity';
 import { UserHitlType } from '@models/UserHitlType.entity';
 import { User } from '@models/User.entity';
@@ -8,6 +9,7 @@ import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { CreateHitlTypeDto } from './dto/create-hitl-type.dto';
 import { UpdateHitlTypeDto } from './dto/update-hitl-type.dto';
 import { AssignUsersHitlTypeDto } from './dto/assign-users-hitl-type.dto';
+import { HitlEventType, HitlTypeCreatedEvent, HitlTypeUpdatedEvent, HitlTypeDeletedEvent, HitlUserAssignedEvent, HitlUserRemovedEvent } from 'src/interfaces/hitl-events';
 
 @Injectable()
 export class HitlTypesService {
@@ -18,6 +20,7 @@ export class HitlTypesService {
     private readonly userHitlTypeRepository: Repository<UserHitlType>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(user: User, organizationId: number, createHitlTypeDto: CreateHitlTypeDto): Promise<HitlType> {
@@ -45,7 +48,19 @@ export class HitlTypesService {
       created_by: user.id,
     });
 
-    return this.hitlTypeRepository.save(hitlType);
+    const savedHitlType = await this.hitlTypeRepository.save(hitlType);
+
+    // Emitir evento para actualizar agentes
+    const event: HitlTypeCreatedEvent = {
+      type: HitlEventType.TYPE_CREATED,
+      organizationId,
+      hitlTypeId: savedHitlType.id,
+      hitlTypeName: savedHitlType.name,
+      timestamp: new Date(),
+    };
+    this.eventEmitter.emit(HitlEventType.TYPE_CREATED, event);
+
+    return savedHitlType;
   }
 
   async findAll(user: User, organizationId: number): Promise<HitlType[]> {
@@ -107,7 +122,20 @@ export class HitlTypesService {
     }
 
     await this.hitlTypeRepository.update(id, updateHitlTypeDto);
-    return this.findOne(user, organizationId, id);
+
+    const updatedHitlType = await this.findOne(user, organizationId, id);
+
+    // Emitir evento para actualizar agentes
+    const event: HitlTypeUpdatedEvent = {
+      type: HitlEventType.TYPE_UPDATED,
+      organizationId,
+      hitlTypeId: updatedHitlType.id,
+      hitlTypeName: updatedHitlType.name,
+      timestamp: new Date(),
+    };
+    this.eventEmitter.emit(HitlEventType.TYPE_UPDATED, event);
+
+    return updatedHitlType;
   }
 
   async remove(user: User, organizationId: number, id: number): Promise<void> {
@@ -117,13 +145,23 @@ export class HitlTypesService {
       throw new ForbiddenException('Solo los propietarios pueden eliminar tipos HITL');
     }
 
-    await this.findOne(user, organizationId, id);
+    const hitlType = await this.findOne(user, organizationId, id);
 
     // Eliminar primero las asignaciones de usuarios
     await this.userHitlTypeRepository.delete({ hitl_type_id: id });
 
     // Eliminar el tipo HITL
     await this.hitlTypeRepository.delete(id);
+
+    // Emitir evento para actualizar agentes
+    const event: HitlTypeDeletedEvent = {
+      type: HitlEventType.TYPE_DELETED,
+      organizationId,
+      hitlTypeId: hitlType.id,
+      hitlTypeName: hitlType.name,
+      timestamp: new Date(),
+    };
+    this.eventEmitter.emit(HitlEventType.TYPE_DELETED, event);
   }
 
   async assignUsers(user: User, organizationId: number, hitlTypeId: number, assignUsersDto: AssignUsersHitlTypeDto): Promise<void> {
@@ -181,6 +219,21 @@ export class HitlTypesService {
       );
 
       await this.userHitlTypeRepository.save(newAssignments);
+
+      // Emitir evento por cada usuario asignado
+      const hitlType = await this.findOne({ userOrganizations: [{ organizationId, role: OrganizationRoleType.OWNER }] } as User, organizationId, hitlTypeId);
+
+      for (const userId of newUserIds) {
+        const event: HitlUserAssignedEvent = {
+          type: HitlEventType.USER_ASSIGNED,
+          organizationId,
+          hitlTypeId,
+          hitlTypeName: hitlType.name,
+          userId,
+          timestamp: new Date(),
+        };
+        this.eventEmitter.emit(HitlEventType.USER_ASSIGNED, event);
+      }
     }
   }
 
@@ -207,6 +260,19 @@ export class HitlTypesService {
     }
 
     await this.userHitlTypeRepository.delete(assignment.id);
+
+    // Emitir evento para actualizar agentes
+    const hitlType = await this.findOne({ userOrganizations: [{ organizationId, role: OrganizationRoleType.OWNER }] } as User, organizationId, hitlTypeId);
+
+    const event: HitlUserRemovedEvent = {
+      type: HitlEventType.USER_REMOVED,
+      organizationId,
+      hitlTypeId,
+      hitlTypeName: hitlType.name,
+      userId,
+      timestamp: new Date(),
+    };
+    this.eventEmitter.emit(HitlEventType.USER_REMOVED, event);
   }
 
   async getUsersByHitlType(organizationId: number, hitlTypeName: string): Promise<User[]> {
