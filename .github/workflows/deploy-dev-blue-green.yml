@@ -195,7 +195,7 @@ jobs:
 
             echo ""
             echo "=== VERIFICACIÓN DE SALUD ==="
-            echo "Verificando endpoints de salud:"
+            echo "Verificando endpoints básicos:"
 
             echo -n "BLUE (3001): "
             if curl -sf http://localhost:3001/api/health >/dev/null 2>&1; then
@@ -214,7 +214,6 @@ jobs:
             echo -n "Producción: "
             if curl -sf https://dev-sofia-chat.sofiacall.com/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
-                echo "Deployment activo: $(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment' 2>/dev/null || echo 'unknown')"
             else
                 echo "❌ NO SALUDABLE"
             fi
