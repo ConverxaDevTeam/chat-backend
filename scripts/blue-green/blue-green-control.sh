@@ -391,29 +391,40 @@ rollback() {
 
 # Función para limpiar entorno inactivo
 cleanup() {
-    local current_state=$(get_current_state)
+    # Determinar qué está realmente en producción (via Nginx)
+    local prod_port=$(grep -o "localhost:[0-9]*" "$NGINX_CONFIG_DIR/backend.conf" | head -1 | cut -d: -f2)
+    local prod_state
     local inactive_state
 
-    if [[ "$current_state" == "blue" ]]; then
+    if [[ "$prod_port" == "3001" ]]; then
+        prod_state="blue"
         inactive_state="green"
-    else
+    elif [[ "$prod_port" == "3002" ]]; then
+        prod_state="green"
         inactive_state="blue"
+    else
+        log_error "No se pudo determinar el estado de producción"
+        return 1
     fi
 
+    log_info "Producción está en: $prod_state"
     log_info "Limpiando entorno inactivo: $inactive_state"
 
     local container_name="sofia-chat-backend-$inactive_state"
 
     if is_container_running "$container_name"; then
-        log_info "Deteniendo contenedor: $container_name"
+        log_info "Deteniendo contenedor de pruebas: $container_name"
         docker stop "$container_name"
         docker rm "$container_name"
+        log_info "Contenedor $container_name eliminado"
+    else
+        log_info "El contenedor $container_name ya está detenido"
     fi
 
     # Limpiar imágenes no utilizadas
     docker image prune -f
 
-    log_info "Limpieza completada"
+    log_info "Limpieza completada - Solo queda $prod_state en producción"
 }
 
 # Función principal
