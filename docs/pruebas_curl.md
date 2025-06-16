@@ -1,7 +1,7 @@
 # Pruebas cURL - Sofia Chat Backend v2
 
 ## Configuración Base
-- **Usuario**: frank@pixeldigita.com, password: ricO2.123
+- **Usuario**: frank@pixeldigita.com, password: 12345678
 - **Base URL**: http://localhost:3001/api
 - **Tablas BD**: "Conversations", "Integrations", "Messages" (con mayúsculas)
 
@@ -12,7 +12,7 @@ export TYPEORM_HOST=localhost TYPEORM_USERNAME=postgres TYPEORM_PASSWORD=Admin T
 
 ## 1. Login
 ```bash
-curl -X POST http://localhost:3001/api/auth/log-in -H "Content-Type: application/json" -d '{"email": "frank@pixeldigita.com", "password": "ricO2.123"}'
+curl -X POST http://localhost:3001/api/auth/log-in -H "Content-Type: application/json" -d '{"email": "frank@pixeldigita.com", "password": "12345678"}'
 ```
 
 ## 2. WhatsApp - ✅ FUNCIONANDO
@@ -24,7 +24,7 @@ curl -X GET "http://localhost:3001/api/facebook/webhook?hub.verify_token=1a9b4a6
 curl -X POST http://localhost:3001/api/facebook/webhook -H "Content-Type: application/json" -d @test/whatsapp/webhook_whatsapp_example.json
 ```
 
-## 3. Facebook - ✅ FUNCIONANDO  
+## 3. Facebook - ✅ FUNCIONANDO
 ```bash
 # Mensaje Facebook (usar ejemplo de test/facebook/webhook_facebook_example.json)
 curl -X POST http://localhost:3001/api/facebook/webhook -H "Content-Type: application/json" -d @test/facebook/webhook_facebook_example.json
@@ -38,7 +38,7 @@ echo "=== PRUEBAS WHATSAPP ==="
 curl -s -X GET "http://localhost:3001/api/facebook/webhook?hub.verify_token=1a9b4a6b3b4c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6&hub.challenge=test&hub.mode=subscribe" && echo " ✓"
 curl -s -X POST http://localhost:3001/api/facebook/webhook -H "Content-Type: application/json" -d @test/whatsapp/webhook_whatsapp_example.json && echo " ✓"
 
-# Script Facebook completo  
+# Script Facebook completo
 #!/bin/bash
 echo "=== PRUEBAS FACEBOOK ==="
 curl -s -X POST http://localhost:3001/api/facebook/webhook -H "Content-Type: application/json" -d @test/facebook/webhook_facebook_example.json && echo " ✓"
