@@ -439,9 +439,11 @@ main() {
             if deploy_to_slot "$target_state" "${2:-latest}"; then
                 log_info "=== DEPLOY EXITOSO ==="
                 log_info "Deploy completado en slot $target_state"
+                log_info "Producción sigue en: $current_state"
+                log_info "Nuevos cambios en: $target_state (para pruebas)"
+                log_info "Ejecuta 'switch' manualmente después de probar"
 
-                # Actualizar estado solo si el deploy fue exitoso
-                set_current_state "$target_state"
+                # NO cambiar estado automáticamente - solo en switch manual
 
                 # Mostrar estado final
                 show_status
