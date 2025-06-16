@@ -16,12 +16,13 @@ import { NotificationModule } from '@modules/notification/notification.module';
 import { Notification } from '@models/notification.entity';
 import { OrganizationLimitService } from '@modules/organization/organization-limit.service';
 import { OrganizationLimit } from '@models/OrganizationLimit.entity';
+import { UserHitlType } from '@models/UserHitlType.entity';
 
 @Module({
   providers: [ConversationService, UserOrganizationService, DepartmentService, OrganizationLimitService],
   controllers: [ConversationController],
   imports: [
-    TypeOrmModule.forFeature([Conversation, UserOrganization, Organization, Departamento, Notification, OrganizationLimit]),
+    TypeOrmModule.forFeature([Conversation, UserOrganization, Organization, Departamento, Notification, OrganizationLimit, UserHitlType]),
     forwardRef(() => AuthModule),
     forwardRef(() => OrganizationModule),
     forwardRef(() => DepartmentModule),

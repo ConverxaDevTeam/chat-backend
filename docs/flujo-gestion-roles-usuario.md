@@ -76,6 +76,7 @@ sequenceDiagram
 1. Solo se permiten los roles `user` y `hitl`
 2. Roles administrativos (`admin`, `owner`, `supervisor`, etc.) no se pueden asignar por este endpoint
 3. Para cambios de roles administrativos se requieren endpoints específicos
+4. **Desasignación Automática**: Cuando un usuario cambia de rol `hitl` a `user`, se desasignan automáticamente todos los tipos HITL que tenga asignados
 
 ## Componentes Involucrados
 
@@ -90,9 +91,10 @@ sequenceDiagram
 - **Método**: `changeUserRole()`
 
 ### UserOrganizationService
-- **Responsabilidad**: Operaciones CRUD en relación usuario-organización  
+- **Responsabilidad**: Operaciones CRUD en relación usuario-organización y desasignación automática de tipos HITL  
 - **Archivo**: `src/modules/organization/UserOrganization.service.ts`
 - **Método**: `updateUserRole()`
+- **Funcionalidad Adicional**: Elimina automáticamente asignaciones de tipos HITL cuando usuario cambia de `hitl` a `user`
 
 ### DTOs
 - **ChangeUserRoleDto**: Validación del nuevo rol
@@ -125,9 +127,21 @@ sequenceDiagram
 2. **Validación**: Rol debe ser válido según enum OrganizationRoleType
 3. **Auditoria**: Los cambios de rol quedan registrados en el sistema
 4. **Prevención**: No permitir escalación de privilegios no autorizada
+5. **Limpieza Automática**: Desasignación automática de tipos HITL al cambiar de `hitl` a `user` para mantener consistencia de datos
 
 ## Casos de Error
 
 - **403 Forbidden**: Usuario no es OWNER de la organización
 - **404 Not Found**: Usuario objetivo no existe en la organización  
 - **400 Bad Request**: Intento de cambiar propio rol de OWNER o rol inválido (solo se permiten 'user' y 'hitl')
+
+## Reglas de Negocio
+
+1. **Cambio de Rol HITL → USER**: Cuando un usuario cambia de rol `hitl` a `user`, el sistema automáticamente:
+   - Elimina todas las asignaciones de tipos HITL del usuario en esa organización
+   - Registra el cambio en logs del sistema
+   - Mantiene consistencia de datos evitando asignaciones huérfanas
+
+2. **Cambio de Rol USER → HITL**: El usuario puede ser asignado manualmente a tipos HITL usando los endpoints específicos de gestión de tipos HITL
+
+3. **Permisos**: Solo usuarios con rol `OWNER` pueden cambiar roles de otros usuarios en la organización
