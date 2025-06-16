@@ -126,6 +126,33 @@ upstream backend_internal {
 - Pruebas internas usa `backend_internal` upstream
 - Scripts modifican archivos de configuración y recargan Nginx
 
+## Sincronización de Scripts
+
+### Problema de Inconsistencia de Estado
+Si hay inconsistencia entre scripts que reportan estados diferentes:
+
+```bash
+# Verificar que ambos scripts usen la misma ruta
+grep "STATE_FILE=" /opt/sofia-chat/blue-green-simple.sh
+grep "STATE_FILE=" /opt/sofia-chat/scripts/blue-green-control.sh
+
+# Ambos deben mostrar: STATE_FILE="/opt/.blue-green-state"
+```
+
+### Solución: Sincronización Manual
+```bash
+# Copiar scripts actualizados desde el repositorio
+scp -i ~/.ssh/digitalOcean scripts/blue-green/*.sh root@IP:/opt/sofia-chat/scripts/
+scp -i ~/.ssh/digitalOcean scripts/blue-green/blue-green-simple.sh root@IP:/opt/sofia-chat/
+
+# Hacer ejecutables
+ssh -i ~/.ssh/digitalOcean root@IP "chmod +x /opt/sofia-chat/scripts/*.sh /opt/sofia-chat/blue-green-simple.sh"
+
+# Verificar sincronización
+ssh -i ~/.ssh/digitalOcean root@IP "/opt/sofia-chat/blue-green-simple.sh status"
+ssh -i ~/.ssh/digitalOcean root@IP "PROJECT_DIR=/root/repos/sofia-chat-backend-v2 /opt/sofia-chat/scripts/blue-green-control.sh status"
+```
+
 ## Consideraciones de Seguridad
 
 ### Base de Datos Compartida
@@ -280,7 +307,7 @@ El archivo `.blue-green-state` controla qué slot está activo y determina a cu�
 - **NO está en repositorio git**: Independiente del código fuente
 - **NO afectado por git operations**: `git reset --hard HEAD` no lo modifica
 
-#### Transferencia de Scripts
+### Transferencia de Scripts
 ```yaml
 # En .github/workflows/deploy-dev-blue-green.yml
 - name: Copy updated blue-green scripts to server
@@ -289,9 +316,20 @@ El archivo `.blue-green-state` controla qué slot está activo y determina a cu�
     source: 'scripts/blue-green/*'          # Solo scripts, NO archivo de estado
     target: '/opt/sofia-chat/scripts/'
     strip_components: 2
+
+# IMPORTANTE: También copiar blue-green-simple.sh al directorio raíz
+- name: Copy blue-green-simple.sh to root directory
+  uses: appleboy/scp-action@master
+  with:
+    source: 'scripts/blue-green/blue-green-simple.sh'
+    target: '/opt/sofia-chat/'
+    strip_components: 2
 ```
 
-**IMPORTANTE**: El workflow NO copia el archivo `.blue-green-state` via TAR/SCP.
+**IMPORTANTE**: 
+- El workflow NO copia el archivo `.blue-green-state` via TAR/SCP
+- Se debe copiar `blue-green-simple.sh` tanto a `/opt/sofia-chat/scripts/` como a `/opt/sofia-chat/` para mantener compatibilidad
+- Ambos scripts deben usar la misma ruta de estado: `/opt/.blue-green-state`
 
 #### Configuración del Workflow
 ```bash
