@@ -4,7 +4,7 @@
 -- Variables para el test (ajustar según la base de datos)
 -- Suponiendo organization_id = 1 para el test
 
--- 1. Verificar estructura actual
+-- 1. Verificar estructura actual sfsdfds
 SELECT
     o.id as organization_id,
     o.name as organization_name,
