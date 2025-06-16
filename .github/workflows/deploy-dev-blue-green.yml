@@ -71,10 +71,11 @@ jobs:
           script: |
             cd ${{ env.PROJECT_PATH }}
 
-            # Pull latest changes
+            # Pull latest changes and ensure working files are synchronized
             git fetch origin
             git checkout develop-v1
             git pull origin develop-v1
+            git reset --hard HEAD
 
             # Create environment file with proper quoting
             cat > .env << 'ENV_EOF'
