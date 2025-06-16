@@ -198,7 +198,7 @@ export class SocketService {
     }
 
     if (!conversation.user?.id) return message;
-    this.sendMessageToChat(conversation.user?.id, conversation.id, message);
+    this.sendMessageToChat(organizationId, conversation.id, message);
 
     return message;
   }
