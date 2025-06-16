@@ -253,6 +253,97 @@ docker ps
   }
   ```
 
+## Gestión del Archivo de Estado `.blue-green-state`
+
+### Ubicación y Control
+El archivo `.blue-green-state` controla qué slot está activo y determina a cuál slot deployar next.
+
+#### Ubicaciones del Archivo
+- **Local (desarrollo)**: `sofia-chat-backend-v2/.blue-green-state` (solo código, no usado por workflow)
+- **Servidor (usado por workflow)**: `/root/repos/sofia-chat-backend-v2/.blue-green-state`
+- **Scripts (ubicación por defecto)**: `/opt/sofia-chat/.blue-green-state`
+
+#### Transferencia de Scripts
+```yaml
+# En .github/workflows/deploy-dev-blue-green.yml
+- name: Copy updated blue-green scripts to server
+  uses: appleboy/scp-action@master
+  with:
+    source: 'scripts/blue-green/*'          # Solo scripts, NO archivo de estado
+    target: '/opt/sofia-chat/scripts/'
+    strip_components: 2
+```
+
+**IMPORTANTE**: El workflow NO copia el archivo `.blue-green-state` via TAR/SCP.
+
+#### Configuración del Workflow
+```bash
+# El workflow ejecuta con PROJECT_DIR específico
+PROJECT_DIR=/root/repos/sofia-chat-backend-v2 /opt/sofia-chat/scripts/blue-green-control.sh deploy
+```
+
+Esto hace que el script use: `/root/repos/sofia-chat-backend-v2/.blue-green-state`
+
+### Problema de Desincronización Resuelto
+
+#### Síntoma
+```bash
+# Estado en archivo del workflow
+cat /root/repos/sofia-chat-backend-v2/.blue-green-state  # → green
+
+# Pero producción real
+curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment'  # → blue
+```
+
+#### Causa
+El archivo de estado se desincroniza de la realidad cuando:
+1. Se hacen cambios manuales de producción
+2. El workflow falla después de actualizar el estado
+3. Se hace rollback sin actualizar el archivo
+
+#### Solución
+```bash
+# 1. Verificar qué está realmente en producción
+PROD_STATE=$(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')
+
+# 2. Sincronizar archivo de estado
+echo "$PROD_STATE" > /root/repos/sofia-chat-backend-v2/.blue-green-state
+
+# 3. Verificar sincronización
+echo "Estado en archivo: $(cat /root/repos/sofia-chat-backend-v2/.blue-green-state)"
+echo "Estado en producción: $PROD_STATE"
+```
+
+#### Diagnóstico de Estado
+```bash
+# Verificar todas las ubicaciones
+echo "=== VERIFICACIÓN COMPLETA DE ESTADO ==="
+echo "Archivo workflow: $(cat /root/repos/sofia-chat-backend-v2/.blue-green-state 2>/dev/null)"
+echo "Archivo scripts: $(cat /opt/sofia-chat/.blue-green-state 2>/dev/null)" 
+echo "Producción real: $(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')"
+echo "Nginx config: $(grep -o 'localhost:[0-9]*' /etc/nginx/sites-available/backend.conf | head -1)"
+```
+
+### Mantenimiento del Estado
+
+#### Después de Switch Manual
+```bash
+# Si haces switch manual, actualizar el archivo usado por workflow
+NEW_STATE=$(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')
+echo "$NEW_STATE" > /root/repos/sofia-chat-backend-v2/.blue-green-state
+```
+
+#### Verificación Preventiva
+Agregar al final del workflow para detectar desincronización:
+```bash
+WORKFLOW_STATE=$(cat /root/repos/sofia-chat-backend-v2/.blue-green-state)
+PROD_STATE=$(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')
+if [[ "$WORKFLOW_STATE" != "$PROD_STATE" ]]; then
+    echo "⚠️  ADVERTENCIA: Estado desincronizado"
+    echo "Archivo: $WORKFLOW_STATE | Producción: $PROD_STATE"
+fi
+```
+
 ## Recuperación ante Desastres
 
 ### Escenarios de Falla
