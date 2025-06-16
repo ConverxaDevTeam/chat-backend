@@ -6,7 +6,7 @@
 set -e
 
 PROJECT_DIR="/root/repos/sofia-chat-backend-v2"
-STATE_FILE="$PROJECT_DIR/.blue-green-state"
+STATE_FILE="/opt/sofia-chat/.blue-green-state"
 DOCKER_COMPOSE="docker-compose -f docker-compose.yml"
 
 # Colores para output
