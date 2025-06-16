@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${PROJECT_DIR:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 NGINX_CONFIG_DIR="/etc/nginx/sites-available"
 NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
-STATE_FILE="/opt/sofia-chat/.blue-green-state"
+STATE_FILE="/opt/.blue-green-state"
 LOG_DIR="$PROJECT_DIR/logs/blue-green"
 
 # Colores para output
