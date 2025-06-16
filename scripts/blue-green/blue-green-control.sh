@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 
 # Funciones de logging
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${GREEN}[INFOs]${NC} $1"
 }
 
 log_warn() {
