@@ -26,25 +26,29 @@ Sistema de despliegue Blue-Green que permite desplegar nuevas versiones del back
 
 ```mermaid
 graph TD
-    A[GitHub Push] --> B[GitHub Actions]
-    B --> C[Build Docker Image]
-    C --> D[Detect Active Slot]
-    D --> E{Blue Active?}
-    E -->|Yes| F[Deploy to Green]
-    E -->|No| G[Deploy to Blue]
-    F --> H[Update Internal URL]
-    G --> H
-    H --> I[Internal Testing]
-    I --> J{Tests Pass?}
-    J -->|Yes| K[Manual Switch]
-    J -->|No| L[Discard Deploy]
-    K --> M[Production Traffic Switch]
-    M --> N[Health Check]
-    N --> O{Healthy?}
-    O -->|Yes| P[Confirm & Cleanup]
-    O -->|No| Q[Rollback]
-    L --> R[Stop Container]
-    Q --> S[Revert Traffic]
+    A[GitHub Push] --> B[GitHub Actions Workflow]
+    B --> C[Copy Scripts via SCP]
+    C --> D[Update Repository + git reset --hard]
+    D --> E[Detect Production Slot via Nginx]
+    E --> F{Blue in Production?}
+    F -->|Yes| G[Deploy to Green - Testing Slot]
+    F -->|No| H[Deploy to Blue - Testing Slot]
+    G --> I[Update Internal URL to Green]
+    H --> J[Update Internal URL to Blue]
+    I --> K[Manual Testing on Internal URL]
+    J --> K
+    K --> L{Tests Pass?}
+    L -->|Yes| M[Manual: blue-green-control.sh switch]
+    L -->|No| N[Manual: blue-green-control.sh cleanup]
+    M --> O[Switch Production Traffic]
+    O --> P[Update .blue-green-state]
+    P --> Q[Health Check Production]
+    Q --> R{Healthy?}
+    R -->|Yes| S[Manual: blue-green-control.sh cleanup]
+    R -->|No| T[Manual: blue-green-control.sh rollback]
+    N --> U[Remove Failed Container]
+    S --> V[Remove Old Container - Complete]
+    T --> W[Revert to Previous State]
 ```
 
 ## Estados del Sistema
@@ -55,17 +59,26 @@ graph TD
 - **Nginx Prod**: → backend_blue
 - **Nginx Internal**: → backend_blue
 
-### Después del Deploy
+### Después del Deploy (Workflow automático)
 - **Blue**: Activo en producción (puerto 3001)
 - **Green**: Nuevo código en pruebas (puerto 3002)
-- **Nginx Prod**: → backend_blue
-- **Nginx Internal**: → backend_green
+- **Nginx Prod**: → localhost:3001 (blue)
+- **Nginx Internal**: → localhost:3002 (green)
+- **Estado**: Permanece en "blue" (NO cambia automáticamente)
 
-### Después del Switch
-- **Blue**: Código anterior (puerto 3001)
+### Después del Switch (Manual)
+- **Blue**: Código anterior en standby (puerto 3001)
 - **Green**: Activo en producción (puerto 3002)
-- **Nginx Prod**: → backend_green
-- **Nginx Internal**: → backend_green
+- **Nginx Prod**: → localhost:3002 (green)
+- **Nginx Internal**: → localhost:3002 (green)
+- **Estado**: Cambia a "green" (actualizado por switch)
+
+### Después del Cleanup (Manual)
+- **Blue**: ELIMINADO
+- **Green**: Único contenedor activo en producción (puerto 3002)
+- **Nginx Prod**: → localhost:3002 (green)
+- **Nginx Internal**: → localhost:3002 (green)
+- **Estado**: Sigue en "green"
 
 ## Comandos de Control
 
@@ -74,24 +87,25 @@ graph TD
 ./blue-green-control.sh status
 ```
 
-### Deploy Automático
+### Deploy Automático (vía Workflow)
 ```bash
-./blue-green-control.sh deploy [commit-hash]
+# Automático en GitHub Actions - NO manual
+# Deploya a slot inactivo sin cambiar producción
 ```
 
-### Cambiar Tráfico
+### Cambiar Tráfico a Nuevo Deploy
 ```bash
-./blue-green-control.sh switch
+/opt/sofia-chat/scripts/blue-green-control.sh switch
 ```
 
-### Rollback
+### Rollback al Estado Anterior
 ```bash
-./blue-green-control.sh rollback
+/opt/sofia-chat/scripts/blue-green-control.sh rollback
 ```
 
-### Limpiar Entorno Inactivo
+### Limpiar Contenedor de Pruebas (Inactivo)
 ```bash
-./blue-green-control.sh cleanup
+/opt/sofia-chat/scripts/blue-green-control.sh cleanup
 ```
 
 ## Configuración Nginx
@@ -143,10 +157,13 @@ graph TD
 ## Integración con CI/CD
 
 ### GitHub Actions
-1. **Build Stage**: Crear imagen Docker con tag único
-2. **Deploy Stage**: Usar `deploy-to-slot.sh` para desplegar al slot inactivo
-3. **Notification**: Notificar que el deploy está listo para pruebas
-4. **No Auto-Switch**: Requiere intervención manual para el switch
+1. **Copy Scripts**: Transferir scripts actualizados via SCP
+2. **Update Repository**: git pull + git reset --hard HEAD
+3. **Build Stage**: Crear imagen Docker con --no-cache
+4. **Deploy Stage**: Ejecutar blue-green-control.sh deploy al slot inactivo
+5. **Update Internal**: Configurar Nginx internal para apuntar al nuevo slot
+6. **Notification**: Notificar deploy completado, listo para pruebas en internal URL
+7. **No Auto-Switch**: Estado de producción NO cambia automáticamente
 
 ### Variables de Entorno
 - `BLUE_GREEN_ACTIVE`: blue|green
@@ -328,7 +345,8 @@ echo "Nginx config: $(grep -o 'localhost:[0-9]*' /etc/nginx/sites-available/back
 #### Después de Switch Manual
 ```bash
 # El archivo se actualiza automáticamente en el switch
-# No requiere sincronización manual adicional
+# switch ejecuta: set_current_state("$new_state")
+# cleanup verifica producción real via Nginx, no via archivo estado
 ```
 
 #### Verificación Preventiva
