@@ -4,7 +4,7 @@
 -- Variables para el test (ajustar según la base de datos)
 -- Suponiendo organization_id = 1 para el test
 
--- 1. Verificar estructura actualss
+-- 1. Verificar estructura actual
 SELECT
     o.id as organization_id,
     o.name as organization_name,

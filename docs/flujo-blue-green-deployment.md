@@ -286,16 +286,9 @@ docker ps
 ### Endpoint de Health
 - **Ruta**: `/api/health`
 - **Prefijo global**: `api` (configurado en main.ts)
-- **Respuesta**: 
-  ```json
-  {
-    "status": "ok",
-    "timestamp": "2024-01-01T00:00:00.000Z",
-    "uptime": 123.45,
-    "memory": {...},
-    "deployment": "blue|green"
-  }
-  ```
+- **Uso**: Solo para verificar conectividad básica
+- **Nota**: El campo `deployment` en la respuesta no es confiable para determinar el estado actual
+- **Estado real**: Se obtiene del archivo `/opt/.blue-green-state` y configuración de Nginx
 
 ## Gestión del Archivo de Estado `.blue-green-state`
 
@@ -388,13 +381,14 @@ echo "Nginx config: $(grep -o 'localhost:[0-9]*' /etc/nginx/sites-available/back
 ```
 
 #### Verificación Preventiva
-Agregar al final del workflow para detectar desincronización:
+Verificar sincronización entre archivo de estado y Nginx:
 ```bash
 STATE=$(cat /opt/.blue-green-state)
-PROD_STATE=$(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')
-if [[ "$STATE" != "$PROD_STATE" ]]; then
+NGINX_PORT=$(grep -o 'localhost:[0-9]*' /etc/nginx/sites-available/backend.conf | head -1 | cut -d: -f2)
+NGINX_STATE=$([[ "$NGINX_PORT" == "3001" ]] && echo "blue" || echo "green")
+if [[ "$STATE" != "$NGINX_STATE" ]]; then
     echo "⚠️  ADVERTENCIA: Estado desincronizado"
-    echo "Archivo: $STATE | Producción: $PROD_STATE"
+    echo "Archivo: $STATE | Nginx: $NGINX_STATE"
 fi
 ```
 

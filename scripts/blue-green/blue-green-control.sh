@@ -391,8 +391,21 @@ rollback() {
 
 # Función para limpiar entorno inactivo
 cleanup() {
+    log_info "=== INICIANDO CLEANUP ==="
+
     # Determinar qué está realmente en producción (via Nginx)
+    log_info "Verificando configuración de Nginx en: $NGINX_CONFIG_DIR/backend.conf"
+
+    if [[ ! -f "$NGINX_CONFIG_DIR/backend.conf" ]]; then
+        log_error "Archivo de configuración de Nginx no encontrado: $NGINX_CONFIG_DIR/backend.conf"
+        log_info "Archivos disponibles en $NGINX_CONFIG_DIR:"
+        ls -la "$NGINX_CONFIG_DIR/" | grep backend || log_error "No hay archivos backend en nginx"
+        return 1
+    fi
+
     local prod_port=$(grep -o "localhost:[0-9]*" "$NGINX_CONFIG_DIR/backend.conf" | head -1 | cut -d: -f2)
+    log_info "Puerto detectado en Nginx: $prod_port"
+
     local prod_state
     local inactive_state
 
@@ -403,28 +416,66 @@ cleanup() {
         prod_state="green"
         inactive_state="blue"
     else
-        log_error "No se pudo determinar el estado de producción"
+        log_error "No se pudo determinar el estado de producción desde puerto: $prod_port"
+        log_info "Contenido de backend.conf:"
+        cat "$NGINX_CONFIG_DIR/backend.conf" | grep -A 5 -B 5 localhost || log_error "No se encontró localhost en config"
         return 1
     fi
 
-    log_info "Producción está en: $prod_state"
+    log_info "Producción está en: $prod_state (puerto $prod_port)"
     log_info "Limpiando entorno inactivo: $inactive_state"
 
     local container_name="sofia-chat-backend-$inactive_state"
+    log_info "Contenedor a eliminar: $container_name"
+
+    # Verificar que el contenedor existe
+    if ! docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        log_info "El contenedor $container_name no existe"
+        log_info "Contenedores existentes:"
+        docker ps -a --format 'table {{.Names}}\t{{.Status}}'
+        log_info "Cleanup completado - contenedor ya no existe"
+        return 0
+    fi
 
     if is_container_running "$container_name"; then
         log_info "Deteniendo contenedor de pruebas: $container_name"
-        docker stop "$container_name"
-        docker rm "$container_name"
-        log_info "Contenedor $container_name eliminado"
+
+        if ! docker stop "$container_name"; then
+            log_error "Error al detener el contenedor $container_name"
+            docker ps | grep "$container_name" || log_error "Contenedor no encontrado en docker ps"
+            return 1
+        fi
+
+        log_info "Contenedor detenido, procediendo a eliminar..."
+
+        if ! docker rm "$container_name"; then
+            log_error "Error al eliminar el contenedor $container_name"
+            docker ps -a | grep "$container_name" || log_error "Contenedor no encontrado en docker ps -a"
+            return 1
+        fi
+
+        log_info "Contenedor $container_name eliminado exitosamente"
     else
-        log_info "El contenedor $container_name ya está detenido"
+        log_info "El contenedor $container_name ya está detenido, eliminándolo..."
+
+        if ! docker rm "$container_name"; then
+            log_error "Error al eliminar el contenedor detenido $container_name"
+            return 1
+        fi
+
+        log_info "Contenedor detenido $container_name eliminado"
     fi
 
     # Limpiar imágenes no utilizadas
+    log_info "Limpiando imágenes no utilizadas..."
     docker image prune -f
 
-    log_info "Limpieza completada - Solo queda $prod_state en producción"
+    log_info "=== CLEANUP COMPLETADO ==="
+    log_info "Solo queda $prod_state en producción"
+
+    # Verificación final
+    log_info "Contenedores restantes:"
+    docker ps --format 'table {{.Names}}\t{{.Status}}'
 }
 
 # Función principal
