@@ -13,11 +13,17 @@ import { Agente } from '@models/agent/Agente.entity';
 import { OrganizationLimit } from '@models/OrganizationLimit.entity';
 import { OrganizationLimitService } from './organization-limit.service';
 import { OrganizationLimitController } from './organization-limit.controller';
+import { UserHitlType } from '@models/UserHitlType.entity';
 
 @Module({
   providers: [OrganizationService, UserOrganizationService, OrganizationSubscriber, OrganizationLimitService],
   controllers: [OrganizationController, OrganizationLimitController],
-  imports: [TypeOrmModule.forFeature([Organization, UserOrganization, Agente, OrganizationLimit]), forwardRef(() => AuthModule), forwardRef(() => UserModule), EmailModule],
+  imports: [
+    TypeOrmModule.forFeature([Organization, UserOrganization, Agente, OrganizationLimit, UserHitlType]),
+    forwardRef(() => AuthModule),
+    forwardRef(() => UserModule),
+    EmailModule,
+  ],
   exports: [OrganizationService, UserOrganizationService, OrganizationLimitService, TypeOrmModule.forFeature([Organization, UserOrganization, OrganizationLimit])],
 })
 export class OrganizationModule {}
