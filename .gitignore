@@ -56,3 +56,4 @@ uploads/organizations/*
 uploads/templates/*
 .windsurf/*
 infrastructure/.terraform
+.blue-green-state
