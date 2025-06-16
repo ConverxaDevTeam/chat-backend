@@ -1,0 +1,5 @@
+TIMESTAMP=Mon Jun 16 20:05:24 UTC 2025
+CURRENT_STATE=green
+BLUE_RUNNING=yes
+GREEN_RUNNING=yes
+DB_BACKUP_FILE=/root/repos/sofia-chat-backend-v2/db-backup.sql
