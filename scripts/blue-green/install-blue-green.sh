@@ -160,7 +160,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # Headers para identificar entorno de pruebas
         proxy_set_header X-Environment internal-testing;
         add_header X-Internal-Testing "true" always;
@@ -223,8 +223,8 @@ cat > "$SOFIA_DIR/scripts/bg-utils.sh" << 'UTILS_EOF'
 
 # Función para obtener el color activo
 get_active_color() {
-    if [[ -f /opt/sofia-chat/.blue-green-state ]]; then
-        cat /opt/sofia-chat/.blue-green-state
+    if [[ -f /opt/.blue-green-state ]]; then
+        cat /opt/.blue-green-state
     else
         echo "blue"
     fi
@@ -244,7 +244,7 @@ get_color_port() {
 is_container_healthy() {
     local container="$1"
     local port="$2"
-    
+
     if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
         wget --quiet --spider "http://localhost:$port/api/health" 2>/dev/null
         return $?

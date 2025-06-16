@@ -133,7 +133,7 @@ mkdir -p /opt/sofia-chat/scripts
 # certbot --nginx -d internal-dev-sofia-chat.sofiacall.com --non-interactive --agree-tos --email admin@sofiacall.com
 
 # Crear archivo de estado inicial para Blue-Green
-echo "blue" > /opt/sofia-chat/.blue-green-state
+echo "blue" > /opt/.blue-green-state
 
 # Configurar permisos para logs
 chown -R www-data:www-data /var/log/sofia-chat/
@@ -168,7 +168,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # Headers para identificar entorno de pruebas
         proxy_set_header X-Environment internal-testing;
         add_header X-Internal-Testing "true" always;

@@ -156,7 +156,7 @@ curl http://localhost:3001/health
 /opt/sofia-chat/scripts/update-prod-config.sh blue
 
 # Establecer estado inicial
-echo "blue" > /opt/sofia-chat/.blue-green-state
+echo "blue" > /opt/.blue-green-state
 
 # Verificar estado
 bg-status
@@ -331,7 +331,7 @@ docker logs sofia-chat-backend-green
 ### Si Necesitas Forzar Blue como Producción
 ```bash
 # Procedimiento de emergencia
-echo "blue" > /opt/sofia-chat/.blue-green-state
+echo "blue" > /opt/.blue-green-state
 /opt/sofia-chat/scripts/update-prod-config.sh blue
 systemctl reload nginx
 ```

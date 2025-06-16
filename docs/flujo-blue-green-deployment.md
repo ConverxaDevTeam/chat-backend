@@ -276,7 +276,7 @@ docker ps
 El archivo `.blue-green-state` controla qué slot está activo y determina a cuál slot deployar next.
 
 #### Ubicación del Archivo
-- **Ubicación única**: `/opt/sofia-chat/.blue-green-state`
+- **Ubicación única**: `/opt/.blue-green-state`
 - **NO está en repositorio git**: Independiente del código fuente
 - **NO afectado por git operations**: `git reset --hard HEAD` no lo modifica
 
@@ -299,14 +299,14 @@ El archivo `.blue-green-state` controla qué slot está activo y determina a cu�
 PROJECT_DIR=/root/repos/sofia-chat-backend-v2 /opt/sofia-chat/scripts/blue-green-control.sh deploy
 ```
 
-Todos los scripts usan la ubicación fija: `/opt/sofia-chat/.blue-green-state`
+Todos los scripts usan la ubicación fija: `/opt/.blue-green-state`
 
 ### Problema de Desincronización Resuelto
 
 #### Síntoma
 ```bash
 # Estado en archivo único
-cat /opt/sofia-chat/.blue-green-state  # → green
+cat /opt/.blue-green-state  # → green
 
 # Pero producción real
 curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment'  # → blue
@@ -324,10 +324,10 @@ El archivo de estado se desincroniza de la realidad cuando:
 PROD_STATE=$(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')
 
 # 2. Sincronizar archivo de estado
-echo "$PROD_STATE" > /opt/sofia-chat/.blue-green-state
+echo "$PROD_STATE" > /opt/.blue-green-state
 
 # 3. Verificar sincronización
-echo "Estado en archivo: $(cat /opt/sofia-chat/.blue-green-state)"
+echo "Estado en archivo: $(cat /opt/.blue-green-state)"
 echo "Estado en producción: $PROD_STATE"
 ```
 
@@ -335,7 +335,7 @@ echo "Estado en producción: $PROD_STATE"
 ```bash
 # Verificar estado único
 echo "=== VERIFICACIÓN COMPLETA DE ESTADO ==="
-echo "Archivo estado: $(cat /opt/sofia-chat/.blue-green-state 2>/dev/null)" 
+echo "Archivo estado: $(cat /opt/.blue-green-state 2>/dev/null)" 
 echo "Producción real: $(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')"
 echo "Nginx config: $(grep -o 'localhost:[0-9]*' /etc/nginx/sites-available/backend.conf | head -1)"
 ```
@@ -352,7 +352,7 @@ echo "Nginx config: $(grep -o 'localhost:[0-9]*' /etc/nginx/sites-available/back
 #### Verificación Preventiva
 Agregar al final del workflow para detectar desincronización:
 ```bash
-STATE=$(cat /opt/sofia-chat/.blue-green-state)
+STATE=$(cat /opt/.blue-green-state)
 PROD_STATE=$(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment')
 if [[ "$STATE" != "$PROD_STATE" ]]; then
     echo "⚠️  ADVERTENCIA: Estado desincronizado"
