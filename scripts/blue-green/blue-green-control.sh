@@ -22,7 +22,7 @@ NC='\033[0m' # No Color
 
 # Funciones de logging
 log_info() {
-    echo -e "${GREEN}[INFOs]${NC} $1"
+    echo -e "${GREEN}[INFO]${NC} $1"
 }
 
 log_warn() {
@@ -426,9 +426,9 @@ main() {
             local current_state=$(get_current_state)
             local target_state
             if [[ "$current_state" == "blue" ]]; then
-                target_state="blue"  # Siempre deployar a blue por ahora
+                target_state="green"
             else
-                target_state="blue"  # Siempre deployar a blue por ahora
+                target_state="blue"
             fi
 
             log_info "=== INICIANDO PROCESO DE DEPLOY ==="
