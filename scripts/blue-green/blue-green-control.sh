@@ -67,19 +67,29 @@ check_container_health() {
     local port="$2"
 
     if ! is_container_running "$container_name"; then
+        echo "[DEBUG] Container $container_name no está corriendo"
         return 1
     fi
 
     # Verificar health check de Docker
     local health_status=$(docker inspect --format='{{.State.Health.Status}}' "$container_name" 2>/dev/null || echo "none")
+    echo "[DEBUG] Health status de $container_name: $health_status"
 
     if [[ "$health_status" == "healthy" ]]; then
+        echo "[DEBUG] Container $container_name está healthy según Docker"
         return 0
     elif [[ "$health_status" == "none" ]]; then
         # Si no hay health check de Docker, verificar manualmente
-        wget --quiet --spider "http://localhost:$port/api/health" 2>/dev/null
-        return $?
+        echo "[DEBUG] No hay health check de Docker, verificando manualmente puerto $port"
+        if curl -sf "http://localhost:$port/api/health" >/dev/null 2>&1; then
+            echo "[DEBUG] Health check manual exitoso para $container_name"
+            return 0
+        else
+            echo "[DEBUG] Health check manual falló para $container_name"
+            return 1
+        fi
     else
+        echo "[DEBUG] Container $container_name no está healthy: $health_status"
         return 1
     fi
 }
@@ -159,6 +169,16 @@ deploy_to_slot() {
     local target_color="$1"
     local image_tag="${2:-latest}"
 
+    log_info "=== INICIANDO DEPLOY ==="
+    log_info "Target color: $target_color"
+    log_info "Image tag: $image_tag"
+    log_info "Project dir: $PROJECT_DIR"
+    log_info "Script dir: $SCRIPT_DIR"
+
+    # Verificar commit actual
+    local current_commit=$(cd "$PROJECT_DIR" && git rev-parse --short HEAD)
+    log_info "Commit actual: $current_commit"
+
     log_info "Iniciando deploy a slot $target_color..."
 
     # Determinar nombres y puertos
@@ -170,6 +190,9 @@ deploy_to_slot() {
         port="3002"
     fi
 
+    log_info "Container name: $container_name"
+    log_info "Port: $port"
+
     # Detener contenedor existente si está corriendo
     if is_container_running "$container_name"; then
         log_warn "Deteniendo contenedor existente: $container_name"
@@ -180,16 +203,26 @@ deploy_to_slot() {
     # Construir nueva imagen si es necesario
     log_info "Construyendo imagen Docker..."
     cd "$PROJECT_DIR"
+    log_info "Ejecutando: docker build --no-cache -t sofia-chat-backend:$image_tag ."
     docker build --no-cache -t "sofia-chat-backend:$image_tag" .
 
-    # Iniciar nuevo contenedor
+    # Iniciar nuevo contenedor con logs detallados
     log_info "Iniciando contenedor $container_name en puerto $port..."
 
-    if [[ "$target_color" == "green" ]]; then
-        docker-compose --profile green up -d sofia-chat-backend-green
-    else
-        docker-compose --profile blue up -d sofia-chat-backend-blue
-    fi
+    # Crear contenedor con health check manual
+    log_info "Ejecutando: docker run para $container_name"
+    docker run -d \
+        --name "$container_name" \
+        --env-file "$PROJECT_DIR/.env" \
+        --health-cmd="curl -f http://localhost:3001/api/health || exit 1" \
+        --health-interval=30s \
+        --health-timeout=10s \
+        --health-retries=3 \
+        --health-start-period=30s \
+        -p "$port:3001" \
+        "sofia-chat-backend:$image_tag"
+
+    log_info "Contenedor $container_name iniciado"
 
     # Esperar a que el contenedor esté saludable
     log_info "Esperando a que el contenedor esté saludable..."
@@ -197,23 +230,56 @@ deploy_to_slot() {
     local max_attempts=30
 
     while [[ $attempts -lt $max_attempts ]]; do
-        if check_container_health "$container_name" "$port"; then
-            log_info "Contenedor $container_name está saludable!"
-            break
-        fi
-
         attempts=$((attempts + 1))
         log_warn "Intento $attempts/$max_attempts - Esperando..."
-        sleep 10
+
+        # Verificar logs del contenedor si falla
+        if ! check_container_health "$container_name" "$port"; then
+            if [[ $attempts -eq 5 || $attempts -eq 15 || $attempts -eq 25 ]]; then
+                log_warn "=== LOGS DEL CONTENEDOR $container_name ==="
+                docker logs "$container_name" --tail=10
+                log_warn "=== FIN LOGS ==="
+            fi
+            sleep 10
+            continue
+        fi
+
+        log_info "Contenedor $container_name está saludable!"
+        break
     done
 
     if [[ $attempts -eq $max_attempts ]]; then
         log_error "El contenedor no pasó las verificaciones de salud después de $max_attempts intentos"
+        log_error "=== LOGS FINALES DEL CONTENEDOR ==="
+        docker logs "$container_name" --tail=20
+        log_error "=== FIN LOGS FINALES ==="
         return 1
     fi
 
+    # Verificar commit en el contenedor
+    local container_commit=$(docker exec "$container_name" cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo "unknown")
+    log_info "Commit en contenedor: $container_commit"
+
     # Actualizar configuración de pruebas internas para apuntar al nuevo slot
-    "$SCRIPT_DIR/update-internal-config.sh" "$target_color"
+    log_info "Actualizando configuración de pruebas internas para apuntar a $target_color (puerto $port)"
+    if [[ -f "$SCRIPT_DIR/update-internal-config.sh" ]]; then
+        "$SCRIPT_DIR/update-internal-config.sh" "$target_color"
+        log_info "Configuración de pruebas internas actualizada exitosamente"
+    else
+        log_warn "Script update-internal-config.sh no encontrado en $SCRIPT_DIR"
+    fi
+
+    log_info "Pruebas internas ahora apuntan a: $target_color (puerto $port)"
+
+    # Verificar configuración de Nginx
+    if nginx -t; then
+        log_info "Configuración de Nginx válida"
+        systemctl reload nginx
+        log_info "Nginx recargado exitosamente"
+    else
+        log_error "Error en configuración de Nginx"
+        return 1
+    fi
 
     log_info "Deploy completado exitosamente en slot $target_color"
     log_info "Puedes probar en: https://internal-dev-sofia-chat.sofiacall.com"
@@ -360,11 +426,30 @@ main() {
             local current_state=$(get_current_state)
             local target_state
             if [[ "$current_state" == "blue" ]]; then
-                target_state="green"
+                target_state="blue"  # Siempre deployar a blue por ahora
             else
-                target_state="blue"
+                target_state="blue"  # Siempre deployar a blue por ahora
             fi
-            deploy_to_slot "$target_state" "${2:-latest}"
+
+            log_info "=== INICIANDO PROCESO DE DEPLOY ==="
+            log_info "Estado actual: $current_state"
+            log_info "Target state: $target_state"
+
+            # Ejecutar deploy
+            if deploy_to_slot "$target_state" "${2:-latest}"; then
+                log_info "=== DEPLOY EXITOSO ==="
+                log_info "Deploy completado en slot $target_state"
+
+                # Actualizar estado solo si el deploy fue exitoso
+                set_current_state "$target_state"
+
+                # Mostrar estado final
+                show_status
+            else
+                log_error "=== DEPLOY FALLÓ ==="
+                log_error "El deploy a $target_state falló"
+                return 1
+            fi
             ;;
         "switch")
             switch_traffic

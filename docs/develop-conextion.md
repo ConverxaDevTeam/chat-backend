@@ -7,36 +7,54 @@ recuerda, el codigo lo puedes ver en local, pero los cambios debes de verlos en 
 
 ## Reporte de Debugging - Docker no actualiza cambios
 
-### Problema identificado
-- **Síntoma**: Docker containers no reflejan últimos commits en producción
-- **Commit esperado**: 1b9ffff (local develop-v1)
-- **Commit en contenedor**: c29a4e2 (commit anterior)
+### PROBLEMA PERSISTENTE IDENTIFICADO ⚠️
 
-### Investigación realizada
-1. **Verificación estado servidor**: /root/repos/sofia-chat-backend-v2 SÍ tiene último commit (1b9ffff)
-2. **Verificación contenedor**: `docker exec sofia-chat-backend-green cat /app/.git/refs/heads/develop-v1` muestra c29a4e2
-3. **Problema confirmado**: Docker build NO está tomando los archivos actualizados del directorio host
+**Situación actual**: El workflow de GitHub Actions deployea correctamente pero NO hace switch automático a producción.
 
-### Intentos de solución
-1. **Stash y pull**: Resolvió conflictos en servidor, código actualizado en /root/repos/
-2. **Limpieza completa Docker**: Eliminamos todas las imágenes y containers con `docker system prune -f`
-3. **Build forzado con --no-cache**: Aún así el contenedor sigue con commit viejo
-4. **Scripts actualizados**: Copiamos scripts blue-green actualizados a /opt/sofia-chat/scripts/
+### Análisis del problema
+1. **Workflow deployea correctamente**: El commit más reciente (93c360c) se construye y deploya a BLUE
+2. **Producción sigue en GREEN**: Pero producción apunta a GREEN que tiene commit anterior o problemas de salud
+3. **Falta switch automático**: El workflow no incluye el paso de cambiar tráfico a producción
 
-### PROBLEMA RESUELTO ✅
+### Solución manual funcionando ✅
+La solución de `git reset --hard HEAD` + build manual + switch SÍ funciona cuando se ejecuta manualmente.
 
-**Causa raíz identificada**: `git pull` actualizó HEAD pero NO los archivos de trabajo
+### CAUSA RAÍZ DEL WORKFLOW:
+1. **Deploy exitoso pero sin switch**: El workflow deploy a BLUE pero no cambia producción
+2. **GREEN queda "NO SALUDABLE"**: Contenedor GREEN antiguo sin health check correcto
+3. **Logs insuficientes**: Faltaban logs para diagnosticar commits en contenedores
 
-**Solución aplicada**:
-1. `git reset --hard HEAD` para sincronizar archivos de trabajo
-2. Build manual con --no-cache 
-3. Switch a contenedor GREEN con commit correcto
-4. Producción ahora en commit 1b9ffff ✅
+### Solución implementada en workflow ✅
+1. **Logs detallados**: Agregados logs de commits antes/después del deploy
+2. **Verificación de salud**: Health checks mejorados con curl en lugar de wget
+3. **Commit tracking**: Se muestra commit en repositorio vs commit en contenedores
+4. **Deploy mejorado**: El script ahora deployea siempre a BLUE y actualiza estado correctamente
 
-**Verificación final**:
-- **Contenedor GREEN**: commit 1b9ffff ✅
-- **Producción**: https://dev-sofia-chat.sofiacall.com/api/health muestra deployment: "green" ✅
-- **Cambios aplicados**: Los últimos commits están activos en producción ✅
+### Comandos de verificación
+```bash
+# Ver estado actual
+/opt/sofia-chat/scripts/blue-green-control.sh status
 
-**Lección aprendida**: 
-Siempre verificar que `git pull` sincronice archivos de trabajo, no solo HEAD. Usar `git reset --hard HEAD` cuando sea necesario.
+# Ver commits en contenedores
+docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 | cut -c1-7
+docker exec sofia-chat-backend-green cat /app/.git/refs/heads/develop-v1 | cut -c1-7
+
+# Ver commit en repositorio
+cd /root/repos/sofia-chat-backend-v2 && git rev-parse --short HEAD
+
+# Hacer switch manual si es necesario
+/opt/sofia-chat/scripts/blue-green-control.sh switch
+```
+
+### URLs de verificación
+- **BLUE**: http://dev-sofia-chat.sofiacall.com:3001/api/health
+- **GREEN**: http://dev-sofia-chat.sofiacall.com:3002/api/health  
+- **Producción**: https://dev-sofia-chat.sofiacall.com/api/health
+- **Pruebas internas**: https://internal-dev-sofia-chat.sofiacall.com/api/health
+
+### PENDIENTE DE VERIFICAR:
+- ✅ Workflow con logs mejorados
+- ⏳ Verificar que el próximo deploy funcione automáticamente
+- ⏳ Confirmar que switch automático funcione tras deploy exitoso
+
+**Nota**: La solución técnica está implementada, pero necesita verificación en el próximo deployment automático.
