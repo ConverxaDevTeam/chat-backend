@@ -136,6 +136,7 @@ sequenceDiagram
 6. **Verificación por Organización**: Todos los permisos se verifican específicamente por organización
 7. **Acceso Granular**: El sistema valida acceso basado en el organizationId de la URL del endpoint
 8. **Compatibilidad**: Mantiene compatibilidad con escalamiento legacy sin tipos HITL
+9. **Desasignación Automática**: Cuando un usuario cambia de rol `HITL` a `USER`, se desasignan automáticamente todos los tipos HITL que tenga asignados en esa organización
 
 ### Validaciones Implementadas
 - Verificación de rol OWNER para gestión de tipos HITL
@@ -143,6 +144,7 @@ sequenceDiagram
 - Verificación de rol HITL antes de asignación
 - Unicidad de nombres de tipos HITL por organización
 - Eliminación en cascada de asignaciones al eliminar tipos
+- **Limpieza Automática**: Desasignación automática de tipos HITL cuando usuario pierde rol HITL
 
 ### Consideraciones Técnicas
 
@@ -194,6 +196,9 @@ sequenceDiagram
 - **hitl-events.ts**: Nuevas interfaces para eventos HITL
 - **app.module.ts**: Importación de CoreModule
 - **socket.service.ts**: Optimización de consultas en `sendNotificationToOrganization()` para eliminar N+1 queries
+- **UserOrganization.service.ts**: Desasignación automática de tipos HITL al cambiar rol de HITL a USER
+- **organization.module.ts**: Agregado UserHitlType entity para soportar desasignación automática
+- **conversation.module.ts**: Agregado UserHitlType entity para compatibilidad con UserOrganizationService
 
 ### Base de Datos
 - **Tablas nuevas**: hitl_types, user_hitl_types
@@ -253,3 +258,4 @@ sequenceDiagram
 8. **Actualización Parcial de Agentes**: Solo se actualizaba el primer agente encontrado por organización, no todos los departamentos
 9. **Sistema de Eventos Implementado**: EventEmitter2 para comunicación desacoplada entre HitlTypesService y AgentManagerService
 10. **Logs Mejorados**: Sistema de logging detallado para troubleshooting de actualizaciones multi-agente
+11. **Desasignación Automática**: Sistema automático de limpieza que desasigna tipos HITL cuando usuario pierde rol HITL

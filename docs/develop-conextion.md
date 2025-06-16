@@ -1,5 +1,6 @@
 ip: 137.184.227.234
-ssh a usar:
--rw-------  1 frank frank 3389 oct 16  2024 digitalOcean
--rw-r--r--  1 frank frank  747 oct 16  2024 digitalOcean.pub
-la rama es develop-v1
+
+para conectar puedes usar
+ssh -i ~/.ssh/digitalOcean root@137.184.227.234
+para comprender como est la estructura del proyecto en el servidor puedes verificar el workflow, y puedes ver el script dentro de terraform para configuraciones mas avanzadas.
+recuerda, el codigo lo puedes ver en local, pero los cambios debes de verlos en el servidor
