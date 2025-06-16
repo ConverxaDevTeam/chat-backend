@@ -71,11 +71,22 @@ jobs:
           script: |
             cd ${{ env.PROJECT_PATH }}
 
+            echo "=== ESTADO INICIAL DEL REPOSITORIO ==="
+            echo "Commit actual: $(git rev-parse --short HEAD)"
+            echo "Branch actual: $(git branch --show-current)"
+            git status --short
+
             # Pull latest changes and ensure working files are synchronized
+            echo "=== ACTUALIZANDO REPOSITORIO ==="
             git fetch origin
             git checkout develop-v1
             git pull origin develop-v1
             git reset --hard HEAD
+
+            echo "=== ESTADO DESPUÉS DE LA ACTUALIZACIÓN ==="
+            echo "Commit final: $(git rev-parse --short HEAD)"
+            echo "Último commit: $(git log --oneline -1)"
+            git status --short
 
             # Create environment file with proper quoting
             cat > .env << 'ENV_EOF'
@@ -127,10 +138,33 @@ jobs:
             # Determine action
             ACTION="${{ github.event.inputs.action || 'deploy' }}"
 
+            echo "=== INFORMACIÓN DE DEPLOY ==="
+            echo "Acción: $ACTION"
+            echo "Commit a deployar: $(git rev-parse --short HEAD)"
+            echo "Timestamp: $(date)"
+            echo "Directorio del proyecto: ${{ env.PROJECT_PATH }}"
+            echo "Script a ejecutar: /opt/sofia-chat/scripts/blue-green-control.sh"
+
+            # Verificar que el script existe
+            if [[ ! -f "/opt/sofia-chat/scripts/blue-green-control.sh" ]]; then
+                echo "ERROR: Script no encontrado en /opt/sofia-chat/scripts/blue-green-control.sh"
+                ls -la /opt/sofia-chat/scripts/
+                exit 1
+            fi
+
+            echo "=== EJECUTANDO BLUE-GREEN ACTION ==="
             echo "Ejecutando acción Blue-Green: $ACTION"
 
             # Execute the blue-green script from project directory
             PROJECT_DIR=${{ env.PROJECT_PATH }} /opt/sofia-chat/scripts/blue-green-control.sh $ACTION
+
+            echo "=== VERIFICACIÓN POST-DEPLOY ==="
+            echo "Verificando estado de contenedores después del deploy:"
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+            echo "Verificando commits en contenedores:"
+            echo "BLUE: $(docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'N/A')"
+            echo "GREEN: $(docker exec sofia-chat-backend-green cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'N/A')"
 
       - name: Show deployment summary
         uses: appleboy/ssh-action@master
@@ -144,24 +178,59 @@ jobs:
             echo "   BLUE-GREEN DEPLOYMENT SUMMARY"
             echo "=================================="
             echo "Acción ejecutada: ${{ github.event.inputs.action || 'deploy' }}"
-            echo "Commit: $(cd ${{ env.PROJECT_PATH }} && git rev-parse --short HEAD)"
+            echo "Commit deployado: $(cd ${{ env.PROJECT_PATH }} && git rev-parse --short HEAD)"
+            echo "Commit completo: $(cd ${{ env.PROJECT_PATH }} && git rev-parse HEAD)"
+            echo "Mensaje del commit: $(cd ${{ env.PROJECT_PATH }} && git log --format=%B -n 1 HEAD | head -1)"
             echo "Timestamp: $(date)"
             echo "=================================="
+
+            echo "=== COMMITS EN CONTENEDORES ==="
+            echo "BLUE container commit: $(docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'Container not running')"
+            echo "GREEN container commit: $(docker exec sofia-chat-backend-green cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'Container not running')"
+            echo "Repository commit: $(cd ${{ env.PROJECT_PATH }} && git rev-parse --short HEAD)"
             echo ""
 
             # Show current status
             /opt/sofia-chat/scripts/blue-green-control.sh status
 
             echo ""
+            echo "=== VERIFICACIÓN DE SALUD ==="
+            echo "Verificando endpoints de salud:"
+
+            echo -n "BLUE (3001): "
+            if curl -sf http://localhost:3001/api/health >/dev/null 2>&1; then
+                echo "✅ SALUDABLE"
+            else
+                echo "❌ NO SALUDABLE"
+            fi
+
+            echo -n "GREEN (3002): "
+            if curl -sf http://localhost:3002/api/health >/dev/null 2>&1; then
+                echo "✅ SALUDABLE"
+            else
+                echo "❌ NO SALUDABLE"
+            fi
+
+            echo -n "Producción: "
+            if curl -sf https://dev-sofia-chat.sofiacall.com/api/health >/dev/null 2>&1; then
+                echo "✅ SALUDABLE"
+                echo "Deployment activo: $(curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment' 2>/dev/null || echo 'unknown')"
+            else
+                echo "❌ NO SALUDABLE"
+            fi
+
+            echo ""
             echo "🔧 Comandos disponibles:"
-            echo "  - Ver estado: /opt/sofia-chat/blue-green-simple.sh status"
-            echo "  - Hacer switch: /opt/sofia-chat/blue-green-simple.sh switch"
-            echo "  - Rollback: /opt/sofia-chat/blue-green-simple.sh rollback"
-            echo "  - Limpiar: /opt/sofia-chat/blue-green-simple.sh cleanup"
+            echo "  - Ver estado: /opt/sofia-chat/scripts/blue-green-control.sh status"
+            echo "  - Hacer switch: /opt/sofia-chat/scripts/blue-green-control.sh switch"
+            echo "  - Rollback: /opt/sofia-chat/scripts/blue-green-control.sh rollback"
+            echo "  - Limpiar: /opt/sofia-chat/scripts/blue-green-control.sh cleanup"
             echo ""
             echo "🌐 URLs de prueba:"
             echo "  - Blue (3001): http://dev-sofia-chat.sofiacall.com:3001/api/health"
             echo "  - Green (3002): http://dev-sofia-chat.sofiacall.com:3002/api/health"
+            echo "  - Producción: https://dev-sofia-chat.sofiacall.com/api/health"
+            echo "  - Pruebas internas: https://internal-dev-sofia-chat.sofiacall.com/api/health"
 
   notify-result:
     needs: blue-green-deployment
