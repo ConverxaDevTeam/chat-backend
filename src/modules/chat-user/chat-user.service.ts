@@ -144,4 +144,89 @@ export class ChatUserService {
       customData,
     };
   }
+
+  async getAllUsersWithInfo(
+    page: number = 1,
+    limit: number = 10,
+    organizationId?: number,
+    search?: string,
+    type?: ChatUserType,
+  ): Promise<{
+    users: Array<{
+      standardInfo: Partial<ChatUser>;
+      customData: Record<string, string>;
+    }>;
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+    const skip = (page - 1) * limit;
+
+    let queryBuilder = this.chatUserRepository
+      .createQueryBuilder('chatUser')
+      .select([
+        'chatUser.id',
+        'chatUser.name',
+        'chatUser.email',
+        'chatUser.phone',
+        'chatUser.address',
+        'chatUser.avatar',
+        'chatUser.type',
+        'chatUser.created_at',
+        'chatUser.last_login',
+      ]);
+
+    // Filtro por organización
+    if (organizationId) {
+      queryBuilder = queryBuilder
+        .leftJoin('chatUser.conversations', 'conversation')
+        .leftJoin('conversation.departamento', 'departamento')
+        .leftJoin('departamento.organizacion', 'organizacion')
+        .where('organizacion.id = :organizationId', { organizationId });
+    }
+
+    // Buscador por name, email, phone
+    if (search) {
+      const searchCondition = organizationId ? 'AND' : 'WHERE';
+      queryBuilder = queryBuilder[searchCondition.toLowerCase()]('(chatUser.name ILIKE :search OR chatUser.email ILIKE :search OR chatUser.phone ILIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+
+    // Filtro por type
+    if (type) {
+      const typeCondition = organizationId || search ? 'AND' : 'WHERE';
+      queryBuilder = queryBuilder[typeCondition.toLowerCase()]('chatUser.type = :type', { type });
+    }
+
+    // Ordenado por created_at DESC (más reciente primero)
+    queryBuilder = queryBuilder.orderBy('chatUser.created_at', 'DESC').skip(skip).take(limit);
+
+    const [chatUsers, total] = await queryBuilder.getManyAndCount();
+
+    const usersWithInfo = await Promise.all(
+      chatUsers.map(async (chatUser) => {
+        const customDataArray = await this.chatUserDataService.findAllByUser(chatUser.id);
+        const customData = customDataArray.reduce(
+          (acc, item) => {
+            acc[item.key] = item.value;
+            return acc;
+          },
+          {} as Record<string, string>,
+        );
+
+        return {
+          standardInfo: chatUser,
+          customData,
+        };
+      }),
+    );
+
+    return {
+      users: usersWithInfo,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }
