@@ -187,16 +187,24 @@ export class ChatUserService {
 
     // Buscador por name, email, phone
     if (search) {
-      const searchCondition = organizationId ? 'AND' : 'WHERE';
-      queryBuilder = queryBuilder[searchCondition.toLowerCase()]('(chatUser.name ILIKE :search OR chatUser.email ILIKE :search OR chatUser.phone ILIKE :search)', {
-        search: `%${search}%`,
-      });
+      if (organizationId) {
+        queryBuilder = queryBuilder.andWhere('(chatUser.name ILIKE :search OR chatUser.email ILIKE :search OR chatUser.phone ILIKE :search)', {
+          search: `%${search}%`,
+        });
+      } else {
+        queryBuilder = queryBuilder.where('(chatUser.name ILIKE :search OR chatUser.email ILIKE :search OR chatUser.phone ILIKE :search)', {
+          search: `%${search}%`,
+        });
+      }
     }
 
     // Filtro por type
     if (type) {
-      const typeCondition = organizationId || search ? 'AND' : 'WHERE';
-      queryBuilder = queryBuilder[typeCondition.toLowerCase()]('chatUser.type = :type', { type });
+      if (organizationId || search) {
+        queryBuilder = queryBuilder.andWhere('chatUser.type = :type', { type });
+      } else {
+        queryBuilder = queryBuilder.where('chatUser.type = :type', { type });
+      }
     }
 
     // Ordenado por created_at DESC (más reciente primero)
