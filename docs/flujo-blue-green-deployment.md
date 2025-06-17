@@ -17,10 +17,8 @@ Sistema de despliegue Blue-Green que permite desplegar nuevas versiones del back
 - **Pruebas Internas**: `internal-dev-sofia-chat.sofiacall.com` → Apunta al entorno inactivo
 
 ### Scripts de Control
-- **`blue-green-control.sh`**: Script maestro para gestionar el ciclo
-- **`deploy-to-slot.sh`**: Deploy automático al slot inactivo
-- **`switch-traffic.sh`**: Cambio de tráfico entre entornos
-- **`health-check.sh`**: Verificación de salud de contenedores
+- **`blue-green-simple.sh`**: Script principal unificado para gestionar todo el ciclo
+- **`update-prod-config.sh`**: Script helper para actualizar configuración de Nginx
 
 ## Flujo de Despliegue
 
@@ -80,32 +78,37 @@ graph TD
 - **Nginx Internal**: → localhost:3002 (green)
 - **Estado**: Sigue en "green"
 
-## Comandos de Control
+### Comandos de Control
 
 ### Detectar Estado Actual
 ```bash
-./blue-green-control.sh status
+/opt/sofia-chat/blue-green-simple.sh status
 ```
 
-### Deploy Automático (vía Workflow)
+### Deploy Automático
 ```bash
-# Automático en GitHub Actions - NO manual
-# Deploya a slot inactivo sin cambiar producción
+# Manual o vía Workflow
+/opt/sofia-chat/blue-green-simple.sh deploy
 ```
 
 ### Cambiar Tráfico a Nuevo Deploy
 ```bash
-/opt/sofia-chat/scripts/blue-green-control.sh switch
+/opt/sofia-chat/blue-green-simple.sh switch
 ```
 
 ### Rollback al Estado Anterior
 ```bash
-/opt/sofia-chat/scripts/blue-green-control.sh rollback
+/opt/sofia-chat/blue-green-simple.sh rollback
 ```
 
 ### Limpiar Contenedor de Pruebas (Inactivo)
 ```bash
-/opt/sofia-chat/scripts/blue-green-control.sh cleanup
+/opt/sofia-chat/blue-green-simple.sh cleanup
+```
+
+### Restaurar Base de Datos
+```bash
+/opt/sofia-chat/blue-green-simple.sh restore
 ```
 
 ## Configuración Nginx
@@ -126,31 +129,33 @@ upstream backend_internal {
 - Pruebas internas usa `backend_internal` upstream
 - Scripts modifican archivos de configuración y recargan Nginx
 
-## Sincronización de Scripts
+## Estructura de Scripts Simplificada
 
-### Problema de Inconsistencia de Estado
-Si hay inconsistencia entre scripts que reportan estados diferentes:
+### Scripts Activos
+Solo **2 scripts** son necesarios para el funcionamiento completo:
 
+- **`blue-green-simple.sh`** - Script principal con todas las funcionalidades
+- **`update-prod-config.sh`** - Helper para actualizar configuración de Nginx
+
+### Scripts Movidos a Backup
+Para evitar duplicaciones, los siguientes scripts se movieron a `scripts/blue-green/backup/`:
+
+- `blue-green-control.sh` - Funcionalidad duplicada
+- `update-internal-config.sh` - No usado por el script principal
+- `health-check.sh` - Funcionalidad integrada en el principal
+- `install-blue-green.sh` - Solo para setup inicial
+
+### Sincronización Manual
 ```bash
-# Verificar que ambos scripts usen la misma ruta
-grep "STATE_FILE=" /opt/sofia-chat/blue-green-simple.sh
-grep "STATE_FILE=" /opt/sofia-chat/scripts/blue-green-control.sh
-
-# Ambos deben mostrar: STATE_FILE="/opt/.blue-green-state"
-```
-
-### Solución: Sincronización Manual
-```bash
-# Copiar scripts actualizados desde el repositorio
-scp -i ~/.ssh/digitalOcean scripts/blue-green/*.sh root@IP:/opt/sofia-chat/scripts/
+# Copiar scripts necesarios desde el repositorio
 scp -i ~/.ssh/digitalOcean scripts/blue-green/blue-green-simple.sh root@IP:/opt/sofia-chat/
+scp -i ~/.ssh/digitalOcean scripts/blue-green/update-prod-config.sh root@IP:/opt/sofia-chat/scripts/
 
 # Hacer ejecutables
-ssh -i ~/.ssh/digitalOcean root@IP "chmod +x /opt/sofia-chat/scripts/*.sh /opt/sofia-chat/blue-green-simple.sh"
+ssh -i ~/.ssh/digitalOcean root@IP "chmod +x /opt/sofia-chat/blue-green-simple.sh /opt/sofia-chat/scripts/update-prod-config.sh"
 
-# Verificar sincronización
+# Verificar funcionamiento
 ssh -i ~/.ssh/digitalOcean root@IP "/opt/sofia-chat/blue-green-simple.sh status"
-ssh -i ~/.ssh/digitalOcean root@IP "PROJECT_DIR=/root/repos/sofia-chat-backend-v2 /opt/sofia-chat/scripts/blue-green-control.sh status"
 ```
 
 ## Consideraciones de Seguridad
@@ -184,30 +189,44 @@ graph TD
 ## Integración con CI/CD
 
 ### GitHub Actions
-1. **Copy Scripts**: Transferir scripts actualizados via SCP
+1. **Copy Scripts**: Transferir `blue-green-simple.sh` y `update-prod-config.sh` via SCP
 2. **Update Repository**: git pull + git reset --hard HEAD
-3. **Build Stage**: Crear imagen Docker con --no-cache
-4. **Deploy Stage**: Ejecutar blue-green-control.sh deploy al slot inactivo
-5. **Update Internal**: Configurar Nginx internal para apuntar al nuevo slot
-6. **Notification**: Notificar deploy completado, listo para pruebas en internal URL
-7. **No Auto-Switch**: Estado de producción NO cambia automáticamente
+3. **Execute Action**: Ejecutar `blue-green-simple.sh` con la acción solicitada
+4. **Status Display**: Mostrar estado final del deployment
+5. **Health Check**: Verificar conectividad básica de endpoints
+6. **Manual Actions**: Switch, rollback y cleanup se ejecutan manualmente
 
-### Variables de Entorno
-- `BLUE_GREEN_ACTIVE`: blue|green
-- `DOCKER_IMAGE_TAG`: Tag de la imagen a desplegar
-- `INTERNAL_DOMAIN`: Dominio para pruebas internas
+### Configuración del Script
+El script usa configuración embebida en lugar de variables de entorno:
+
+- **`PROJECT_DIR`**: `/root/repos/sofia-chat-backend-v2`
+- **`STATE_FILE`**: `/opt/.blue-green-state`
+- **`DOCKER_COMPOSE`**: `docker-compose -f docker-compose.yml`
+
+### Funcionalidades Incluidas
+- ✅ Deploy automático con Docker Compose
+- ✅ Switch con backup automático de DB
+- ✅ Health checks integrados
+- ✅ Cleanup con liberación de espacio
+- ✅ Rollback con restauración de estado
+- ✅ Logs detallados con timestamps
 
 ## Monitoreo y Alertas
 
 ### Health Endpoints
-- `/health` en ambos contenedores
-- Verificación cada 30 segundos
-- Alertas automáticas si algún contenedor falla
+- `/api/health` en ambos contenedores
+- Verificación automática durante deploy y switch
+- Health checks integrados en el script principal
 
 ### Logs
-- Logs separados por color en `/var/log/sofia-chat/`
-- Rotación automática de logs
-- Integración con sistema de monitoreo
+- Logs unificados con timestamps en formato `[YYYY-MM-DD HH:MM:SS]`
+- Output colorizado para mejor legibilidad
+- Logs detallados de debugging en funciones críticas
+
+### Backup Automático
+- Backup automático de estado antes de cada switch
+- Backup de base de datos PostgreSQL con `pg_dump`
+- Archivos de backup en `$PROJECT_DIR` con timestamps
 
 ## Problema Resuelto: Health Check Docker
 
@@ -310,27 +329,28 @@ El archivo `.blue-green-state` controla qué slot está activo y determina a cu�
     target: '/opt/sofia-chat/scripts/'
     strip_components: 2
 
-# IMPORTANTE: También copiar blue-green-simple.sh al directorio raíz
-- name: Copy blue-green-simple.sh to root directory
+# Copiar helper scripts
+- name: Copy helper scripts to server
   uses: appleboy/scp-action@master
   with:
-    source: 'scripts/blue-green/blue-green-simple.sh'
-    target: '/opt/sofia-chat/'
+    source: 'scripts/blue-green/update-prod-config.sh'
+    target: '/opt/sofia-chat/scripts/'
     strip_components: 2
 ```
 
 **IMPORTANTE**: 
-- El workflow NO copia el archivo `.blue-green-state` via TAR/SCP
-- Se debe copiar `blue-green-simple.sh` tanto a `/opt/sofia-chat/scripts/` como a `/opt/sofia-chat/` para mantener compatibilidad
-- Ambos scripts deben usar la misma ruta de estado: `/opt/.blue-green-state`
+- El workflow NO copia el archivo `.blue-green-state` via SCP
+- Solo se necesitan 2 scripts: `blue-green-simple.sh` (principal) y `update-prod-config.sh` (helper)
+- El estado se maneja automáticamente en `/opt/.blue-green-state`
+- Estructura simplificada elimina duplicaciones y confusión
 
 #### Configuración del Workflow
 ```bash
-# El workflow ejecuta con PROJECT_DIR específico
-PROJECT_DIR=/root/repos/sofia-chat-backend-v2 /opt/sofia-chat/scripts/blue-green-control.sh deploy
+# El workflow ejecuta el script principal directamente
+/opt/sofia-chat/blue-green-simple.sh deploy
 ```
 
-Todos los scripts usan la ubicación fija: `/opt/.blue-green-state`
+El script maneja automáticamente la configuración y usa la ubicación fija: `/opt/.blue-green-state`
 
 ### Problema de Desincronización Resuelto
 

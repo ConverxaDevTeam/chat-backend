@@ -9,7 +9,7 @@ recuerda, el codigo lo puedes ver en local, pero los cambios debes de verlos en 
 
 ### PROBLEMA RESUELTO ✅
 
-**El workflow de GitHub Actions ahora funciona correctamente y deploya automáticamente sin intervención manual.**
+**El workflow de GitHub Actions ahora funciona correctamente con estructura simplificada y sin duplicaciones.**
 
 ### ANÁLISIS COMPLETO DEL PROBLEMA ORIGINAL
 
@@ -29,42 +29,42 @@ docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 | cut -c
 
 ### SOLUCIÓN IMPLEMENTADA ✅
 
-#### 1. **Corrección en workflow** (`.github/workflows/deploy-dev-blue-green.yml`):
+#### 1. **Estructura Simplificada**:
+- **Scripts eliminados**: Duplicaciones movidas a `/backup/`
+- **Scripts activos**: Solo `blue-green-simple.sh` + `update-prod-config.sh`
+- **Funcionalidad unificada**: Todo en un solo script principal
+
+#### 2. **Workflow optimizado** (`.github/workflows/deploy-dev-blue-green.yml`):
 ```yaml
-# Pull + sincronización correcta
-git fetch origin
-git checkout develop-v1
-git pull origin develop-v1
-git reset --hard HEAD  # ← CLAVE: Sincroniza archivos de trabajo
+# Copia solo scripts necesarios
+source: 'scripts/blue-green/blue-green-simple.sh'
+target: '/opt/sofia-chat/'
+
+# Ejecuta directamente sin PROJECT_DIR
+/opt/sofia-chat/blue-green-simple.sh $ACTION
 ```
 
-#### 2. **Logs detallados agregados**:
-- Tracking de commits antes/después del deploy
-- Verificación de commits en contenedores vs repositorio
-- Health checks con debug logs
-- Verificación post-deploy completa
-
-#### 3. **Mejoras en scripts** (`scripts/blue-green/blue-green-control.sh`):
-- Health checks mejorados con curl
-- Logs de debug para diagnosticar problemas
-- Verificación automática de commits en contenedores
-- Proceso de deploy más robusto
+#### 3. **Mejoras en funcionalidad**:
+- Health checks integrados automáticamente
+- Backup automático de DB antes de switch
+- Logs con timestamps y colores
+- Error handling robusto
+- Estado sincronizado automáticamente
 
 ### FLUJO DEL WORKFLOW FUNCIONANDO
 
 ```mermaid
 graph TD
     A[Push a develop-v1] --> B[Workflow triggered]
-    B --> C[Copy scripts via SCP/TAR]
-    C --> D[Update repository]
-    D --> E[git pull + git reset --hard HEAD]
+    B --> C[Copy blue-green-simple.sh]
+    C --> D[Copy update-prod-config.sh]
+    D --> E[Update repository + git reset --hard HEAD]
     E --> F[Create .env file]
-    F --> G[Execute blue-green deploy]
-    G --> H[Build Docker image]
-    H --> I[Create new container]
-    I --> J[Health check validation]
-    J --> K[Update Nginx config]
-    K --> L[Deploy successful ✅]
+    F --> G[Execute /opt/sofia-chat/blue-green-simple.sh ACTION]
+    G --> H[Docker Compose build + deploy]
+    H --> I[Integrated health checks]
+    I --> J[Auto backup if switch]
+    J --> K[Deploy successful ✅]
 ```
 
 ### VERIFICACIÓN DE FUNCIONAMIENTO
@@ -99,29 +99,36 @@ Cambios específicos: Presentes en contenedor ✅
 
 #### Comandos de diagnóstico:
 ```bash
-# Verificar estado completo
-/opt/sofia-chat/scripts/blue-green-control.sh status
+# Verificar estado completo (UNIFICADO)
+/opt/sofia-chat/blue-green-simple.sh status
 
-# Comparar commits
-echo "Repo: $(cd /root/repos/sofia-chat-backend-v2 && git rev-parse --short HEAD)"
-echo "BLUE: $(docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 | cut -c1-7)"
-echo "GREEN: $(docker exec sofia-chat-backend-green cat /app/.git/refs/heads/develop-v1 | cut -c1-7 2>/dev/null || echo 'N/A')"
+# Comandos disponibles
+/opt/sofia-chat/blue-green-simple.sh help
 
-# Verificar salud
-curl -s https://dev-sofia-chat.sofiacall.com/api/health | jq -r '.deployment'
+# Verificar funciones específicas
+/opt/sofia-chat/blue-green-simple.sh deploy   # Deploy a slot inactivo
+/opt/sofia-chat/blue-green-simple.sh switch   # Cambiar producción 
+/opt/sofia-chat/blue-green-simple.sh cleanup  # Limpiar slot inactivo
+/opt/sofia-chat/blue-green-simple.sh rollback # Revertir cambios
 ```
 
-### ESTADO DE CONTENEDORES
+### ESTRUCTURA FINAL LIMPIA
 
-- **BLUE**: Activo y saludable (puerto 3001) ✅
-- **GREEN**: Detenido (esperado en deploy single-slot) ✅  
-- **Producción**: Apunta a BLUE ✅
+**Scripts activos:**
+- `/opt/sofia-chat/blue-green-simple.sh` (principal)
+- `/opt/sofia-chat/scripts/update-prod-config.sh` (helper)
+
+**Scripts legacy (backup):**
+- `scripts/blue-green/backup/blue-green-control.sh`
+- `scripts/blue-green/backup/health-check.sh`
+- `scripts/blue-green/backup/install-blue-green.sh`
+- `scripts/blue-green/backup/update-internal-config.sh`
 
 ### LECCIONES APRENDIDAS
 
-1. **Git working files**: Siempre verificar sincronización con `git reset --hard HEAD`
-2. **Logs detallados**: Fundamentales para diagnosticar problemas de deployment
-3. **Commit tracking**: Verificar que contenedores tengan commits correctos
-4. **Health checks robustos**: Usar curl en lugar de wget para mayor compatibilidad
+1. **Simplificación**: Eliminación de duplicaciones mejora mantenibilidad
+2. **Unificación**: Un solo script es más fácil de debuggear y mantener
+3. **Automatización**: Backup automático de DB y estado antes de cambios críticos
+4. **Consistencia**: Estado sincronizado automáticamente sin intervención manual
 
-**ESTADO FINAL: Workflow funcionando automáticamente sin intervención manual** 🎉
+**ESTADO FINAL: Sistema Blue-Green completamente funcional y simplificado** 🎉
