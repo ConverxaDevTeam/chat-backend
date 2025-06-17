@@ -380,32 +380,83 @@ rollback() {
 
 # Limpiar slot inactivo
 cleanup() {
-    local current_state=$(get_current_state)
-    local inactive_slot=""
+    log "=== INICIANDO CLEANUP ==="
 
-    if [ "$current_state" = "blue" ]; then
-        inactive_slot="green"
-    else
-        inactive_slot="blue"
+    # Determinar qué está realmente en producción (via Nginx)
+    local nginx_config="/etc/nginx/sites-available/backend.conf"
+    log "Verificando configuración de Nginx en: $nginx_config"
+
+    if [[ ! -f "$nginx_config" ]]; then
+        error "Archivo de configuración de Nginx no encontrado: $nginx_config"
     fi
 
-    log "Limpiando slot inactivo: $inactive_slot"
+    local prod_port=$(grep -o "localhost:[0-9]*" "$nginx_config" | head -1 | cut -d: -f2)
+    log "Puerto detectado en Nginx: $prod_port"
 
-    # Cambiar al directorio del proyecto para ejecutar docker-compose
-    cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
+    local prod_state
+    local inactive_state
 
-    if is_container_running "sofia-chat-backend-$inactive_slot"; then
-        $DOCKER_COMPOSE stop "sofia-chat-backend-$inactive_slot"
-        $DOCKER_COMPOSE rm -f "sofia-chat-backend-$inactive_slot"
-        log "✅ Slot $inactive_slot limpiado"
+    if [[ "$prod_port" == "3001" ]]; then
+        prod_state="blue"
+        inactive_state="green"
+    elif [[ "$prod_port" == "3002" ]]; then
+        prod_state="green"
+        inactive_state="blue"
     else
-        log "Slot $inactive_slot ya estaba detenido"
+        error "No se pudo determinar el estado de producción desde puerto: $prod_port"
     fi
 
-    # Limpiar imágenes huérfanas
+    log "Producción está en: $prod_state (puerto $prod_port)"
+    log "Limpiando entorno inactivo: $inactive_state"
+
+    local container_name="sofia-chat-backend-$inactive_state"
+    log "Contenedor a eliminar: $container_name"
+
+    # Verificar que el contenedor existe
+    if ! docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        log "El contenedor $container_name no existe"
+        log "Contenedores existentes:"
+        docker ps -a --format 'table {{.Names}}\t{{.Status}}'
+        log "Cleanup completado - contenedor ya no existe"
+        return 0
+    fi
+
+    if is_container_running "$container_name"; then
+        log "Deteniendo contenedor de pruebas: $container_name"
+
+        if ! docker stop "$container_name"; then
+            error "Error al detener el contenedor $container_name"
+        fi
+
+        log "Contenedor detenido, procediendo a eliminar..."
+
+        if ! docker rm "$container_name"; then
+            error "Error al eliminar el contenedor $container_name"
+        fi
+
+        log "Contenedor $container_name eliminado exitosamente"
+    else
+        log "El contenedor $container_name ya está detenido, eliminándolo..."
+
+        if ! docker rm "$container_name"; then
+            error "Error al eliminar el contenedor detenido $container_name"
+        fi
+
+        log "Contenedor detenido $container_name eliminado"
+    fi
+
+    # Limpiar imágenes no utilizadas
+    log "Limpiando imágenes no utilizadas..."
     docker image prune -f
-    log "✅ Imágenes huérfanas limpiadas"
+
+    log "=== CLEANUP COMPLETADO ==="
+    log "Solo queda $prod_state en producción"
+
+    # Verificación final
+    log "Contenedores restantes:"
+    docker ps --format 'table {{.Names}}\t{{.Status}}'
 }
+
 
 # Función principal
 main() {
