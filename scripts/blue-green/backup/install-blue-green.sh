@@ -155,7 +155,7 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     location / {
-        proxy_pass http://localhost:3001;  # Inicialmente apunta a blue
+        proxy_pass http://localhost:3002;  # Inicialmente apunta a blue
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -180,7 +180,7 @@ server {
 
     # Health check endpoint
     location /health {
-        proxy_pass http://localhost:3001/api/health;
+        proxy_pass http://localhost:3002/api/health;
         proxy_set_header Host $host;
         access_log off;
         add_header X-Internal-Testing "true" always;
@@ -190,7 +190,7 @@ server {
     location /deployment-info {
         add_header Content-Type "application/json" always;
         add_header X-Internal-Testing "true" always;
-        return 200 '{"color": "blue", "port": 3001, "environment": "internal-testing", "timestamp": "$time_iso8601"}';
+        return 200 '{"color": "blue", "port": 3002, "environment": "internal-testing", "timestamp": "$time_iso8601"}';
     }
 }
 INTERNAL_NGINX_EOF
@@ -234,9 +234,9 @@ get_active_color() {
 get_color_port() {
     local color="$1"
     if [[ "$color" == "blue" ]]; then
-        echo "3001"
-    else
         echo "3002"
+    else
+        echo "3003"
     fi
 }
 
@@ -257,8 +257,8 @@ is_container_healthy() {
 quick_stats() {
     echo "=== BLUE-GREEN STATUS ==="
     echo "Active: $(get_active_color)"
-    echo "Blue: $(is_container_healthy 'sofia-chat-backend-blue' '3001' && echo 'HEALTHY' || echo 'DOWN')"
-    echo "Green: $(is_container_healthy 'sofia-chat-backend-green' '3002' && echo 'HEALTHY' || echo 'DOWN')"
+    echo "Blue: $(is_container_healthy 'sofia-chat-backend-blue' '3002' && echo 'HEALTHY' || echo 'DOWN')"
+    echo "Green: $(is_container_healthy 'sofia-chat-backend-green' '3003' && echo 'HEALTHY' || echo 'DOWN')"
     echo "========================="
 }
 

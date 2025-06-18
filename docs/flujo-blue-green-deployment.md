@@ -4,17 +4,79 @@
 
 Sistema de despliegue Blue-Green que permite desplegar nuevas versiones del backend sin tiempo de inactividad, con capacidad de pruebas internas y rollback inmediato.
 
+## Entornos Disponibles
+
+### Desarrollo (DEV)
+- **Rama**: `develop-v1`
+- **Workflow**: `deploy-dev-blue-green.yml`
+- **Docker Compose**: `docker-compose.yml`
+- **Puertos**: Blue=3001, Green=3002
+- **Dominios**: `dev-sofia-chat.sofiacall.com`, `internal-dev-sofia-chat.sofiacall.com`
+
+### Producción (PROD)
+- **Rama**: `main`
+- **Workflow**: `deploy-development.yaml`
+- **Docker Compose**: `docker-compose.prod.yml`
+- **Puertos**: Blue=3002, Green=3003
+- **Dominios**: `sofia-chat.sofiacall.com`
+
 ## Componentes Involucrados
 
 ### Infraestructura
 - **Nginx**: Proxy reverso con configuración de upstreams dinámicos
-- **Docker Containers**: backend_blue (puerto 3001) y backend_green (puerto 3002)
+- **Docker Containers**: sofia-chat-backend-blue y sofia-chat-backend-green
 - **PostgreSQL**: Base de datos compartida entre ambos entornos
 - **GitHub Actions**: Automatización de build y deploy
 
 ### Dominios
-- **Producción**: `dev-sofia-chat.sofiacall.com` → Apunta al entorno activo
-- **Pruebas Internas**: `internal-dev-sofia-chat.sofiacall.com` → Apunta al entorno inactivo
+- **Producción**: `temp-sofia-chat.sofiacall.com` → Apunta al entorno activo
+- **Pruebas Internas**: `internal-temp-sofia-chat.sofiacall.com` → Apunta al entorno activo
+
+### Configuración de Puertos por Entorno
+
+#### Desarrollo (DEV)
+- **Blue Container**: `sofia-chat-backend-blue`
+  - Puerto externo: `3001` (host)
+  - Puerto interno: `3001` (container)
+  - Mapeo: `3001:3001`
+  - Health check: `http://127.0.0.1:3001/api/health`
+
+- **Green Container**: `sofia-chat-backend-green`
+  - Puerto externo: `3002` (host)
+  - Puerto interno: `3001` (container)
+  - Mapeo: `3002:3001`
+  - Health check: `http://127.0.0.1:3001/api/health`
+
+#### Producción (PROD)
+- **Blue Container**: `sofia-chat-backend-blue`
+  - Puerto externo: `3002` (host)
+  - Puerto interno: `3001` (container)
+  - Mapeo: `3002:3001`
+  - Health check: `http://127.0.0.1:3001/api/health`
+
+- **Green Container**: `sofia-chat-backend-green`
+  - Puerto externo: `3003` (host)
+  - Puerto interno: `3001` (container)
+  - Mapeo: `3003:3001`
+  - Health check: `http://127.0.0.1:3001/api/health`
+
+#### Tabla de Referencia de Puertos
+
+| Entorno | Container | Puerto Host | Puerto Container | Health Check Externo | Health Check Interno |
+|---------|-----------|-------------|------------------|---------------------|---------------------|
+| **DEV Blue** | sofia-chat-backend-blue | 3001 | 3001 | `localhost:3001/api/health` | `127.0.0.1:3001/api/health` |
+| **DEV Green** | sofia-chat-backend-green | 3002 | 3001 | `localhost:3002/api/health` | `127.0.0.1:3001/api/health` |
+| **PROD Blue** | sofia-chat-backend-blue | 3002 | 3001 | `localhost:3002/api/health` | `127.0.0.1:3001/api/health` |
+| **PROD Green** | sofia-chat-backend-green | 3003 | 3001 | `localhost:3003/api/health` | `127.0.0.1:3001/api/health` |
+
+#### Configuración de Nginx por Entorno
+**Desarrollo:**
+- **Estado Blue Activo**: Nginx → `localhost:3001` (blue container)
+- **Estado Green Activo**: Nginx → `localhost:3002` (green container)
+
+**Producción:**
+- **Estado Blue Activo**: Nginx → `localhost:3002` (blue container)
+- **Estado Green Activo**: Nginx → `localhost:3003` (green container)
 
 ### Scripts de Control
 - **`blue-green-simple.sh`**: Script principal unificado para gestionar todo el ciclo
@@ -23,60 +85,116 @@ Sistema de despliegue Blue-Green que permite desplegar nuevas versiones del back
 ## Flujo de Despliegue
 
 ```mermaid
-graph TD
-    A[GitHub Push] --> B[GitHub Actions Workflow]
-    B --> C[Copy Scripts via SCP]
-    C --> D[Update Repository + git reset --hard]
-    D --> E[Detect Production Slot via Nginx]
-    E --> F{Blue in Production?}
-    F -->|Yes| G[Deploy to Green - Testing Slot]
-    F -->|No| H[Deploy to Blue - Testing Slot]
-    G --> I[Update Internal URL to Green]
-    H --> J[Update Internal URL to Blue]
-    I --> K[Manual Testing on Internal URL]
-    J --> K
-    K --> L{Tests Pass?}
-    L -->|Yes| M[Manual: blue-green-control.sh switch]
-    L -->|No| N[Manual: blue-green-control.sh cleanup]
-    M --> O[Switch Production Traffic]
-    O --> P[Update .blue-green-state]
-    P --> Q[Health Check Production]
-    Q --> R{Healthy?}
-    R -->|Yes| S[Manual: blue-green-control.sh cleanup]
-    R -->|No| T[Manual: blue-green-control.sh rollback]
-    N --> U[Remove Failed Container]
-    S --> V[Remove Old Container - Complete]
-    T --> W[Revert to Previous State]
+flowchart TD
+    A[Push to main o Manual Trigger] --> B[GitHub Actions Workflow]
+    
+    subgraph "Preparación"
+        B --> C[Checkout Repository]
+        C --> D[Copy blue-green-simple.sh to /opt/sofia-chat/]
+        D --> E[Copy update-prod-config.sh to /opt/sofia-chat/scripts/]
+        E --> F[Make Scripts Executable]
+    end
+    
+    subgraph "Actualización del Servidor"
+        F --> G[SSH to Production Server]
+        G --> H[Update Repository]
+        H --> I[git fetch + checkout main]
+        I --> J[git pull + git reset --hard HEAD]
+        J --> K[Create .env from Secrets]
+        K --> L[Install pgvector]
+    end
+    
+    subgraph "Detección de Estado"
+        L --> M[Read .blue-green-state File]
+        M --> N{Current State?}
+        N -->|Blue Active| O[Deploy to Green Slot]
+        N -->|Green Active| P[Deploy to Blue Slot]
+    end
+    
+    subgraph "Deploy Process"
+        O --> Q[Stop Green Container if Running]
+        P --> R[Stop Blue Container if Running]
+        Q --> S[Docker Build --no-cache Green]
+        R --> T[Docker Build --no-cache Blue]
+        S --> U[Docker Compose Up Green]
+        T --> V[Docker Compose Up Blue]
+        U --> W[Health Check Green Container]
+        V --> X[Health Check Blue Container]
+    end
+    
+    subgraph "Verificación Final"
+        W --> Y[Post-Deploy Verification]
+        X --> Y
+        Y --> Z[Check Container Status]
+        Z --> AA[Verify Health Endpoints]
+        AA --> BB[Show URLs and Status]
+    end
+    
+    subgraph "Health Checks"
+        BB --> CC[Blue Slot Health Check]
+        BB --> DD[Green Slot Health Check]
+        BB --> EE[Production Domain Health]
+        BB --> FF[Internal Domain Health]
+    end
+    
+    BB --> GG[Deployment Summary]
+    GG --> HH[Notify Result]
+    
+    subgraph "Available Commands"
+        HH --> II["blue-green-simple.sh status"]
+        HH --> JJ["blue-green-simple.sh switch"]
+        HH --> KK["blue-green-simple.sh rollback"]
+        HH --> LL["blue-green-simple.sh cleanup"]
+    end
+    
+    style A fill:#e1f5fe
+    style O fill:#c8e6c9
+    style P fill:#c8e6c9
+    style II fill:#f3e5f5
+    style JJ fill:#fff3e0
+    style KK fill:#ffebee
+    style LL fill:#e8f5e8
 ```
 
 ## Estados del Sistema
 
-### Estado Inicial
+### Estados del Sistema - Desarrollo
+
+#### Estado Inicial
 - **Blue**: Activo en producción (puerto 3001)
 - **Green**: Inactivo
-- **Nginx Prod**: → backend_blue
-- **Nginx Internal**: → backend_blue
+- **Nginx**: → localhost:3001 (blue)
 
-### Después del Deploy (Workflow automático)
+#### Después del Deploy
 - **Blue**: Activo en producción (puerto 3001)
 - **Green**: Nuevo código en pruebas (puerto 3002)
-- **Nginx Prod**: → localhost:3001 (blue)
-- **Nginx Internal**: → localhost:3002 (green)
-- **Estado**: Permanece en "blue" (NO cambia automáticamente)
+- **Nginx**: → localhost:3001 (blue)
+- **Estado**: Permanece en "blue"
 
-### Después del Switch (Manual)
+#### Después del Switch
 - **Blue**: Código anterior en standby (puerto 3001)
 - **Green**: Activo en producción (puerto 3002)
-- **Nginx Prod**: → localhost:3002 (green)
-- **Nginx Internal**: → localhost:3002 (green)
-- **Estado**: Cambia a "green" (actualizado por switch)
+- **Nginx**: → localhost:3002 (green)
+- **Estado**: Cambia a "green"
 
-### Después del Cleanup (Manual)
-- **Blue**: ELIMINADO
-- **Green**: Único contenedor activo en producción (puerto 3002)
-- **Nginx Prod**: → localhost:3002 (green)
-- **Nginx Internal**: → localhost:3002 (green)
-- **Estado**: Sigue en "green"
+### Estados del Sistema - Producción
+
+#### Estado Inicial
+- **Blue**: Activo en producción (puerto 3002)
+- **Green**: Inactivo
+- **Nginx**: → localhost:3002 (blue)
+
+#### Después del Deploy
+- **Blue**: Activo en producción (puerto 3002)
+- **Green**: Nuevo código en pruebas (puerto 3003)
+- **Nginx**: → localhost:3002 (blue)
+- **Estado**: Permanece en "blue"
+
+#### Después del Switch
+- **Blue**: Código anterior en standby (puerto 3002)
+- **Green**: Activo en producción (puerto 3003)
+- **Nginx**: → localhost:3003 (green)
+- **Estado**: Cambia a "green"
 
 ### Comandos de Control
 
@@ -213,10 +331,33 @@ El script usa configuración embebida en lugar de variables de entorno:
 
 ## Monitoreo y Alertas
 
-### Health Endpoints
-- `/api/health` en ambos contenedores
-- Verificación automática durante deploy y switch
-- Health checks integrados en el script principal
+### Health Endpoints por Entorno
+
+#### Desarrollo
+- **Blue**: `http://localhost:3001/api/health` (externo)
+- **Green**: `http://localhost:3002/api/health` (externo)
+- **Interno**: Ambos containers usan `http://127.0.0.1:3001/api/health`
+
+```bash
+# Verificación externa DEV
+curl -sf http://localhost:3001/api/health  # Blue container
+curl -sf http://localhost:3002/api/health  # Green container
+```
+
+#### Producción
+- **Blue**: `http://localhost:3002/api/health` (externo)
+- **Green**: `http://localhost:3003/api/health` (externo)
+- **Interno**: Ambos containers usan `http://127.0.0.1:3001/api/health`
+
+```bash
+# Verificación externa PROD
+curl -sf http://localhost:3002/api/health  # Blue container
+curl -sf http://localhost:3003/api/health  # Green container
+
+# Verificación interna (dentro del container)
+docker exec sofia-chat-backend-blue wget --quiet --spider http://127.0.0.1:3001/api/health
+docker exec sofia-chat-backend-green wget --quiet --spider http://127.0.0.1:3001/api/health
+```
 
 ### Logs
 - Logs unificados con timestamps en formato `[YYYY-MM-DD HH:MM:SS]`

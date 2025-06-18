@@ -147,7 +147,7 @@ docker-compose down
 docker-compose up -d sofia-chat-backend-blue
 
 # Verificar que funciona
-curl http://localhost:3001/health
+curl http://localhost:3002/health
 ```
 
 ### Paso 4.3: Actualizar Configuración de Producción
@@ -202,7 +202,7 @@ bg-status
 ### Paso 5.4: Probar Entorno Green
 ```bash
 # Probar endpoint en Green
-curl http://localhost:3002/health
+curl http://localhost:3003/health
 
 # Probar vía dominio interno
 curl https://internal-dev-sofia-chat.sofiacall.com/health
