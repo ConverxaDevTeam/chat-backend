@@ -20,6 +20,9 @@ export class UserOrganization {
   @ManyToOne(() => User, (user) => user.userOrganizations, { onDelete: 'CASCADE' })
   user: User;
 
+  @Column({ nullable: true })
+  organizationId?: number | null;
+
   @ManyToOne(() => Organization, (organization) => organization.userOrganizations, {
     onDelete: 'CASCADE',
     nullable: true,

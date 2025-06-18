@@ -23,6 +23,8 @@ import { NotificationType } from 'src/interfaces/notifications.interface';
 import { EventType, TableName } from '@models/SystemEvent.entity';
 import { NotificationType as NotificationTypeSystemEvents } from '@models/notification.entity';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
+import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
+import { ChatUserService } from '@modules/chat-user/chat-user.service';
 
 @Injectable()
 export class FunctionCallService {
@@ -37,6 +39,8 @@ export class FunctionCallService {
     private readonly notificationService: NotificationService,
     @Inject(forwardRef(() => IntegrationRouterService))
     private readonly integrationRouterService: IntegrationRouterService,
+    private readonly hitlTypesService: HitlTypesService,
+    private readonly chatUserService: ChatUserService,
   ) {}
 
   async executeFunctionCall(functionName: string, agentId: number, params: Record<string, any>, conversationId: number) {
@@ -64,42 +68,103 @@ export class FunctionCallService {
           relations: ['departamento', 'departamento.organizacion'],
         });
 
-        await this.conversationRepository.update(conversationId, {
-          need_human: true,
-        });
         if (!conversation) {
           throw new NotFoundException('Conversation not found');
         }
 
-        await this.notificationService.createNotificationForOrganization(
-          conversation.departamento.organizacion.id,
-          NotificationTypeSystemEvents.SYSTEM,
-          'Usuario necesita ayuda de un agente humano',
-          { metadata: { conversationId } },
-        );
-
-        this.socketService.sendNotificationToOrganization(conversation.departamento.organizacion.id, {
-          type: NotificationType.MESSAGE_RECEIVED,
-          message: 'Usuario necesita ayuda de un agente humano',
-          data: {
-            conversationId: conversationId,
-          },
+        await this.conversationRepository.update(conversationId, {
+          need_human: true,
         });
 
-        // Registrar evento de asignación de conversación
-        await this.systemEventsService.create({
-          type: EventType.CONVERSATION_ASSIGNED,
-          metadata: {
-            agentId,
-            conversationId,
-            functionName,
-            humanAssistanceRequested: true,
-          },
-          organization: conversation.departamento.organizacion,
-          table_name: TableName.CONVERSATIONS,
-          table_id: conversationId,
-          conversation: { id: conversationId } as any,
-        });
+        const organizationId = conversation.departamento.organizacion.id;
+        const { tipo_hitl, mensaje } = params;
+
+        // Si se especifica un tipo HITL específico, enviar notificación dirigida
+        if (tipo_hitl && mensaje) {
+          const hitlUsers = await this.hitlTypesService.getUsersByHitlType(organizationId, tipo_hitl);
+
+          if (hitlUsers.length === 0) {
+            // Si no hay usuarios para el tipo específico, usar notificación general
+            await this.notificationService.createNotificationForOrganization(
+              organizationId,
+              NotificationTypeSystemEvents.SYSTEM,
+              `[${tipo_hitl}] ${mensaje} - No hay usuarios asignados, escalando a todos los agentes`,
+              { metadata: { conversationId, hitlType: tipo_hitl } },
+            );
+
+            this.socketService.sendNotificationToOrganization(organizationId, {
+              type: NotificationType.MESSAGE_RECEIVED,
+              message: `[${tipo_hitl}] ${mensaje} - No hay usuarios asignados, escalando a todos los agentes`,
+              data: {
+                conversationId: conversationId,
+                hitlType: tipo_hitl,
+              },
+            });
+          } else {
+            // Crear notificaciones específicas para usuarios del tipo HITL
+            for (const user of hitlUsers) {
+              await this.notificationService.createNotificationForUser(user.id, NotificationTypeSystemEvents.USER, `[${tipo_hitl}] ${mensaje}`, organizationId, {
+                metadata: { conversationId, hitlType: tipo_hitl },
+              });
+
+              // Enviar notificación por socket
+              this.socketService.sendNotificationToUser(user.id, {
+                type: NotificationType.MESSAGE_RECEIVED,
+                message: `[${tipo_hitl}] ${mensaje}`,
+                data: {
+                  conversationId: conversationId,
+                  hitlType: tipo_hitl,
+                },
+              });
+            }
+          }
+
+          // Registrar evento específico para tipo HITL
+          await this.systemEventsService.create({
+            type: EventType.CONVERSATION_ASSIGNED,
+            metadata: {
+              agentId,
+              conversationId,
+              functionName,
+              humanAssistanceRequested: true,
+              hitlType: tipo_hitl,
+              message: mensaje,
+              usersNotified: hitlUsers.length,
+            },
+            organization: conversation.departamento.organizacion,
+            table_name: TableName.CONVERSATIONS,
+            table_id: conversationId,
+            conversation: { id: conversationId } as any,
+          });
+        } else {
+          // Comportamiento legacy - notificación general a toda la organización
+          await this.notificationService.createNotificationForOrganization(organizationId, NotificationTypeSystemEvents.SYSTEM, 'Usuario necesita ayuda de un agente humano', {
+            metadata: { conversationId },
+          });
+
+          this.socketService.sendNotificationToOrganization(organizationId, {
+            type: NotificationType.MESSAGE_RECEIVED,
+            message: 'Usuario necesita ayuda de un agente humano',
+            data: {
+              conversationId: conversationId,
+            },
+          });
+
+          // Registrar evento legacy
+          await this.systemEventsService.create({
+            type: EventType.CONVERSATION_ASSIGNED,
+            metadata: {
+              agentId,
+              conversationId,
+              functionName,
+              humanAssistanceRequested: true,
+            },
+            organization: conversation.departamento.organizacion,
+            table_name: TableName.CONVERSATIONS,
+            table_id: conversationId,
+            conversation: { id: conversationId } as any,
+          });
+        }
 
         // Notificar al usuario sobre el cambio de estado
         await this.integrationRouterService.sendEventToUser(conversationId, EventType.CONVERSATION_ASSIGNED, conversation.type, conversation.chat_user?.id);
@@ -107,7 +172,92 @@ export class FunctionCallService {
         if (!conversation.need_human) {
           return { message: 'conversacion ya enviada a agente humano, se le volvio a notificar' };
         }
-        return { message: 'conversacion enviada a agente humano' };
+
+        const resultMessage = tipo_hitl && mensaje ? `Conversación escalada con tipo HITL: ${tipo_hitl}` : 'conversacion enviada a agente humano';
+        return { message: resultMessage };
+      }
+
+      // Función para guardar información del usuario
+      if (functionName === 'sofia__save_user_info') {
+        const { campo, valor } = params;
+
+        if (!campo || !valor) {
+          throw new Error('Los parámetros "campo" y "valor" son requeridos');
+        }
+
+        const conversation = await this.conversationRepository.findOne({
+          where: { id: conversationId },
+          relations: ['chat_user'],
+        });
+
+        if (!conversation || !conversation.chat_user) {
+          throw new Error('No se encontró la conversación o el usuario del chat');
+        }
+
+        const chatUserId = conversation.chat_user.id;
+        const standardFields = ['name', 'email', 'phone', 'address', 'avatar'];
+
+        try {
+          if (standardFields.includes(campo)) {
+            // Actualizar campo estándar
+            await this.chatUserService.updateUserInfo(chatUserId, campo, valor);
+
+            // Registrar evento de éxito
+            await this.systemEventsService.create({
+              type: EventType.FUNCTION_EXECUTION_COMPLETED,
+              metadata: {
+                functionName: 'sofia__save_user_info',
+                campo,
+                valor,
+                chatUserId,
+                fieldType: 'standard',
+              },
+              organization: conversation.departamento?.organizacion || ({ id: 1 } as any),
+              table_name: TableName.CONVERSATIONS,
+              table_id: conversationId,
+              conversation: { id: conversationId } as any,
+            });
+          } else {
+            // Guardar como dato personalizado
+            await this.chatUserService.saveCustomUserData(chatUserId, campo, valor);
+
+            // Registrar evento de éxito
+            await this.systemEventsService.create({
+              type: EventType.FUNCTION_EXECUTION_COMPLETED,
+              metadata: {
+                functionName: 'sofia__save_user_info',
+                campo,
+                valor,
+                chatUserId,
+                fieldType: 'custom',
+              },
+              organization: conversation.departamento?.organizacion || ({ id: 1 } as any),
+              table_name: TableName.CONVERSATIONS,
+              table_id: conversationId,
+              conversation: { id: conversationId } as any,
+            });
+          }
+
+          return { message: `Información del usuario guardada: ${campo} = ${valor}` };
+        } catch (error) {
+          // Registrar evento de error
+          await this.systemEventsService.create({
+            type: EventType.FUNCTION_EXECUTION_FAILED,
+            metadata: {
+              functionName: 'sofia__save_user_info',
+              campo,
+              valor,
+              chatUserId,
+              error: error.message,
+            },
+            organization: conversation.departamento?.organizacion || ({ id: 1 } as any),
+            table_name: TableName.CONVERSATIONS,
+            table_id: conversationId,
+            conversation: { id: conversationId } as any,
+            error_message: error.message,
+          });
+          throw error;
+        }
       }
 
       const functionConfig = await this.functionRepository.findOne({
@@ -402,8 +552,6 @@ export class FunctionCallService {
           .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
           .join('&');
     }
-    console.log('processedUrl', processedUrl, fetchData);
-
     const response = await fetch(processedUrl, fetchData);
 
     if (!response.ok) {
