@@ -57,3 +57,4 @@ uploads/templates/*
 .windsurf/*
 infrastructure/.terraform
 .blue-green-state
+backup_prod_sofia_chat_20250618_120352.sql
