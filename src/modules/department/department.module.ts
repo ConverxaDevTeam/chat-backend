@@ -8,9 +8,16 @@ import { Agente } from '@models/agent/Agente.entity';
 import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { FacebookModule } from '@modules/facebook/facebook.module';
+import { AgentManagerModule } from '@modules/agent-manager/agent-manager.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Departamento, Organization, Agente]), forwardRef(() => LlmAgentModule), forwardRef(() => AuthModule), forwardRef(() => FacebookModule)],
+  imports: [
+    TypeOrmModule.forFeature([Departamento, Organization, Agente]),
+    forwardRef(() => LlmAgentModule),
+    forwardRef(() => AuthModule),
+    forwardRef(() => FacebookModule),
+    forwardRef(() => AgentManagerModule),
+  ],
   controllers: [DepartmentController],
   providers: [DepartmentService],
   exports: [DepartmentService],

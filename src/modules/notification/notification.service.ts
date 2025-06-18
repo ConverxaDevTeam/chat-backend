@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationStatus, NotificationType } from '@models/notification.entity';
 import { ConfigService } from '@nestjs/config';
+import { User } from '@models/User.entity';
+import { OrganizationRoleType } from '@models/UserOrganization.entity';
 
 @Injectable()
 export class NotificationService {
@@ -55,7 +57,7 @@ export class NotificationService {
     type: NotificationType,
     title: string,
     organizationId: number,
-    options: { metadata: { conversationId: number } },
+    options: { metadata: { conversationId: number; hitlType?: string } },
   ): Promise<Notification> {
     const notification = this.notificationRepository.create({
       user: { id: userId },
@@ -80,5 +82,47 @@ export class NotificationService {
 
   async markAllAsRead(userId: number): Promise<void> {
     await this.notificationRepository.update({ user: { id: userId }, status: NotificationStatus.UNREAD }, { status: NotificationStatus.READ });
+  }
+
+  async findUnreadNotificationsByRole(user: User, organizationId: number): Promise<Notification[]> {
+    const userId = user.id;
+
+    // Buscar el rol del usuario en la organización específica
+    const userOrganization = user.userOrganizations?.find((uo) => uo.organizationId === organizationId);
+
+    if (!userOrganization) {
+      // Si el usuario no pertenece a la organización, no devolver notificaciones
+      return [];
+    }
+
+    const userRole = userOrganization.role;
+
+    // Crear query builder base
+    const queryBuilder = this.notificationRepository
+      .createQueryBuilder('notification')
+      .where('notification.status = :status', { status: NotificationStatus.UNREAD })
+      .orderBy('notification.created_at', 'DESC');
+
+    // Aplicar restricciones según el rol
+    switch (userRole) {
+      case OrganizationRoleType.OWNER:
+      case OrganizationRoleType.ADMIN:
+      case OrganizationRoleType.USER:
+        // Owner, Admin y User: reciben notificaciones propias + organizacionales
+        queryBuilder.andWhere('(notification.userId = :userId OR (notification.userId IS NULL AND notification.organizationId = :organizationId))', { userId, organizationId });
+        break;
+
+      case OrganizationRoleType.HITL:
+        // HITL: solo recibe notificaciones que le están asignadas directamente
+        queryBuilder.andWhere('notification.userId = :userId', { userId });
+        break;
+
+      default:
+        // Otros roles: solo notificaciones propias
+        queryBuilder.andWhere('notification.userId = :userId', { userId });
+        break;
+    }
+
+    return await queryBuilder.getMany();
   }
 }

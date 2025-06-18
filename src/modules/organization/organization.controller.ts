@@ -52,7 +52,6 @@ export class OrganizationController {
   @Get('my-organizations')
   async getMyOrganizations(@GetUser() user: User) {
     const userOrganizations = await this.userOrganizationService.getMyOrganizations(user);
-
     // Obtener información de límites para cada organización
     const organizationsWithLimits = await Promise.all(
       userOrganizations.map(async (userOrg) => {

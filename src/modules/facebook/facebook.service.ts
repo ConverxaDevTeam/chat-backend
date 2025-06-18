@@ -60,27 +60,37 @@ export class FacebookService {
   }
 
   private async subscribeToWebhook(wabaId: string, integrationId: number, accessToken: string): Promise<void> {
-    await axios.delete(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    const webhookUrl = `${this.configService.get<string>('url.web_hook_whatsapp')}/api/facebook/webhook/${integrationId}/api`;
-
-    await axios.post(
-      `https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`,
-      {
-        callback_url: webhookUrl,
-        verify_token: accessToken,
-      },
-      {
+    console.log('on subscribeToWebhook');
+    try {
+      await axios.delete(`https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-      },
-    );
+      });
+    } catch (error) {
+      console.log(error.response.data.error.message);
+    }
+    const webhookUrl = `${this.configService.get<string>('url.web_hook_whatsapp')}/api/facebook/webhook/${integrationId}/api`;
+    try {
+      console.log('on subscribeToWebhook', webhookUrl, accessToken, wabaId);
+      const response = await axios.post(
+        `https://graph.facebook.com/v22.0/${wabaId}/subscribed_apps`,
+        {
+          callback_url: webhookUrl,
+          verify_token: accessToken,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      console.log(response.data);
+    } catch (error) {
+      console.log(error.response.data.error.message);
+    }
   }
 
   private async registerPhoneNumber(phoneNumberId: string, accessToken: string): Promise<string> {
@@ -108,40 +118,15 @@ export class FacebookService {
     return pin;
   }
 
-  private async sendTestMessage(phoneNumberId: string, accessToken: string): Promise<void> {
-    const response = await axios.post<{
-      messaging_product: string;
-      contacts: Array<{ input: string; wa_id: string }>;
-      messages: Array<{ id: string }>;
-    }>(
-      `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`,
-      {
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: phoneNumberId,
-        type: 'text',
-        text: {
-          body: 'Test message from Sofia Chat: Phone number registered successfully!',
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      },
-    );
-
-    if (!response.data.messages?.[0]?.id) {
-      throw new BadRequestException('Failed to send test message');
-    }
-  }
-
   async createIntegrationWhatsApp(user: User, createIntegrationWhatsAppDto: CreateIntegrationWhatsAppDto, organizationId: number, departamentoId: number): Promise<Integration> {
     return await this.connection.transaction(async (entityManager) => {
       try {
+        console.log('*'.repeat(50));
+        console.log('on create integration whatsapp');
         const accessToken = await this.getAccessToken(createIntegrationWhatsAppDto.code);
+        console.log('after accessToken');
         const pin = await this.registerPhoneNumber(createIntegrationWhatsAppDto.phone_number_id, accessToken);
+        console.log('after pin');
 
         // Validate all external services before saving
         // await this.sendTestMessage(createIntegrationWhatsAppDto.phone_number_id, accessToken);
@@ -162,14 +147,45 @@ export class FacebookService {
 
         return integration;
       } catch (error) {
-        console.log(error.response.data);
+        console.log(error.response?.data);
         if (axios.isAxiosError(error)) {
-          this.logger.error(`Facebook API error: ${error.response?.data?.message || error.message}`);
-          throw new BadRequestException(error.response?.data?.message || 'Facebook API error');
+          // Detectar errores específicos de permisos de Facebook
+          const errorData = error.response?.data;
+          const errorMessage = errorData?.error?.message || error.message;
+          const errorCode = errorData?.error?.code;
+          const errorType = errorData?.error?.type;
+
+          this.logger.error(`Facebook API error: ${errorMessage}, code: ${errorCode}, type: ${errorType}`);
+
+          // Errores específicos de permisos
+          if (
+            errorCode === 190 || // Token inválido o expirado
+            errorCode === 200 || // Permisos insuficientes
+            errorType === 'OAuthException' || // Problema de autenticación OAuth
+            errorMessage.includes('permission') || // Mensaje incluye 'permission'
+            errorMessage.includes('access') || // Mensaje incluye 'access'
+            errorMessage.includes('unauthorized') // Mensaje incluye 'unauthorized'
+          ) {
+            throw new BadRequestException({
+              message: errorMessage || 'Error de permisos de Facebook',
+              code: errorCode,
+              type: errorType,
+              isPermissionError: true,
+            });
+          }
+
+          throw new BadRequestException({
+            message: errorMessage || 'Facebook API error',
+            code: errorCode,
+            type: errorType,
+          });
         } else {
           console.log(error);
+          throw new InternalServerErrorException({
+            message: error.message || 'Error interno del servidor',
+            isPermissionError: false,
+          });
         }
-        throw new InternalServerErrorException(error);
       }
     });
   }
