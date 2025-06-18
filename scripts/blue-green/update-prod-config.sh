@@ -37,9 +37,9 @@ fi
 
 # Determinar puerto según color
 if [[ "$TARGET_COLOR" == "blue" ]]; then
-    TARGET_PORT="3001"
-else
     TARGET_PORT="3002"
+else
+    TARGET_PORT="3003"
 fi
 
 log_info "Actualizando configuración de producción para apuntar a $TARGET_COLOR (puerto $TARGET_PORT)"
@@ -103,7 +103,7 @@ log_info "Producción ahora apunta a: $TARGET_COLOR (puerto $TARGET_PORT)"
 # Verificar configuración
 if nginx -t; then
     log_info "Configuración de Nginx válida"
-    
+
     # Recargar nginx para aplicar cambios
     if systemctl reload nginx; then
         log_info "Nginx recargado exitosamente"

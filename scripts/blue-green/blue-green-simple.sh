@@ -56,9 +56,9 @@ update_nginx_config() {
     local target_port=""
 
     if [ "$target_color" = "blue" ]; then
-        target_port="3001"
-    else
         target_port="3002"
+    else
+        target_port="3003"
     fi
 
     log "Actualizando configuración de nginx para $target_color (puerto $target_port)..."
@@ -230,15 +230,15 @@ show_status() {
 
     # Verificar contenedores
     if is_container_running "sofia-chat-backend-blue"; then
-        echo "🔵 Blue (puerto 3001): RUNNING"
+        echo "🔵 Blue (puerto 3002): RUNNING"
     else
-        echo "🔵 Blue (puerto 3001): STOPPED"
+        echo "🔵 Blue (puerto 3002): STOPPED"
     fi
 
     if is_container_running "sofia-chat-backend-green"; then
-        echo "🟢 Green (puerto 3002): RUNNING"
+        echo "🟢 Green (puerto 3003): RUNNING"
     else
-        echo "🟢 Green (puerto 3002): STOPPED"
+        echo "🟢 Green (puerto 3003): STOPPED"
     fi
 
     echo "🗄️  Database: External PostgreSQL (not managed)"
@@ -284,25 +284,25 @@ deploy() {
     $DOCKER_COMPOSE build --no-cache sofia-chat-backend-$target_slot
 
     # Deploy al slot objetivo usando nueva imagen
-    if [ "$target_slot" = "green" ]; then
-        log "Desplegando a Green (puerto 3002)..."
-        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green"
-        $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green
-    else
-        log "Desplegando a Blue (puerto 3001)..."
-        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d sofia-chat-backend-blue"
-        $DOCKER_COMPOSE up -d sofia-chat-backend-blue
-    fi
+if [ "$target_slot" = "green" ]; then
+    log "Desplegando a Green (puerto 3003)..."
+    log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green"
+    $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green
+else
+    log "Desplegando a Blue (puerto 3002)..."
+    log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d sofia-chat-backend-blue"
+    $DOCKER_COMPOSE up -d sofia-chat-backend-blue
+fi
 
-    # Verificar salud del nuevo deployment
-    if [ "$target_slot" = "green" ]; then
-        health_check "sofia-chat-backend-green" "3002"
-    else
-        health_check "sofia-chat-backend-blue" "3001"
-    fi
+# Verificar salud del nuevo deployment
+if [ "$target_slot" = "green" ]; then
+    health_check "sofia-chat-backend-green" "3003"
+else
+    health_check "sofia-chat-backend-blue" "3002"
+fi
 
     log "✅ Deployment a $target_slot completado exitosamente"
-    log "🧪 Puedes probar el nuevo deployment en puerto $([ "$target_slot" = "green" ] && echo "3002" || echo "3001")"
+    log "🧪 Puedes probar el nuevo deployment en puerto $([ "$target_slot" = "green" ] && echo "3003" || echo "3002")"
     log "⚠️  Para hacer switch a producción, ejecuta: ./blue-green-simple.sh switch"
 }
 
@@ -313,10 +313,10 @@ switch() {
 
     if [ "$current_state" = "blue" ]; then
         new_state="green"
-        local new_port="3002"
+        local new_port="3003"
     else
         new_state="blue"
-        local new_port="3001"
+        local new_port="3002"
     fi
 
     # Verificar que el nuevo slot esté corriendo y saludable
@@ -349,10 +349,10 @@ rollback() {
 
     if [ "$current_state" = "blue" ]; then
         rollback_state="green"
-        rollback_port="3002"
+        rollback_port="3003"
     else
         rollback_state="blue"
-        rollback_port="3001"
+        rollback_port="3002"
     fi
 
     warn "Haciendo rollback de $current_state a $rollback_state..."
@@ -396,10 +396,10 @@ cleanup() {
     local prod_state
     local inactive_state
 
-    if [[ "$prod_port" == "3001" ]]; then
+    if [[ "$prod_port" == "3002" ]]; then
         prod_state="blue"
         inactive_state="green"
-    elif [[ "$prod_port" == "3002" ]]; then
+    elif [[ "$prod_port" == "3003" ]]; then
         prod_state="green"
         inactive_state="blue"
     else
