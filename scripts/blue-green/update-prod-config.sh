@@ -35,23 +35,18 @@ if [[ "$TARGET_COLOR" != "blue" && "$TARGET_COLOR" != "green" ]]; then
     exit 1
 fi
 
-# Determinar puerto según color y entorno
-# Detectar si estamos en producción o desarrollo
+# Determinar puerto según color
+# Ambos entornos usan: Blue=3002, Green=3003
+if [[ "$TARGET_COLOR" == "blue" ]]; then
+    TARGET_PORT="3002"
+else
+    TARGET_PORT="3003"
+fi
+
+# Detectar entorno para logging
 if [ -f "/root/repos/sofia-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
-    # Producción: Blue=3002, Green=3003
-    if [[ "$TARGET_COLOR" == "blue" ]]; then
-        TARGET_PORT="3002"
-    else
-        TARGET_PORT="3003"
-    fi
     log_info "Entorno: PRODUCCIÓN"
 else
-    # Desarrollo: Blue=3001, Green=3002
-    if [[ "$TARGET_COLOR" == "blue" ]]; then
-        TARGET_PORT="3001"
-    else
-        TARGET_PORT="3002"
-    fi
     log_info "Entorno: DESARROLLO"
 fi
 
@@ -62,11 +57,11 @@ cat > "$CONFIG_FILE" << EOL
 # Configuración para HTTPS (backend)
 server {
     listen 443 ssl;
-    server_name temp-sofia-chat.sofiacall.com;
+    server_name back.sofiachat.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/temp-sofia-chat.sofiacall.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/temp-sofia-chat.sofiacall.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/back.sofiachat.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/back.sofiachat.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -103,7 +98,7 @@ server {
 # Redirección de HTTP a HTTPS (backend)
 server {
     listen 80;
-    server_name temp-sofia-chat.sofiacall.com;
+    server_name back.sofiachat.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;
@@ -112,11 +107,11 @@ server {
 # Configuración para HTTPS (internal testing)
 server {
     listen 443 ssl;
-    server_name internal-temp-sofia-chat.sofiacall.com;
+    server_name internal-back.sofiachat.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/internal-temp-sofia-chat.sofiacall.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/internal-temp-sofia-chat.sofiacall.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/internal-back.sofiachat.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/internal-back.sofiachat.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -154,7 +149,7 @@ server {
 # Redirección de HTTP a HTTPS (internal testing)
 server {
     listen 80;
-    server_name internal-temp-sofia-chat.sofiacall.com;
+    server_name internal-back.sofiachat.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;
