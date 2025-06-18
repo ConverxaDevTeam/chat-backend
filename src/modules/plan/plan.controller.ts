@@ -5,6 +5,7 @@ import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard'; // Add
 import { PlanService } from './plan.service';
 import { UpdateCustomPlanDto } from './dto/update-custom-plan.dto';
 import { RequestCustomPlanDto } from './dto/request-custom-plan.dto';
+import { ChangeOrganizationTypeDto } from './dto/change-organization-type.dto';
 import { Organization } from '@models/Organization.entity';
 
 @ApiTags('Plan Management')
@@ -50,5 +51,16 @@ export class PlanController {
     @Body() updateCustomPlanDto: UpdateCustomPlanDto,
   ): Promise<Organization> {
     return this.planService.updateCustomPlanDetailsBySuperAdmin(organizationId, updateCustomPlanDto);
+  }
+
+  @UseGuards(SuperAdminGuard)
+  @Patch(':organizationId/change-type')
+  @ApiOperation({ summary: 'Change organization type (Super Admin only)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Organization type changed successfully.', type: Organization })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Organization not found.' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid data or missing days for CUSTOM type.' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'User does not have permission.' })
+  async changeOrganizationTypeBySuperAdmin(@Param('organizationId', ParseIntPipe) organizationId: number, @Body() changeTypeDto: ChangeOrganizationTypeDto): Promise<Organization> {
+    return this.planService.changeOrganizationTypeBySuperAdmin(organizationId, changeTypeDto);
   }
 }
