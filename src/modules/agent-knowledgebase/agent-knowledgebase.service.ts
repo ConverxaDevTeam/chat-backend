@@ -165,7 +165,6 @@ export class AgentKnowledgebaseService {
         add: false,
         hitl: agent.canEscalateToHuman,
       };
-      console.log('fileId to delete', knowledgeBase.fileId);
       await this.vectorStoreService.deleteDocumentsByFileId(knowledgeBase.fileId);
       await this.agentManagerService.updateAssistantToolResources(agent.config.agentId as string, null, updateToolResourcesData);
 

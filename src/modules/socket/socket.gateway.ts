@@ -203,22 +203,17 @@ export class WebChatSocketGateway implements OnModuleInit {
           } else if (dataJson.action === 'send-message') {
             const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
             if (conversation) {
+              const organizationId = Number(departamentoActual.organizacion?.id || departamentoActual.organizacion);
+
               const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
-              const message = await this.messageService.createMessage(
-                conversation,
-                dataJson.message.text,
-                MessageType.USER,
-                Number(departamentoActual.organizacion),
-                conversation?.user?.id,
-                {
-                  platform: IntegrationType.CHAT_WEB,
-                  format: MessageFormatType.TEXT,
-                  images: imageUrls,
-                },
-              );
+              const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, organizationId, conversation?.user?.id, {
+                platform: IntegrationType.CHAT_WEB,
+                format: MessageFormatType.TEXT,
+                images: imageUrls,
+              });
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
 
-              const organizationId = Number(departamentoActual.organizacion);
+              // FIXED: Using organizationId already defined above
               this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
               try {
                 const response = await this.integrationRouterService.processMessage(dataJson.message.text, conversation.id, imageUrls);
@@ -250,7 +245,7 @@ export class WebChatSocketGateway implements OnModuleInit {
               });
               socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
 
-              const organizationId = Number(departamentoActual.organizacion);
+              const organizationId = Number(departamentoActual.organizacion?.id || departamentoActual.organizacion);
               this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
               try {
                 const response = await this.integrationRouterService.processMessage(message.text, conversation.id);

@@ -13,4 +13,16 @@ export class AppController {
   get(): Record<string, string> {
     return this.appService.getState();
   }
+
+  @Get('health')
+  @NoLogging()
+  getHealth(): Record<string, any> {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      deployment: process.env.DEPLOYMENT_COLOR || 'blue',
+    };
+  }
 }

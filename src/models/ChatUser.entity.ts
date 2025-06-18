@@ -1,6 +1,7 @@
 import { OneToMany, Entity, Column } from 'typeorm';
 import { BaseEntity } from './Base.entity';
 import { Conversation } from './Conversation.entity';
+import { ChatUserData } from './ChatUserData.entity';
 
 export enum ChatUserType {
   CHAT_WEB = 'chat_web',
@@ -22,6 +23,9 @@ export class ChatUser extends BaseEntity {
 
   @OneToMany(() => Conversation, (conversation) => conversation.chat_user)
   conversations: Conversation[];
+
+  @OneToMany(() => ChatUserData, (chatUserData) => chatUserData.chatUser)
+  customData: ChatUserData[];
 
   @Column({ type: 'varchar', nullable: true, default: null })
   phone: string;

@@ -1,0 +1,19 @@
+version: '3.7'
+services:
+  sofia-chat-backend-v2:
+    container_name: sofia-chat-backend-v2
+    build:
+      dockerfile: Dockerfile
+      context: .
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - '3001:3001'
+    networks:
+      - sofia_chat_network
+    volumes:
+      - ./uploads:/app/uploads
+
+networks:
+  sofia_chat_network:
