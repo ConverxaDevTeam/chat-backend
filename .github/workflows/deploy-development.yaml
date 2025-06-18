@@ -219,15 +219,15 @@ jobs:
             echo "=== VERIFICACIÓN DE SALUD ==="
             echo "Verificando endpoints básicos:"
 
-            echo -n "BLUE (3002): "
-            if curl -sf http://localhost:3002/api/health >/dev/null 2>&1; then
+            echo -n "BLUE (3003): "
+            if curl -sf http://localhost:3003/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
             else
                 echo "❌ NO SALUDABLE"
             fi
 
-            echo -n "GREEN (3003): "
-            if curl -sf http://localhost:3003/api/health >/dev/null 2>&1; then
+            echo -n "GREEN (3002): "
+            if curl -sf http://localhost:3002/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
             else
                 echo "❌ NO SALUDABLE"
@@ -248,8 +248,8 @@ jobs:
             echo "  - Limpiar: /opt/sofia-chat/blue-green-simple.sh cleanup"
             echo ""
             echo "🌐 URLs de prueba:"
-            echo "  - Blue (3002): http://sofia-chat.sofiacall.com:3002/api/health"
-            echo "  - Green (3003): http://sofia-chat.sofiacall.com:3003/api/health"
+            echo "  - Blue (3003): http://sofia-chat.sofiacall.com:3003/api/health"
+            echo "  - Green (3002): http://sofia-chat.sofiacall.com:3002/api/health"
             echo "  - Producción: https://sofia-chat.sofiacall.com/api/health"
 
   notify-result:
