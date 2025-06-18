@@ -234,7 +234,7 @@ jobs:
             fi
 
             echo -n "Producción: "
-            if curl -sf https://sofia-chat.sofiacall.com/api/health >/dev/null 2>&1; then
+            if curl -sf https://back.sofiachat.com/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
             else
                 echo "❌ NO SALUDABLE"
