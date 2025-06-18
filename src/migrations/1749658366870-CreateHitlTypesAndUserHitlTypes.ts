@@ -4,7 +4,6 @@ export class CreateHitlTypesAndUserHitlTypes1749658366870 implements MigrationIn
   name = 'CreateHitlTypesAndUserHitlTypes1749658366870';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" DROP CONSTRAINT "FK_42bf348694bde7eb476c125be13"`);
     await queryRunner.query(
       `CREATE TABLE "hitl_types" ("id" SERIAL NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "name" character varying(255) NOT NULL, "description" character varying(500), "organization_id" integer NOT NULL, "created_by" integer NOT NULL, CONSTRAINT "PK_5815f6f85b453f86d51c32933ce" PRIMARY KEY ("id"))`,
     );
@@ -38,8 +37,5 @@ export class CreateHitlTypesAndUserHitlTypes1749658366870 implements MigrationIn
     await queryRunner.query(`ALTER TABLE "ChatSessions" ADD "priority" "public"."ChatSessions_priority_enum" NOT NULL DEFAULT 'medium'`);
     await queryRunner.query(`DROP TABLE "user_hitl_types"`);
     await queryRunner.query(`DROP TABLE "hitl_types"`);
-    await queryRunner.query(
-      `ALTER TABLE "UserOrganizations" ADD CONSTRAINT "FK_42bf348694bde7eb476c125be13" FOREIGN KEY ("roleId") REFERENCES "Roles"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
-    );
   }
 }
