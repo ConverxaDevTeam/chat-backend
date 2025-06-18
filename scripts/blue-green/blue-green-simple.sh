@@ -7,7 +7,15 @@ set -e
 
 PROJECT_DIR="/root/repos/sofia-chat-backend-v2"
 STATE_FILE="/opt/.blue-green-state"
-DOCKER_COMPOSE="docker-compose -f docker-compose.yml"
+
+# Detect environment and use appropriate docker-compose file
+if [ -f "$PROJECT_DIR/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
+    DOCKER_COMPOSE="docker-compose -f docker-compose.prod.yml"
+    echo "Using production docker-compose configuration"
+else
+    DOCKER_COMPOSE="docker-compose -f docker-compose.yml"
+    echo "Using development docker-compose configuration"
+fi
 
 # Colores para output
 RED='\033[0;31m'
