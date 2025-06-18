@@ -36,11 +36,13 @@ if [[ "$TARGET_COLOR" != "blue" && "$TARGET_COLOR" != "green" ]]; then
 fi
 
 # Determinar puerto según color
-# Ambos entornos usan: Blue=3002, Green=3003
+# Blue=3002, Green=3003
 if [[ "$TARGET_COLOR" == "blue" ]]; then
     TARGET_PORT="3002"
+    INTERNAL_PORT="3003"  # Puerto inactivo para pruebas internas
 else
     TARGET_PORT="3003"
+    INTERNAL_PORT="3002"  # Puerto inactivo para pruebas internas
 fi
 
 # Detectar entorno para logging
@@ -116,7 +118,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
     location / {
-        proxy_pass http://localhost:$TARGET_PORT;  # Redirige al backend $TARGET_COLOR
+        proxy_pass http://localhost:$INTERNAL_PORT;  # Redirige al backend inactivo para pruebas
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -134,13 +136,13 @@ server {
         proxy_read_timeout 60s;
 
         # Headers adicionales
-        proxy_set_header X-Deployment-Color $TARGET_COLOR;
+        proxy_set_header X-Deployment-Color $([ "$TARGET_COLOR" = "blue" ] && echo "green" || echo "blue");
         proxy_set_header X-Environment "internal-testing";
     }
 
     # Health check endpoint
     location /health {
-        proxy_pass http://localhost:$TARGET_PORT/api/health;
+        proxy_pass http://localhost:$INTERNAL_PORT/api/health;
         proxy_set_header Host \$host;
         access_log off;
     }
