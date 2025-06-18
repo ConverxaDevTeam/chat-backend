@@ -11,36 +11,6 @@ export class CreateHitlTypesAndUserHitlTypes1749658366870 implements MigrationIn
     await queryRunner.query(
       `CREATE TABLE "user_hitl_types" ("id" SERIAL NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "user_id" integer NOT NULL, "hitl_type_id" integer NOT NULL, "organization_id" integer NOT NULL, CONSTRAINT "PK_af3934cbfdbfbb5de4fed52eada" PRIMARY KEY ("id"))`,
     );
-    await queryRunner.query(`ALTER TABLE "ChatSessions" DROP COLUMN "priority"`);
-    await queryRunner.query(`DROP TYPE "public"."ChatSessions_priority_enum"`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" DROP COLUMN "roleId"`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" DROP COLUMN "invitationStatus"`);
-    await queryRunner.query(`DROP TYPE "public"."UserOrganizations_invitationstatus_enum"`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" DROP COLUMN "invitationSentCount"`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" DROP COLUMN "lastInvitationSentAt"`);
-    await queryRunner.query(`ALTER TABLE "Users" DROP COLUMN "avatar"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "isActive"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "createdAt"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "updatedAt"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "isActive" boolean NOT NULL DEFAULT true`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "createdAt" TIMESTAMP NOT NULL DEFAULT now()`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "updatedAt" TIMESTAMP NOT NULL DEFAULT now()`);
-    await queryRunner.query(`ALTER TYPE "public"."notification_type_enum" RENAME TO "notification_type_enum_old"`);
-    await queryRunner.query(`CREATE TYPE "public"."notification_type_enum" AS ENUM('SYSTEM', 'USER', 'CUSTOM_PLAN_REQUEST')`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" DROP DEFAULT`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" TYPE "public"."notification_type_enum" USING "type"::"text"::"public"."notification_type_enum"`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" SET DEFAULT 'SYSTEM'`);
-    await queryRunner.query(`DROP TYPE "public"."notification_type_enum_old"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "description"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "description" text`);
-    await queryRunner.query(`ALTER TYPE "public"."notification_type_enum" RENAME TO "notification_type_enum_old"`);
-    await queryRunner.query(`CREATE TYPE "public"."notification_type_enum" AS ENUM('SYSTEM', 'USER', 'CUSTOM_PLAN_REQUEST')`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" DROP DEFAULT`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" TYPE "public"."notification_type_enum" USING "type"::"text"::"public"."notification_type_enum"`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" SET DEFAULT 'SYSTEM'`);
-    await queryRunner.query(`DROP TYPE "public"."notification_type_enum_old"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "description"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "description" character varying`);
     await queryRunner.query(
       `ALTER TABLE "hitl_types" ADD CONSTRAINT "FK_8ed8807e478f67d17e3c5c38e96" FOREIGN KEY ("organization_id") REFERENCES "Organizations"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
     );
@@ -64,38 +34,6 @@ export class CreateHitlTypesAndUserHitlTypes1749658366870 implements MigrationIn
     await queryRunner.query(`ALTER TABLE "user_hitl_types" DROP CONSTRAINT "FK_bbbf9459d138b3c32a27d0b4f05"`);
     await queryRunner.query(`ALTER TABLE "hitl_types" DROP CONSTRAINT "FK_2f5b23590f1c10a0d4b003903b8"`);
     await queryRunner.query(`ALTER TABLE "hitl_types" DROP CONSTRAINT "FK_8ed8807e478f67d17e3c5c38e96"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "description"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "description" text`);
-    await queryRunner.query(`CREATE TYPE "public"."notification_type_enum_old" AS ENUM('SYSTEM', 'USER')`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" DROP DEFAULT`);
-    await queryRunner.query(
-      `ALTER TABLE "notification" ALTER COLUMN "type" TYPE "public"."notification_type_enum_old" USING "type"::"text"::"public"."notification_type_enum_old"`,
-    );
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" SET DEFAULT 'SYSTEM'`);
-    await queryRunner.query(`DROP TYPE "public"."notification_type_enum"`);
-    await queryRunner.query(`ALTER TYPE "public"."notification_type_enum_old" RENAME TO "notification_type_enum"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "description"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "description" character varying`);
-    await queryRunner.query(`CREATE TYPE "public"."notification_type_enum_old" AS ENUM('SYSTEM', 'USER')`);
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" DROP DEFAULT`);
-    await queryRunner.query(
-      `ALTER TABLE "notification" ALTER COLUMN "type" TYPE "public"."notification_type_enum_old" USING "type"::"text"::"public"."notification_type_enum_old"`,
-    );
-    await queryRunner.query(`ALTER TABLE "notification" ALTER COLUMN "type" SET DEFAULT 'SYSTEM'`);
-    await queryRunner.query(`DROP TYPE "public"."notification_type_enum"`);
-    await queryRunner.query(`ALTER TYPE "public"."notification_type_enum_old" RENAME TO "notification_type_enum"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "updatedAt"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "createdAt"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" DROP COLUMN "isActive"`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "updatedAt" TIMESTAMP NOT NULL DEFAULT now()`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "createdAt" TIMESTAMP NOT NULL DEFAULT now()`);
-    await queryRunner.query(`ALTER TABLE "function_template_category" ADD "isActive" boolean NOT NULL DEFAULT true`);
-    await queryRunner.query(`ALTER TABLE "Users" ADD "avatar" character varying(255)`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" ADD "lastInvitationSentAt" TIMESTAMP`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" ADD "invitationSentCount" integer`);
-    await queryRunner.query(`CREATE TYPE "public"."UserOrganizations_invitationstatus_enum" AS ENUM('PENDING', 'ACCEPTED', 'REJECTED')`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" ADD "invitationStatus" "public"."UserOrganizations_invitationstatus_enum" NOT NULL DEFAULT 'PENDING'`);
-    await queryRunner.query(`ALTER TABLE "UserOrganizations" ADD "roleId" integer`);
     await queryRunner.query(`CREATE TYPE "public"."ChatSessions_priority_enum" AS ENUM('low', 'medium', 'high', 'urgent')`);
     await queryRunner.query(`ALTER TABLE "ChatSessions" ADD "priority" "public"."ChatSessions_priority_enum" NOT NULL DEFAULT 'medium'`);
     await queryRunner.query(`DROP TABLE "user_hitl_types"`);
