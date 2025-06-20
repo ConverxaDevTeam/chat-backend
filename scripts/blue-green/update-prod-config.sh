@@ -59,7 +59,7 @@ cat > "$CONFIG_FILE" << EOL
 # Configuración para HTTPS (backend)
 server {
     listen 443 ssl;
-    server_name back.sofiachat.com;
+    server_name back.sofiachat.com back-chat-v2.sofiacall.com;
 
     # Certificados SSL
     ssl_certificate /etc/letsencrypt/live/back.sofiachat.com/fullchain.pem; # managed by Certbot
@@ -100,7 +100,7 @@ server {
 # Redirección de HTTP a HTTPS (backend)
 server {
     listen 80;
-    server_name back.sofiachat.com;
+    server_name back.sofiachat.com back-chat-v2.sofiacall.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;
