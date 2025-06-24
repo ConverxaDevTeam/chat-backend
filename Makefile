@@ -50,7 +50,7 @@ status:
 # Desplegar a slot inactivo
 deploy:
 	@echo "$(GREEN)Iniciando deployment a slot inactivo...$(NC)"
-	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) 'cd $(PROJECT_PATH) && git pull origin develop-v1 && /opt/converxa-chat/blue-green-simple.sh deploy'
+	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) 'cd $(PROJECT_PATH) && git pull origin main && /opt/converxa-chat/blue-green-simple.sh deploy'
 
 # Cambiar tráfico al nuevo slot (con confirmación)
 switch:
