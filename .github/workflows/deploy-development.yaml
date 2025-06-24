@@ -70,8 +70,8 @@ jobs:
           key: ${{ env.SSH_KEY }}
           port: 22
           script: |
-            chmod +x /opt/converxa/blue-green-simple.sh
-            chmod +x /opt/converxa/scripts/*.sh
+            chmod +x /opt/converxa-chat/blue-green-simple.sh
+            chmod +x /opt/converxa-chat/scripts/*.sh
             echo "Blue-green scripts updated and made executable"
 
       - name: Update repository and environment
@@ -165,12 +165,12 @@ jobs:
             echo "Commit a deployar: $(git rev-parse --short HEAD)"
             echo "Timestamp: $(date)"
             echo "Directorio del proyecto: ${{ env.PROJECT_PATH }}"
-            echo "Script a ejecutar: /opt/converxa/blue-green-simple.sh"
+            echo "Script a ejecutar: /opt/converxa-chat/blue-green-simple.sh"
 
             # Verificar que el script existe
-            if [[ ! -f "/opt/converxa/blue-green-simple.sh" ]]; then
-                echo "ERROR: Script no encontrado en /opt/converxa/blue-green-simple.sh"
-                ls -la /opt/converxa/
+            if [[ ! -f "/opt/converxa-chat/blue-green-simple.sh" ]]; then
+                echo "ERROR: Script no encontrado en /opt/converxa-chat/blue-green-simple.sh"
+                ls -la /opt/converxa-chat/
                 exit 1
             fi
 
@@ -242,10 +242,10 @@ jobs:
 
             echo ""
             echo "🔧 Comandos disponibles:"
-            echo "  - Ver estado: /opt/converxa/blue-green-simple.sh status"
-            echo "  - Hacer switch: /opt/converxa/blue-green-simple.sh switch"
-            echo "  - Rollback: /opt/converxa/blue-green-simple.sh rollback"
-            echo "  - Limpiar: /opt/converxa/blue-green-simple.sh cleanup"
+            echo "  - Ver estado: /opt/converxa-chat/blue-green-simple.sh status"
+            echo "  - Hacer switch: /opt/converxa-chat/blue-green-simple.sh switch"
+            echo "  - Rollback: /opt/converxa-chat/blue-green-simple.sh rollback"
+            echo "  - Limpiar: /opt/converxa-chat/blue-green-simple.sh cleanup"
 
   notify-result:
     needs: blue-green-production
