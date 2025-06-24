@@ -25,9 +25,9 @@ on:
         default: 'deploy'
 
 env:
-  DEPLOY_HOST: 137.184.227.234
+  DEPLOY_HOST: 137.184.44.230
   DEPLOY_USER: root
-  SSH_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+  SSH_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
   PROJECT_PATH: /root/repos/converxa-backend-v1
 
 jobs:

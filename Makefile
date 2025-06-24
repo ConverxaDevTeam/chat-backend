@@ -2,7 +2,7 @@
 # Facilita operaciones desde local sin necesidad de conectar directamente al servidor
 
 # Configuración del servidor
-SSH_HOST := 137.184.227.234
+SSH_HOST := 137.184.44.230
 SSH_USER := root
 SSH_KEY := ~/.ssh/digitalOcean
 PROJECT_PATH := /root/repos/converxa-backend-v1

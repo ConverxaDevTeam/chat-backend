@@ -24,9 +24,9 @@ on:
           - status
         default: 'deploy'
 env:
-  DEPLOY_HOST: 137.184.227.234
+  DEPLOY_HOST: 137.184.44.230
   DEPLOY_USER: root
-  SSH_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+  SSH_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
   PROJECT_PATH: /root/repos/converxa-backend-v1
 
   # Database configuration (external)
@@ -40,11 +40,11 @@ env:
   LOG_LEVEL: info
 
   # URLs and endpoints
-  APP_URL: http://137.184.227.234:3002
-  URL_FRONTEND: http://137.184.227.234:3000
-  URL_FILES: http://137.184.227.234:3002/files
-  URL_WSS: ws://137.184.227.234:3002
-  URL_WEBHOOK_WA: http://137.184.227.234:3002/webhook/whatsapp
+  APP_URL: http://137.184.44.230:3002
+  URL_FRONTEND: http://137.184.44.230:3000
+  URL_FILES: http://137.184.44.230:3002/files
+  URL_WSS: ws://137.184.44.230:3002
+  URL_WEBHOOK_WA: http://137.184.44.230:3002/webhook/whatsapp
 
   # Email configuration
   NODEMAILER_HOST: smtp.gmail.com
@@ -132,30 +132,30 @@ jobs:
             TYPEORM_HOST=${{ env.TYPEORM_HOST }}
             TYPEORM_PORT=${{ env.TYPEORM_PORT }}
             TYPEORM_USERNAME=${{ env.TYPEORM_USERNAME }}
-            TYPEORM_PASSWORD=${{ secrets.DEV_TYPEORM_PASSWORD }}
+            TYPEORM_PASSWORD=${{ secrets.PROD_TYPEORM_PASSWORD }}
             TYPEORM_DB_NAME=${{ env.TYPEORM_DB_NAME }}
-            JWT_SECRET_KEY=${{ secrets.DEV_JWT_SECRET_KEY }}
-            JWT_SECRET_KEY_REFRESH=${{ secrets.DEV_JWT_SECRET_KEY_REFRESH }}
+            JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
+            JWT_SECRET_KEY_REFRESH=${{ secrets.PROD_JWT_SECRET_KEY_REFRESH }}
             NODEMAILER_HOST=${{ env.NODEMAILER_HOST }}
             NODEMAILER_PORT=${{ env.NODEMAILER_PORT }}
-            NODEMAILER_USER=${{ secrets.DEV_NODEMAILER_USER }}
-            NODEMAILER_PASS=${{ secrets.DEV_NODEMAILER_PASS }}
+            NODEMAILER_USER=${{ secrets.PROD_NODEMAILER_USER }}
+            NODEMAILER_PASS=${{ secrets.PROD_NODEMAILER_PASS }}
             NODEMAILER_FROM=${{ env.NODEMAILER_FROM }}
             URL_FILES=${{ env.URL_FILES }}
             URL_WSS=${{ env.URL_WSS }}
             URL_WEBHOOK_WA=${{ env.URL_WEBHOOK_WA }}
-            OPENAI_API_KEY=${{ secrets.DEV_OPENAI_API_KEY }}
+            OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}
             FACEBOOK_APP_ID=${{ env.FACEBOOK_APP_ID }}
-            FACEBOOK_APP_SECRET=${{ secrets.DEV_FACEBOOK_APP_SECRET }}
-            FACEBOOK_WEBHOOK_SECRET=${{ secrets.DEV_FACEBOOK_WEBHOOK_SECRET }}
+            FACEBOOK_APP_SECRET=${{ secrets.PROD_FACEBOOK_APP_SECRET }}
+            FACEBOOK_WEBHOOK_SECRET=${{ secrets.PROD_FACEBOOK_WEBHOOK_SECRET }}
             FACEBOOK_GRAPH_API=${{ env.FACEBOOK_GRAPH_API }}
             APP_URL=${{ env.APP_URL }}
             URL_FRONTEND=${{ env.URL_FRONTEND }}
-            MAILGUN_API_KEY=${{ secrets.DEV_MAILGUN_API_KEY }}
+            MAILGUN_API_KEY=${{ secrets.PROD_MAILGUN_API_KEY }}
             MAILGUN_DOMAIN=${{ env.MAILGUN_DOMAIN }}
             MAILGUN_FROM=${{ env.MAILGUN_FROM }}
-            VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
-            CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
+            VOYAGE_API_KEY=${{ secrets.PROD_VOYAGE_API_KEY }}
+            CLAUDE_API_KEY=${{ secrets.PROD_CLAUDE_API_KEY }}
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ env.CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
             ENV_EOF
 

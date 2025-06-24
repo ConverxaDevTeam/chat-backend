@@ -309,7 +309,7 @@ make force-rebuild
 make connect
 
 # O manualmente
-ssh -i ~/.ssh/digitalOcean root@137.184.227.234
+ssh -i ~/.ssh/digitalOcean root@137.184.44.230
 ```
 
 ## 📚 Referencias

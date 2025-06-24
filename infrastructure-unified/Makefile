@@ -2,7 +2,7 @@
 # Gestiona Backend (Blue-Green) + Frontend + Infraestructura
 
 # Configuración del servidor
-SSH_HOST := 137.184.227.234
+SSH_HOST := 137.184.44.230
 SSH_USER := root
 SSH_KEY := ~/.ssh/digitalOcean
 TERRAFORM_DIR := .

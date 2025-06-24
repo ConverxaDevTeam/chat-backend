@@ -7,13 +7,13 @@ Esta guía te llevará paso a paso para implementar Blue-Green deployment en el 
 ## Prerrequisitos
 
 ### 1. Acceso al Servidor
-- IP del servidor: `137.184.227.234`
+- IP del servidor: `137.184.44.230`
 - Usuario SSH: `root`
 - Clave SSH: `~/.ssh/digitalOcean`
 
 ### 2. Verificar Conexión
 ```bash
-ssh -i ~/.ssh/digitalOcean root@137.184.227.234
+ssh -i ~/.ssh/digitalOcean root@137.184.44.230
 ```
 
 ### 3. Estado Actual del Servidor
@@ -27,7 +27,7 @@ El servidor actualmente tiene:
 
 ### Paso 1.1: Conectar al Servidor
 ```bash
-ssh -i ~/.ssh/digitalOcean root@137.184.227.234
+ssh -i ~/.ssh/digitalOcean root@137.184.44.230
 ```
 
 ### Paso 1.2: Verificar Estado Actual
@@ -66,10 +66,10 @@ docker exec converxa-chat-backend-v2 pg_dump -U postgres converxa_chat > /root/b
 Desde tu máquina local:
 ```bash
 # Subir scripts de Blue-Green
-scp -i ~/.ssh/digitalOcean -r scripts/blue-green/ root@137.184.227.234:/tmp/
+scp -i ~/.ssh/digitalOcean -r scripts/blue-green/ root@137.184.44.230:/tmp/
 
 # Subir docker-compose actualizado
-scp -i ~/.ssh/digitalOcean docker-compose.blue-green.yml root@137.184.227.234:/root/repos/converxa-chat-backend-v2/
+scp -i ~/.ssh/digitalOcean docker-compose.blue-green.yml root@137.184.44.230:/root/repos/converxa-chat-backend-v2/
 ```
 
 ### Paso 2.2: Ejecutar Instalación
@@ -99,7 +99,7 @@ bg-status
 ### Paso 3.1: Configurar DNS
 En tu proveedor DNS (DigitalOcean, Cloudflare, etc.):
 1. Crear registro A para `internal-dev-converxa-chat.converxa.com`
-2. Apuntar a la misma IP: `137.184.227.234`
+2. Apuntar a la misma IP: `137.184.44.230`
 
 ### Paso 3.2: Obtener Certificado SSL
 En el servidor:
