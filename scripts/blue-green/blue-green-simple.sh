@@ -281,32 +281,32 @@ deploy() {
 
 
     # Detener y remover contenedor existente si está corriendo
-    if is_container_running "conversofia-chat-backend-$target_slot"; then
-        log "Deteniendo contenedor existente: sofia-chat-backend-$target_slot"
-        $DOCKER_COMPOSE stop sofia-chat-backend-$target_slot
-        $DOCKER_COMPOSE rm -f sofia-chat-backend-$target_slot
+    if is_container_running "converxa-backend-$target_slot"; then
+        log "Deteniendo contenedor existente: converxa-backend-$target_slot"
+        $DOCKER_COMPOSE stop converxa-backend-$target_slot
+        $DOCKER_COMPOSE rm -f converxa-backend-$target_slot
     fi
 
     # Build de la nueva imagen con --no-cache para garantizar imagen fresca
     log "Construyendo nueva imagen..."
-    $DOCKER_COMPOSE build --no-cache sofia-chat-backend-$target_slot
+    $DOCKER_COMPOSE build --no-cache converxa-backend-$target_slot
 
     # Deploy al slot objetivo usando nueva imagen
 if [ "$target_slot" = "green" ]; then
     log "Desplegando a Green (puerto 3003)..."
-    log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green"
-    $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green
+    log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d converxa-backend-green"
+    $DOCKER_COMPOSE --profile green up -d converxa-backend-green
 else
     log "Desplegando a Blue (puerto 3002)..."
-    log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d sofia-chat-backend-blue"
-    $DOCKER_COMPOSE up -d sofia-chat-backend-blue
+    log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d converxa-backend-blue"
+    $DOCKER_COMPOSE up -d converxa-backend-blue
 fi
 
 # Verificar salud del nuevo deployment
 if [ "$target_slot" = "green" ]; then
-    health_check "sofia-chat-backend-green" "3003"
+    health_check "converxa-backend-green" "3003"
 else
-    health_check "sofia-chat-backend-blue" "3002"
+    health_check "converxa-backend-blue" "3002"
 fi
 
     log "✅ Deployment a $target_slot completado exitosamente"
@@ -328,12 +328,12 @@ switch() {
     fi
 
     # Verificar que el nuevo slot esté corriendo y saludable
-    if ! is_container_running "sofia-chat-backend-$new_state"; then
-        error "El contenedor sofia-chat-backend-$new_state no está corriendo. Ejecuta deploy primero."
+    if ! is_container_running "converxa-backend-$new_state"; then
+        error "El contenedor converxa-backend-$new_state no está corriendo. Ejecuta deploy primero."
     fi
 
     log "Verificando salud del nuevo slot antes del switch..."
-    health_check "sofia-chat-backend-$new_state" "$new_port"
+    health_check "converxa-backend-$new_state" "$new_port"
 
     # Crear backup antes del switch
     backup_state
@@ -369,12 +369,12 @@ rollback() {
     cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
 
     # Verificar que el rollback slot esté disponible
-    if ! is_container_running "sofia-chat-backend-$rollback_state"; then
+    if ! is_container_running "converxa-backend-$rollback_state"; then
         error "❌ El contenedor $rollback_state no está disponible para rollback"
     fi
 
     # Verificar salud del rollback slot
-    health_check "sofia-chat-backend-$rollback_state" "$rollback_port"
+    health_check "converxa-backend-$rollback_state" "$rollback_port"
 
     # Hacer rollback
     save_state "$rollback_state"
@@ -417,7 +417,7 @@ cleanup() {
     log "Producción está en: $prod_state (puerto $prod_port)"
     log "Limpiando entorno inactivo: $inactive_state"
 
-    local container_name="sofia-chat-backend-$inactive_state"
+    local container_name="converxa-backend-$inactive_state"
     log "Contenedor a eliminar: $container_name"
 
     # Verificar que el contenedor existe
