@@ -10,6 +10,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.TYPEORM_USERNAME || 'postgres',
   password: process.env.TYPEORM_PASSWORD || 'postgres',
   database: process.env.TYPEORM_DB_NAME || 'converxa_chat_v2',
+  ssl: process.env.TYPEORM_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: [__dirname + '/**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/src/migrations/*{.ts,.js}'],
   synchronize: true,

@@ -87,6 +87,7 @@ import { CoreModule } from '@modules/core/core.module';
         username: configService.get<string>('database.user'),
         password: configService.get<string>('database.pass'),
         database: configService.get<string>('database.name'),
+        ssl: process.env.TYPEORM_SSL === 'true' ? { rejectUnauthorized: false } : false,
         entities: [join(__dirname, '**', '*.entity.{ts,js}')],
         migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
         migrationsRun: true,
