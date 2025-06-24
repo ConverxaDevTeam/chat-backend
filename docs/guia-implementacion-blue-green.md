@@ -21,7 +21,7 @@ El servidor actualmente tiene:
 - Nginx corriendo en puerto 80/443
 - Backend en contenedor `converxa-chat-backend-v2` (puerto 3001)
 - PostgreSQL con pgvector
-- Certificados SSL de Let's Encrypt para `dev-converxa-chat.converxa.com`
+- Certificados SSL de Let's Encrypt para `dev-converxa-chat.converxa.net`
 
 ## Fase 1: Preparación del Servidor
 
@@ -98,14 +98,14 @@ bg-status
 
 ### Paso 3.1: Configurar DNS
 En tu proveedor DNS (DigitalOcean, Cloudflare, etc.):
-1. Crear registro A para `internal-dev-converxa-chat.converxa.com`
+1. Crear registro A para `internal-dev-converxa-chat.converxa.net`
 2. Apuntar a la misma IP: `137.184.44.230`
 
 ### Paso 3.2: Obtener Certificado SSL
 En el servidor:
 ```bash
 # Obtener certificado para dominio de pruebas internas
-certbot --nginx -d internal-dev-converxa-chat.converxa.com --non-interactive --agree-tos --email admin@converxa.com
+certbot --nginx -d internal-dev-converxa-chat.converxa.net --non-interactive --agree-tos --email admin@converxa.net
 
 # Verificar certificados
 certbot certificates
@@ -205,7 +205,7 @@ bg-status
 curl http://localhost:3003/health
 
 # Probar vía dominio interno
-curl https://internal-dev-converxa-chat.converxa.com/health
+curl https://internal-dev-converxa-chat.converxa.net/health
 ```
 
 ## Fase 6: Primer Switch de Tráfico
@@ -224,7 +224,7 @@ bg-health green
 bg-switch
 
 # Verificar que producción ahora apunta a Green
-curl https://dev-converxa-chat.converxa.com/health
+curl https://dev-converxa-chat.converxa.net/health
 ```
 
 ### Paso 6.3: Monitorear Post-Switch

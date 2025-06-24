@@ -117,28 +117,28 @@ jobs:
             NODEMAILER_PORT=587
             NODEMAILER_USER=${{ secrets.PROD_NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.PROD_NODEMAILER_PASS }}
-            NODEMAILER_FROM=noreply@converxa.com
-            URL_FILES=https://back.converxa.com/files
-            URL_WSS=wss://back.converxa.com
-            URL_WEBHOOK_WA=https://back.converxa.com/webhook/whatsapp
+            NODEMAILER_FROM=noreply@converxa.net
+            URL_FILES=https://back.converxa.net/files
+            URL_WSS=wss://back.converxa.net
+            URL_WEBHOOK_WA=https://back.converxa.net/webhook/whatsapp
             OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}
             FACEBOOK_APP_ID=your-facebook-app-id
             FACEBOOK_APP_SECRET=${{ secrets.PROD_FACEBOOK_APP_SECRET }}
             FACEBOOK_WEBHOOK_SECRET=${{ secrets.PROD_FACEBOOK_WEBHOOK_SECRET }}
             FACEBOOK_GRAPH_API=https://graph.facebook.com/v18.0
-            APP_URL=https://back.converxa.com
-            URL_FRONTEND=https://converxa.com
+            APP_URL=https://back.converxa.net
+            URL_FRONTEND=https://converxa.net
             MAILGUN_API_KEY=${{ secrets.PROD_MAILGUN_API_KEY }}
-            MAILGUN_DOMAIN=converxa.com
-            MAILGUN_FROM=noreply@converxa.com
+            MAILGUN_DOMAIN=converxa.net
+            MAILGUN_FROM=noreply@converxa.net
             SLACK_CLIENT_ID=your-slack-client-id
             SLACK_CLIENT_SECRET=your-slack-client-secret
-            SLACK_REDIRECT_URI=https://back.converxa.com/auth/slack/callback
+            SLACK_REDIRECT_URI=https://back.converxa.net/auth/slack/callback
             VOYAGE_API_KEY=${{ secrets.PROD_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.PROD_CLAUDE_API_KEY }}
             GOOGLE_CLIENT_ID=your-google-client-id
             GOOGLE_CLIENT_SECRET=your-google-client-secret
-            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=admin@converxa.com
+            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=admin@converxa.net
             ENV_EOF
 
       - name: Execute Blue-Green Action
@@ -232,7 +232,7 @@ jobs:
             fi
 
             echo -n "Producción: "
-            if curl -sf https://back.converxa.com/api/health >/dev/null 2>&1; then
+            if curl -sf https://back.converxa.net/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
             else
                 echo "❌ NO SALUDABLE"
