@@ -15,7 +15,7 @@ services:
     ports:
       - '3002:3001'
     networks:
-      - sofia_chat_network
+      - converxa_network
     volumes:
       - ./uploads:/app/uploads
       - ./logs/blue:/app/logs
@@ -40,7 +40,7 @@ services:
     ports:
       - '3003:3001'
     networks:
-      - sofia_chat_network
+      - converxa_network
     volumes:
       - ./uploads:/app/uploads
       - ./logs/green:/app/logs
@@ -54,5 +54,5 @@ services:
       start_period: 3s
 
 networks:
-  sofia_chat_network:
+  converxa_network:
     driver: bridge

@@ -24,10 +24,43 @@ on:
           - status
         default: 'deploy'
 env:
-  DEPLOY_HOST: ${{ secrets.DEV_SSH_HOST }}
-  DEPLOY_USER: ${{ secrets.DEV_SSH_USERNAME }}
+  DEPLOY_HOST: 137.184.227.234
+  DEPLOY_USER: root
   SSH_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
   PROJECT_PATH: /root/repos/converxa-backend-v1
+
+  # Database configuration (external)
+  TYPEORM_HOST: converxa-prod-db-do-user-23433311-0.k.db.ondigitalocean.com
+  TYPEORM_PORT: 25060
+  TYPEORM_USERNAME: doadmin
+  TYPEORM_DB_NAME: defaultdb
+
+  # App configuration
+  NODE_ENV: development
+  LOG_LEVEL: info
+
+  # URLs and endpoints
+  APP_URL: http://137.184.227.234:3002
+  URL_FRONTEND: http://137.184.227.234:3000
+  URL_FILES: http://137.184.227.234:3002/files
+  URL_WSS: ws://137.184.227.234:3002
+  URL_WEBHOOK_WA: http://137.184.227.234:3002/webhook/whatsapp
+
+  # Email configuration
+  NODEMAILER_HOST: smtp.gmail.com
+  NODEMAILER_PORT: 587
+  NODEMAILER_FROM: noreply@converxa.com
+
+  # External APIs
+  FACEBOOK_GRAPH_API: https://graph.facebook.com/v18.0
+  FACEBOOK_APP_ID: your-facebook-app-id
+
+  # Mailgun
+  MAILGUN_DOMAIN: converxa.com
+  MAILGUN_FROM: noreply@converxa.com
+
+  # Other
+  CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL: admin@converxa.com
 
 jobs:
   blue-green-deployment:
@@ -48,7 +81,7 @@ jobs:
           port: 22
           script: |
             echo "=== VERIFICANDO SCRIPTS BLUE-GREEN ==="
-            if [[ ! -f "/opt/converxa/blue-green-simple.sh" ]]; then
+            if [[ ! -f "/opt/converxa-chat/blue-green-simple.sh" ]]; then
                 echo "❌ ERROR: Scripts Blue-Green no están instalados"
                 echo "Los scripts deben instalarse via Terraform durante la creación del servidor"
                 echo "Para instalar manualmente, ejecutar:"
@@ -56,14 +89,14 @@ jobs:
                 exit 1
             fi
 
-            if [[ ! -f "/opt/converxa/scripts/update-prod-config.sh" ]]; then
+            if [[ ! -f "/opt/converxa-chat/scripts/update-prod-config.sh" ]]; then
                 echo "❌ ERROR: Script de configuración no encontrado"
                 exit 1
             fi
 
             echo "✅ Scripts Blue-Green encontrados y listos"
-            ls -la /opt/converxa/
-            ls -la /opt/converxa/scripts/
+            ls -la /opt/converxa-chat/
+            ls -la /opt/converxa-chat/scripts/
 
       - name: Update repository and environment
         uses: appleboy/ssh-action@master
@@ -94,36 +127,36 @@ jobs:
 
             # Create environment file with proper quoting
             cat > .env << 'ENV_EOF'
-            NODE_ENV=development
-            LOG_LEVEL=info
-            TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }}
-            TYPEORM_PORT=${{ secrets.DEV_TYPEORM_PORT }}
-            TYPEORM_USERNAME=${{ secrets.DEV_TYPEORM_USERNAME }}
+            NODE_ENV=${{ env.NODE_ENV }}
+            LOG_LEVEL=${{ env.LOG_LEVEL }}
+            TYPEORM_HOST=${{ env.TYPEORM_HOST }}
+            TYPEORM_PORT=${{ env.TYPEORM_PORT }}
+            TYPEORM_USERNAME=${{ env.TYPEORM_USERNAME }}
             TYPEORM_PASSWORD=${{ secrets.DEV_TYPEORM_PASSWORD }}
-            TYPEORM_DB_NAME=${{ secrets.DEV_TYPEORM_DB_NAME }}
+            TYPEORM_DB_NAME=${{ env.TYPEORM_DB_NAME }}
             JWT_SECRET_KEY=${{ secrets.DEV_JWT_SECRET_KEY }}
             JWT_SECRET_KEY_REFRESH=${{ secrets.DEV_JWT_SECRET_KEY_REFRESH }}
-            NODEMAILER_HOST=${{ secrets.DEV_NODEMAILER_HOST }}
-            NODEMAILER_PORT=${{ secrets.DEV_NODEMAILER_PORT }}
+            NODEMAILER_HOST=${{ env.NODEMAILER_HOST }}
+            NODEMAILER_PORT=${{ env.NODEMAILER_PORT }}
             NODEMAILER_USER=${{ secrets.DEV_NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.DEV_NODEMAILER_PASS }}
-            NODEMAILER_FROM=${{ secrets.DEV_NODEMAILER_FROM }}
-            URL_FILES=${{ secrets.DEV_URL_FILES }}
-            URL_WSS=${{ secrets.DEV_URL_WSS }}
-            URL_WEBHOOK_WA=${{ secrets.DEV_URL_WEBHOOK_WA }}
+            NODEMAILER_FROM=${{ env.NODEMAILER_FROM }}
+            URL_FILES=${{ env.URL_FILES }}
+            URL_WSS=${{ env.URL_WSS }}
+            URL_WEBHOOK_WA=${{ env.URL_WEBHOOK_WA }}
             OPENAI_API_KEY=${{ secrets.DEV_OPENAI_API_KEY }}
-            FACEBOOK_APP_ID=${{ secrets.DEV_FACEBOOK_APP_ID }}
+            FACEBOOK_APP_ID=${{ env.FACEBOOK_APP_ID }}
             FACEBOOK_APP_SECRET=${{ secrets.DEV_FACEBOOK_APP_SECRET }}
             FACEBOOK_WEBHOOK_SECRET=${{ secrets.DEV_FACEBOOK_WEBHOOK_SECRET }}
-            FACEBOOK_GRAPH_API=${{ secrets.DEV_FACEBOOK_GRAPH_API }}
-            APP_URL=${{ secrets.DEV_APP_URL }}
-            URL_FRONTEND=${{ secrets.DEV_URL_FRONTEND }}
+            FACEBOOK_GRAPH_API=${{ env.FACEBOOK_GRAPH_API }}
+            APP_URL=${{ env.APP_URL }}
+            URL_FRONTEND=${{ env.URL_FRONTEND }}
             MAILGUN_API_KEY=${{ secrets.DEV_MAILGUN_API_KEY }}
-            MAILGUN_DOMAIN=${{ secrets.DEV_MAILGUN_DOMAIN }}
-            MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
+            MAILGUN_DOMAIN=${{ env.MAILGUN_DOMAIN }}
+            MAILGUN_FROM=${{ env.MAILGUN_FROM }}
             VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
-            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ secrets.DEV_CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
+            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ env.CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
             ENV_EOF
 
             # Ensure pgvector is installed
@@ -155,7 +188,7 @@ jobs:
             echo "Ejecutando acción Blue-Green: $ACTION"
 
             # Execute the blue-green script
-            /opt/converxa/blue-green-simple.sh $ACTION
+            /opt/converxa-chat/blue-green-simple.sh $ACTION
 
             echo "=== VERIFICACIÓN POST-DEPLOY ==="
             echo "Verificando estado de contenedores después del deploy:"
@@ -190,7 +223,7 @@ jobs:
             echo ""
 
             # Show current status
-            /opt/converxa/blue-green-simple.sh status
+            /opt/converxa-chat/blue-green-simple.sh status
 
             echo ""
             echo "=== VERIFICACIÓN DE SALUD ==="
@@ -219,10 +252,10 @@ jobs:
 
             echo ""
             echo "🔧 Comandos disponibles:"
-            echo "  - Ver estado: /opt/converxa/blue-green-simple.sh status"
-            echo "  - Hacer switch: /opt/converxa/blue-green-simple.sh switch"
-            echo "  - Rollback: /opt/converxa/blue-green-simple.sh rollback"
-            echo "  - Limpiar: /opt/converxa/blue-green-simple.sh cleanup"
+            echo "  - Ver estado: /opt/converxa-chat/blue-green-simple.sh status"
+            echo "  - Hacer switch: /opt/converxa-chat/blue-green-simple.sh switch"
+            echo "  - Rollback: /opt/converxa-chat/blue-green-simple.sh rollback"
+            echo "  - Limpiar: /opt/converxa-chat/blue-green-simple.sh cleanup"
             echo ""
             echo "🌐 URLs de prueba:"
             echo "  - Blue (3002): http://dev-converxa.sofiacall.com:3002/api/health"
@@ -249,10 +282,10 @@ jobs:
           script: |
             if [ "${{ needs.blue-green-deployment.result }}" = "success" ]; then
               echo "✅ Blue-Green deployment completado exitosamente"
-              echo "📋 Ejecuta '/opt/converxa/blue-green-simple.sh status' para ver el estado actual"
+              echo "📋 Ejecuta '/opt/converxa-chat/blue-green-simple.sh status' para ver el estado actual"
             else
               echo "❌ Error en Blue-Green deployment"
               echo "🔍 Revisar logs para más detalles"
               echo "📋 Estado actual:"
-              /opt/converxa/blue-green-simple.sh status || echo "No se pudo obtener el estado"
+              /opt/converxa-chat/blue-green-simple.sh status || echo "No se pudo obtener el estado"
             fi

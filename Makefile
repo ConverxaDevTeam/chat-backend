@@ -5,7 +5,7 @@
 SSH_HOST := 137.184.227.234
 SSH_USER := root
 SSH_KEY := ~/.ssh/digitalOcean
-PROJECT_PATH := /root/repos/converxa-backend-v2
+PROJECT_PATH := /root/repos/converxa-backend-v1
 
 # Colores para output
 GREEN := \033[0;32m
@@ -17,7 +17,7 @@ NC := \033[0m # No Color
 
 # Comando por defecto
 help:
-	@echo "$(GREEN)Blue-Green Deployment - Sofia Chat Backend$(NC)"
+	@echo "$(GREEN)Blue-Green Deployment - Converxa Backend$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Comandos disponibles:$(NC)"
 	@echo "  make status          - Ver estado actual del deployment"
@@ -45,12 +45,12 @@ help:
 # Ver estado actual
 status:
 	@echo "$(GREEN)Consultando estado del deployment...$(NC)"
-	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa/blue-green-simple.sh status'
+	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa-chat/blue-green-simple.sh status'
 
 # Desplegar a slot inactivo
 deploy:
 	@echo "$(GREEN)Iniciando deployment a slot inactivo...$(NC)"
-	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) 'cd $(PROJECT_PATH) && git pull origin develop-v1 && /opt/converxa/blue-green-simple.sh deploy'
+	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) 'cd $(PROJECT_PATH) && git pull origin develop-v1 && /opt/converxa-chat/blue-green-simple.sh deploy'
 
 # Cambiar tráfico al nuevo slot (con confirmación)
 switch:
@@ -59,7 +59,7 @@ switch:
 	@read -r REPLY; \
 	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
 		echo "$(GREEN)Ejecutando switch...$(NC)"; \
-		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa/blue-green-simple.sh switch'; \
+		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa-chat/blue-green-simple.sh switch'; \
 	else \
 		echo "$(RED)Switch cancelado$(NC)"; \
 	fi
@@ -71,7 +71,7 @@ rollback:
 	@read -r REPLY; \
 	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
 		echo "$(GREEN)Ejecutando rollback...$(NC)"; \
-		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa/blue-green-simple.sh rollback'; \
+		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa-chat/blue-green-simple.sh rollback'; \
 	else \
 		echo "$(RED)Rollback cancelado$(NC)"; \
 	fi
@@ -79,7 +79,7 @@ rollback:
 # Limpiar slot inactivo
 cleanup:
 	@echo "$(GREEN)Limpiando slot inactivo...$(NC)"
-	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa/blue-green-simple.sh cleanup'
+	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa-chat/blue-green-simple.sh cleanup'
 
 # Ver logs en tiempo real
 logs:
@@ -149,7 +149,7 @@ debug-status:
 		nginx -t; \
 		echo ""; \
 		echo "=== LOGS RECIENTES ==="; \
-		tail -10 /var/log/converxa/health-check.log 2>/dev/null || echo "No hay logs de health check"'
+		tail -10 /var/log/converxa-chat/health-check.log 2>/dev/null || echo "No hay logs de health check"'
 
 # Forzar recreación completa (PELIGROSO)
 force-rebuild:
@@ -166,7 +166,7 @@ force-rebuild:
 # Backup de base de datos
 backup-db:
 	@echo "$(GREEN)Creando backup de base de datos...$(NC)"
-	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) 'cd $(PROJECT_PATH) && /opt/converxa/blue-green-simple.sh backup-db'
+	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) 'cd $(PROJECT_PATH) && /opt/converxa-chat/blue-green-simple.sh backup-db'
 
 # Restaurar base de datos
 restore-db:
@@ -175,7 +175,7 @@ restore-db:
 	@read -r REPLY; \
 	if [ "$$REPLY" = "y" ] || [ "$$REPLY" = "Y" ]; then \
 		echo "$(GREEN)Restaurando base de datos...$(NC)"; \
-		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa/blue-green-simple.sh restore'; \
+		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa-chat/blue-green-simple.sh restore'; \
 	else \
 		echo "$(RED)Restauración cancelada$(NC)"; \
 	fi
@@ -184,7 +184,7 @@ restore-db:
 monitor:
 	@echo "$(GREEN)Iniciando monitoreo continuo...$(NC)"
 	@echo "$(YELLOW)Presiona Ctrl+C para salir$(NC)"
-	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa/scripts/health-check.sh monitor'
+	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa-chat/scripts/health-check.sh monitor'
 
 # Información del sistema
 info:
@@ -213,7 +213,7 @@ emergency-restore:
 		echo "$(GREEN)Restaurando configuración básica...$(NC)"; \
 		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '\
 			echo "blue" > /opt/.blue-green-state; \
-			/opt/converxa/scripts/update-prod-config.sh blue; \
+			/opt/converxa-chat/scripts/update-prod-config.sh blue; \
 			systemctl reload nginx; \
 			echo "Configuración básica restaurada"'; \
 	else \

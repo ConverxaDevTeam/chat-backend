@@ -1,5 +1,5 @@
-ip: 137.184.227.234
-rama: develop-v1
+ip: 137.184.44.230
+rama: main
 para conectar puedes usar
 ssh -i ~/.ssh/digitalOcean root@137.184.227.234
 para comprender como est la estructura del proyecto en el servidor puedes verificar el workflow, y puedes ver el script dentro de terraform para configuraciones mas avanzadas.
@@ -23,7 +23,7 @@ recuerda, el codigo lo puedes ver en local, pero los cambios debes de verlos en 
 # Repositorio mostraba commit nuevo
 git rev-parse --short HEAD  # → 960c2d0
 
-# Pero contenedor tenía commit viejo  
+# Pero contenedor tenía commit viejo
 docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 | cut -c1-7  # → c29a4e2
 ```
 
@@ -107,7 +107,7 @@ Cambios específicos: Presentes en contenedor ✅
 
 # Verificar funciones específicas
 /opt/sofia-chat/blue-green-simple.sh deploy   # Deploy a slot inactivo
-/opt/sofia-chat/blue-green-simple.sh switch   # Cambiar producción 
+/opt/sofia-chat/blue-green-simple.sh switch   # Cambiar producción
 /opt/sofia-chat/blue-green-simple.sh cleanup  # Limpiar slot inactivo
 /opt/sofia-chat/blue-green-simple.sh rollback # Revertir cambios
 ```
