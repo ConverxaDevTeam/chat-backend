@@ -1,5 +1,5 @@
 (async () => {
-  const converxa = await import('http://localhost:3001/files/sofia-chat.js');
+  const converxa = await import('http://localhost:3001/files/converxa-chat.js');
   const config = {
     title: 'Converxa',
     description: 'Bienvenido a nuestro chat con IA',

@@ -46,7 +46,7 @@ else
 fi
 
 # Detectar entorno para logging
-if [ -f "/root/repos/sofia-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
+if [ -f "/root/repos/converxa-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
     log_info "Entorno: PRODUCCIÓN"
 else
     log_info "Entorno: DESARROLLO"
@@ -59,11 +59,11 @@ cat > "$CONFIG_FILE" << EOL
 # Configuración para HTTPS (backend)
 server {
     listen 443 ssl;
-    server_name back.sofiachat.com;
+    server_name back.converxa.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/back.sofiachat.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/back.sofiachat.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/back.converxa.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/back.converxa.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -100,7 +100,7 @@ server {
 # Redirección de HTTP a HTTPS (backend)
 server {
     listen 80;
-    server_name back.sofiachat.com;
+    server_name back.converxa.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;
@@ -109,11 +109,11 @@ server {
 # Configuración para HTTPS (internal testing)
 server {
     listen 443 ssl;
-    server_name internal-back.sofiachat.com;
+    server_name internal-back.converxa.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/internal-back.sofiachat.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/internal-back.sofiachat.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/internal-back.converxa.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/internal-back.converxa.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -151,7 +151,7 @@ server {
 # Redirección de HTTP a HTTPS (internal testing)
 server {
     listen 80;
-    server_name internal-back.sofiachat.com;
+    server_name internal-back.converxa.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;

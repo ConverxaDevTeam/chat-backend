@@ -22,7 +22,7 @@ module "droplet" {
 
 module "dns" {
   source = "./modules/dns"
-  domain = "sofiacall.com"
+  domain = "converxacall.com"
   droplet_ip = module.droplet.ipv4_address
 }
 

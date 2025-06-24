@@ -60,4 +60,4 @@ infrastructure-unified/.terraform
 infrastructure-unified/terraform.tfvars
 infrastructure-unified/.terraform.lock.hcl
 .blue-green-state
-backup_prod_sofia_chat_20250618_120352.sql
+backup_prod_converxa_chat_20250618_120352.sql

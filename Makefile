@@ -105,7 +105,7 @@ health:
 			echo "❌ UNHEALTHY"; \
 		fi; \
 		echo -n "Producción: "; \
-		if curl -sf https://dev-converxa.sofiacall.com/api/health >/dev/null 2>&1; then \
+		if curl -sf https://dev-converxa.converxa.com/api/health >/dev/null 2>&1; then \
 			echo "✅ HEALTHY"; \
 		else \
 			echo "❌ UNHEALTHY"; \
@@ -124,10 +124,10 @@ test-endpoints:
 		curl -s http://localhost:3003/api/health | jq . || echo "❌ Error o no JSON válido"; \
 		echo ""; \
 		echo "Producción:"; \
-		curl -s https://dev-converxa.sofiacall.com/api/health | jq . || echo "❌ Error o no JSON válido"; \
+		curl -s https://dev-converxa.converxa.com/api/health | jq . || echo "❌ Error o no JSON válido"; \
 		echo ""; \
 		echo "Pruebas internas:"; \
-		curl -s https://internal-dev-converxa.sofiacall.com/api/health | jq . || echo "❌ Error o no JSON válido"'
+		curl -s https://internal-dev-converxa.converxa.com/api/health | jq . || echo "❌ Error o no JSON válido"'
 
 # Conectar al servidor via SSH
 connect:
@@ -225,14 +225,14 @@ urls:
 	@echo "$(GREEN)URLs del sistema:$(NC)"
 	@echo ""
 	@echo "$(YELLOW)Producción:$(NC)"
-	@echo "  https://dev-converxa.sofiacall.com/api/health"
+	@echo "  https://dev-converxa.converxa.com/api/health"
 	@echo ""
 	@echo "$(YELLOW)Desarrollo directo:$(NC)"
 	@echo "  http://$(SSH_HOST):3002/api/health  (Blue)"
 	@echo "  http://$(SSH_HOST):3003/api/health  (Green)"
 	@echo ""
 	@echo "$(YELLOW)Pruebas internas:$(NC)"
-	@echo "  https://internal-dev-converxa.sofiacall.com/api/health"
+	@echo "  https://internal-dev-converxa.converxa.com/api/health"
 	@echo ""
 	@echo "$(YELLOW)SSH:$(NC)"
 	@echo "  ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST)"

@@ -2,21 +2,21 @@
 
 ## Descripción General
 
-Este documento describe el flujo completamente automatizado de Blue-Green deployment para Sofia Chat Backend, donde los scripts se instalan automáticamente durante la creación del servidor via Terraform, eliminando la necesidad de copiarlos manualmente.
+Este documento describe el flujo completamente automatizado de Blue-Green deployment para Converxa Chat Backend, donde los scripts se instalan automáticamente durante la creación del servidor via Terraform, eliminando la necesidad de copiarlos manualmente.
 
 ## 🏗️ Arquitectura del Sistema
 
 ### Componentes Automatizados
 
 1. **Terraform Setup**: Instala automáticamente scripts Blue-Green durante la creación del servidor
-2. **Scripts Permanentes**: Ubicados en `/opt/sofia-chat/` y listos desde el primer arranque
+2. **Scripts Permanentes**: Ubicados en `/opt/converxa-chat/` y listos desde el primer arranque
 3. **Workflow Optimizado**: Solo ejecuta comandos, no copia archivos
 4. **Makefile Local**: Facilita operaciones desde máquina local
 
 ### Estructura de Archivos
 
 ```
-/opt/sofia-chat/
+/opt/converxa-chat/
 ├── blue-green-simple.sh           # Script principal
 ├── scripts/
 │   ├── update-prod-config.sh      # Actualización de Nginx
@@ -40,7 +40,7 @@ graph TD
 ```
 
 **Lo que instala automáticamente:**
-- Scripts Blue-Green en `/opt/sofia-chat/`
+- Scripts Blue-Green en `/opt/converxa-chat/`
 - Configuración inicial de Nginx para Blue (puerto 3002)
 - Aliases: `bg-status`, `bg-deploy`, `bg-switch`, etc.
 - Health checks automáticos cada 5 minutos
@@ -93,7 +93,7 @@ bg-rollback
 bg-cleanup
 
 # Ver logs
-bg-logs sofia-chat-backend-blue
+bg-logs converxa-chat-backend-blue
 ```
 
 ### Desde Local (via Makefile)
@@ -147,13 +147,13 @@ Staging: Blue (puerto 3002)     ← Versión anterior (rollback)
 
 El script `update-prod-config.sh` mantiene dos configuraciones:
 
-1. **Producción**: `dev-sofia-chat.sofiacall.com` → Puerto activo
-2. **Testing Interno**: `internal-dev-sofia-chat.sofiacall.com` → Puerto inactivo
+1. **Producción**: `dev-converxa-chat.converxa.com` → Puerto activo
+2. **Testing Interno**: `internal-dev-converxa-chat.converxa.com` → Puerto inactivo
 
 ### Health Checks Automáticos
 
 - **Frecuencia**: Cada 5 minutos via cron
-- **Log**: `/var/log/sofia-chat/health-check.log`
+- **Log**: `/var/log/converxa-chat/health-check.log`
 - **Alertas**: Automáticas si producción no está saludable
 
 ### Backup Automático
@@ -183,14 +183,14 @@ terraform apply
 
 ```bash
 # Configurar registros DNS
-internal-dev-sofia-chat.sofiacall.com → IP_DEL_SERVIDOR
+internal-dev-converxa-chat.converxa.com → IP_DEL_SERVIDOR
 ```
 
 ### Paso 3: Obtener Certificados SSL
 
 ```bash
 # En el servidor (via SSH)
-certbot --nginx -d internal-dev-sofia-chat.sofiacall.com --non-interactive --agree-tos --email admin@sofiacall.com
+certbot --nginx -d internal-dev-converxa-chat.converxa.com --non-interactive --agree-tos --email admin@converxa.com
 ```
 
 ### Paso 4: Primer Deployment
@@ -241,11 +241,11 @@ make connect
 
 ```bash
 # Health checks
-tail -f /var/log/sofia-chat/health-check.log
+tail -f /var/log/converxa-chat/health-check.log
 
 # Logs de aplicación
-docker logs -f sofia-chat-backend-blue
-docker logs -f sofia-chat-backend-green
+docker logs -f converxa-chat-backend-blue
+docker logs -f converxa-chat-backend-green
 
 # Logs de Nginx
 tail -f /var/log/nginx/error.log

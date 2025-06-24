@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script de utilidades para infraestructura Sofia Chat Backend v2
+# Script de utilidades para infraestructura Converxa Chat Backend v2
 # Uso: ./deploy.sh [comando] [opciones]
 
 set -e
@@ -225,7 +225,7 @@ status() {
         log_info "Ejecutando verificación Blue-Green en el servidor..."
 
         ssh -o StrictHostKeyChecking=no $(echo $SSH_CMD | sed 's/ssh //' | sed 's/-i [^ ]* //' | awk '{print "-i " $2 " " $3}') \
-            '/opt/sofia-chat/blue-green-simple.sh status'
+            '/opt/converxa-chat/blue-green-simple.sh status'
     }
 
     # Configurar certificados SSL para todos los dominios
@@ -318,7 +318,7 @@ frontend_deploy() {
     log_info "Ejecutando deploy del frontend en el servidor..."
 
     ssh -o StrictHostKeyChecking=no $(echo $SSH_CMD | sed 's/ssh //' | sed 's/-i [^ ]* //' | awk '{print "-i " $2 " " $3}') \
-        '/opt/sofia-chat/scripts/frontend-deploy.sh'
+        '/opt/converxa-chat/scripts/frontend-deploy.sh'
 
     log_success "Deploy del frontend completado"
 }
@@ -335,7 +335,7 @@ frontend_status() {
     SSH_CMD=$(terraform output -raw ssh_connection)
 
     ssh -o StrictHostKeyChecking=no $(echo $SSH_CMD | sed 's/ssh //' | sed 's/-i [^ ]* //' | awk '{print "-i " $2 " " $3}') \
-        'frontend-status && echo "" && echo "=== CONFIGURACIÓN NGINX ===" && nginx -T | grep -A 10 -B 2 "app-sofia-chat"'
+        'frontend-status && echo "" && echo "=== CONFIGURACIÓN NGINX ===" && nginx -T | grep -A 10 -B 2 "app-converxa-chat"'
 }
 
 # Build del frontend
@@ -351,11 +351,11 @@ frontend_build() {
 
     log_info "Ejecutando build para producción..."
     ssh -o StrictHostKeyChecking=no $(echo $SSH_CMD | sed 's/ssh //' | sed 's/-i [^ ]* //' | awk '{print "-i " $2 " " $3}') \
-        '/opt/sofia-chat/scripts/frontend-build.sh prod'
+        '/opt/converxa-chat/scripts/frontend-build.sh prod'
 
     log_info "Ejecutando build para pruebas internas..."
     ssh -o StrictHostKeyChecking=no $(echo $SSH_CMD | sed 's/ssh //' | sed 's/-i [^ ]* //' | awk '{print "-i " $2 " " $3}') \
-        '/opt/sofia-chat/scripts/frontend-build.sh internal'
+        '/opt/converxa-chat/scripts/frontend-build.sh internal'
 
     log_success "Build del frontend completado"
 }
@@ -395,7 +395,7 @@ setup_ssl_frontend() {
 
 # Mostrar ayuda
 show_help() {
-echo "Script de utilidades para infraestructura Sofia Chat Full Stack v2"
+echo "Script de utilidades para infraestructura Converxa Chat Full Stack v2"
 echo ""
 echo "Uso: $0 [comando]"
 echo ""

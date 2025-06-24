@@ -1,6 +1,6 @@
 # Flujo de Límites de Organización
 
-Este documento describe el flujo de trabajo para los límites de organización en el sistema Sofia Chat.
+Este documento describe el flujo de trabajo para los límites de organización en el sistema Converxa Chat.
 
 ## Tipos de Organización
 

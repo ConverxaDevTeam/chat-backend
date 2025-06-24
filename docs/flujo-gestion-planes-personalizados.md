@@ -1,7 +1,7 @@
 # Flujo de Gestión de Planes Personalizados
 
 ## Descripción
-Este documento describe los flujos de gestión de planes personalizados en la plataforma Sofia Chat. Incluye los procesos para solicitar un plan personalizado por parte de un usuario, la aprobación y configuración de planes personalizados por parte de superadministradores, y la actualización de detalles de planes personalizados.
+Este documento describe los flujos de gestión de planes personalizados en la plataforma Converxa Chat. Incluye los procesos para solicitar un plan personalizado por parte de un usuario, la aprobación y configuración de planes personalizados por parte de superadministradores, y la actualización de detalles de planes personalizados.
 
 ## Responsabilidades
 

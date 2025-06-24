@@ -5,7 +5,7 @@
 
 set -e
 
-PROJECT_DIR="/root/repos/sofia-chat-backend-v2"
+PROJECT_DIR="/root/repos/converxa-backend-v1"
 STATE_FILE="/opt/.blue-green-state"
 
 # Detect environment and use appropriate docker-compose file
@@ -72,8 +72,8 @@ update_nginx_config() {
     log "Actualizando configuración de nginx para $target_color (puerto $target_port)..."
 
     # Usar el script de actualización de producción
-    if [ -f "/opt/sofia-chat/scripts/update-prod-config.sh" ]; then
-        /opt/sofia-chat/scripts/update-prod-config.sh "$target_color" || {
+    if [ -f "/opt/converxa-chat/scripts/update-prod-config.sh" ]; then
+        /opt/converxa-chat/scripts/update-prod-config.sh "$target_color" || {
             error "Error al actualizar configuración de nginx"
         }
         log "✅ Configuración de nginx actualizada"
@@ -97,8 +97,8 @@ backup_state() {
     cat > "$backup_file" << EOF
 TIMESTAMP=$(date)
 CURRENT_STATE=$current_state
-BLUE_RUNNING=$(is_container_running "sofia-chat-backend-blue" && echo "yes" || echo "no")
-GREEN_RUNNING=$(is_container_running "sofia-chat-backend-green" && echo "yes" || echo "no")
+BLUE_RUNNING=$(is_container_running "converxa-backend-blue" && echo "yes" || echo "no")
+GREEN_RUNNING=$(is_container_running "converxa-backend-green" && echo "yes" || echo "no")
 EOF
 
     # Backup de base de datos usando variables del archivo .env
@@ -237,13 +237,13 @@ show_status() {
     echo ""
 
     # Verificar contenedores
-    if is_container_running "sofia-chat-backend-blue"; then
+    if is_container_running "converxa-backend-blue"; then
         echo "🔵 Blue (puerto 3002): RUNNING"
     else
         echo "🔵 Blue (puerto 3002): STOPPED"
     fi
 
-    if is_container_running "sofia-chat-backend-green"; then
+    if is_container_running "converxa-backend-green"; then
         echo "🟢 Green (puerto 3003): RUNNING"
     else
         echo "🟢 Green (puerto 3003): STOPPED"
@@ -281,7 +281,7 @@ deploy() {
 
 
     # Detener y remover contenedor existente si está corriendo
-    if is_container_running "sofia-chat-backend-$target_slot"; then
+    if is_container_running "conversofia-chat-backend-$target_slot"; then
         log "Deteniendo contenedor existente: sofia-chat-backend-$target_slot"
         $DOCKER_COMPOSE stop sofia-chat-backend-$target_slot
         $DOCKER_COMPOSE rm -f sofia-chat-backend-$target_slot

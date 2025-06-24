@@ -1,4 +1,4 @@
-# Pruebas cURL - Sofia Chat Backend v2
+# Pruebas cURL - Converxa Chat Backend v2
 
 ## Configuración Base
 - **Usuario**: frank@pixeldigita.com, password: 12345678
@@ -7,7 +7,7 @@
 
 ### Variables BD (solo consulta)
 ```bash
-export TYPEORM_HOST=localhost TYPEORM_USERNAME=postgres TYPEORM_PASSWORD=Admin TYPEORM_DATABASE=sofia_chat_v2 TYPEORM_PORT=5432
+export TYPEORM_HOST=localhost TYPEORM_USERNAME=postgres TYPEORM_PASSWORD=Admin TYPEORM_DATABASE=converxa_chat_v2 TYPEORM_PORT=5432
 ```
 
 ## 1. Login

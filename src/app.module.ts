@@ -47,7 +47,7 @@ import { CoreModule } from '@modules/core/core.module';
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'chats'),
-      serveRoot: '/sofia-chat',
+      serveRoot: '/converxa-chat',
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'logos'),

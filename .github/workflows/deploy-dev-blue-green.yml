@@ -1,4 +1,4 @@
-name: Blue-Green Deployment for Sofia Chat Backend
+name: Blue-Green Deployment for Converxa Chat Backend
 
 on:
   push:
@@ -244,7 +244,7 @@ jobs:
             fi
 
             echo -n "Producción: "
-            if curl -sf https://dev-converxa.sofiacall.com/api/health >/dev/null 2>&1; then
+            if curl -sf https://dev-converxa.converxa.com/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
             else
                 echo "❌ NO SALUDABLE"
@@ -258,10 +258,10 @@ jobs:
             echo "  - Limpiar: /opt/converxa-chat/blue-green-simple.sh cleanup"
             echo ""
             echo "🌐 URLs de prueba:"
-            echo "  - Blue (3002): http://dev-converxa.sofiacall.com:3002/api/health"
-            echo "  - Green (3003): http://dev-converxa.sofiacall.com:3003/api/health"
-            echo "  - Producción: https://dev-converxa.sofiacall.com/api/health"
-            echo "  - Pruebas internas: https://internal-dev-converxa.sofiacall.com/api/health"
+            echo "  - Blue (3002): http://dev-converxa.converxa.com:3002/api/health"
+            echo "  - Green (3003): http://dev-converxa.converxa.com:3003/api/health"
+            echo "  - Producción: https://dev-converxa.converxa.com/api/health"
+            echo "  - Pruebas internas: https://internal-dev-converxa.converxa.com/api/health"
             echo ""
             echo "📋 Aliases disponibles en el servidor:"
             echo "  - bg-status, bg-deploy, bg-switch, bg-rollback, bg-cleanup"

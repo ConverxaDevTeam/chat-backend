@@ -10,7 +10,7 @@ terraform {
 resource "digitalocean_record" "backend_dns" {
   domain = var.domain
   type   = "A"
-  name   = "dev-sofia-chat"
+  name   = "dev-converxa-chat"
   value  = var.droplet_ip
   ttl    = 3600
 }
@@ -18,7 +18,7 @@ resource "digitalocean_record" "backend_dns" {
 resource "digitalocean_record" "internal_backend_dns" {
   domain = var.domain
   type   = "A"
-  name   = "internal-dev-sofia-chat"
+  name   = "internal-dev-converxa-chat"
   value  = var.droplet_ip
   ttl    = 3600
 }

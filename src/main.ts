@@ -71,7 +71,7 @@ async function bootstrap() {
     ],
   });
 
-  // Configuración de CORS específica para '/sofia-chat'
+  // Configuración de CORS específica para '/converxa-chat'
   app.use('/files', cors());
   app.use('/assets', cors());
   app.use('/images', cors());

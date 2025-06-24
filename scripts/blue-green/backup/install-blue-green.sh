@@ -10,8 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 NGINX_CONFIG_DIR="/etc/nginx/sites-available"
 NGINX_ENABLED_DIR="/etc/nginx/sites-enabled"
-SOFIA_DIR="/opt/sofia-chat"
-LOG_DIR="/var/log/sofia-chat"
+SOFIA_DIR="/opt/converxa-chat"
+LOG_DIR="/var/log/converxa-chat"
 
 # Colores para output
 RED='\033[0;31m'
@@ -42,7 +42,7 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-log_info "Iniciando instalación de Blue-Green Deployment para Sofia Chat Backend"
+log_info "Iniciando instalación de Blue-Green Deployment para Converxa Chat Backend"
 echo "=================================================================="
 
 # Paso 1: Crear estructura de directorios
@@ -50,7 +50,7 @@ log_step "1. Creando estructura de directorios..."
 
 mkdir -p "$SOFIA_DIR"/{scripts,backups,state}
 mkdir -p "$LOG_DIR"/{blue,green,nginx,blue-green}
-mkdir -p /etc/sofia-chat
+mkdir -p /etc/converxa-chat
 
 log_info "Directorios creados exitosamente"
 
@@ -83,8 +83,8 @@ log_info "Estado inicial configurado (BLUE activo)"
 # Paso 5: Configurar logrotate
 log_step "5. Configurando rotación de logs..."
 
-cat > /etc/logrotate.d/sofia-chat << 'LOGROTATE_EOF'
-/var/log/sofia-chat/*/*.log {
+cat > /etc/logrotate.d/converxa-chat << 'LOGROTATE_EOF'
+/var/log/converxa-chat/*/*.log {
     daily
     missingok
     rotate 30
@@ -97,7 +97,7 @@ cat > /etc/logrotate.d/sofia-chat << 'LOGROTATE_EOF'
     endscript
 }
 
-/var/log/sofia-chat/blue-green/*.log {
+/var/log/converxa-chat/blue-green/*.log {
     daily
     missingok
     rotate 15
@@ -113,10 +113,10 @@ log_info "Rotación de logs configurada"
 log_step "6. Configurando monitoreo automático..."
 
 # Health check cada 5 minutos
-(crontab -l 2>/dev/null | grep -v "sofia-chat.*health-check"; echo "*/5 * * * * $SOFIA_DIR/scripts/health-check.sh check >> $LOG_DIR/blue-green/health-check.log 2>&1") | crontab -
+(crontab -l 2>/dev/null | grep -v "converxa-chat.*health-check"; echo "*/5 * * * * $SOFIA_DIR/scripts/health-check.sh check >> $LOG_DIR/blue-green/health-check.log 2>&1") | crontab -
 
 # Cleanup de logs antiguos diariamente
-(crontab -l 2>/dev/null | grep -v "sofia-chat.*cleanup"; echo "0 2 * * * find $LOG_DIR -name '*.log' -mtime +30 -delete") | crontab -
+(crontab -l 2>/dev/null | grep -v "converxa-chat.*cleanup"; echo "0 2 * * * find $LOG_DIR -name '*.log' -mtime +30 -delete") | crontab -
 
 log_info "Monitoreo automático configurado"
 
@@ -134,17 +134,17 @@ cat > "$NGINX_CONFIG_DIR/internal-backend.conf" << 'INTERNAL_NGINX_EOF'
 # Configuración para pruebas internas Blue-Green
 server {
     listen 80;
-    server_name internal-dev-sofia-chat.sofiacall.com;
+    server_name internal-dev-converxa-chat.sofiacall.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name internal-dev-sofia-chat.sofiacall.com;
+    server_name internal-dev-converxa-chat.sofiacall.com;
 
     # Certificados SSL (usar los mismos del dominio principal inicialmente)
-    ssl_certificate /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -257,8 +257,8 @@ is_container_healthy() {
 quick_stats() {
     echo "=== BLUE-GREEN STATUS ==="
     echo "Active: $(get_active_color)"
-    echo "Blue: $(is_container_healthy 'sofia-chat-backend-blue' '3002' && echo 'HEALTHY' || echo 'DOWN')"
-    echo "Green: $(is_container_healthy 'sofia-chat-backend-green' '3003' && echo 'HEALTHY' || echo 'DOWN')"
+    echo "Blue: $(is_container_healthy 'converxa-chat-backend-blue' '3002' && echo 'HEALTHY' || echo 'DOWN')"
+    echo "Green: $(is_container_healthy 'converxa-chat-backend-green' '3003' && echo 'HEALTHY' || echo 'DOWN')"
     echo "========================="
 }
 
@@ -277,14 +277,14 @@ log_step "10. Configurando aliases..."
 
 cat >> /root/.bashrc << 'ALIASES_EOF'
 
-# Sofia Chat Blue-Green Aliases
-alias bg-status='/opt/sofia-chat/scripts/blue-green-control.sh status'
-alias bg-deploy='/opt/sofia-chat/scripts/blue-green-control.sh deploy'
-alias bg-switch='/opt/sofia-chat/scripts/blue-green-control.sh switch'
-alias bg-rollback='/opt/sofia-chat/scripts/blue-green-control.sh rollback'
-alias bg-cleanup='/opt/sofia-chat/scripts/blue-green-control.sh cleanup'
-alias bg-health='/opt/sofia-chat/scripts/health-check.sh check'
-alias bg-logs='tail -f /var/log/sofia-chat/blue-green/*.log'
+# Converxa Chat Blue-Green Aliases
+alias bg-status='/opt/converxa-chat/scripts/blue-green-control.sh status'
+alias bg-deploy='/opt/converxa-chat/scripts/blue-green-control.sh deploy'
+alias bg-switch='/opt/converxa-chat/scripts/blue-green-control.sh switch'
+alias bg-rollback='/opt/converxa-chat/scripts/blue-green-control.sh rollback'
+alias bg-cleanup='/opt/converxa-chat/scripts/blue-green-control.sh cleanup'
+alias bg-health='/opt/converxa-chat/scripts/health-check.sh check'
+alias bg-logs='tail -f /var/log/converxa-chat/blue-green/*.log'
 
 ALIASES_EOF
 
@@ -351,12 +351,12 @@ echo "   • bg-cleanup   - Limpiar entorno inactivo"
 echo "   • bg-health    - Verificar salud"
 echo
 echo "🌐 DOMINIOS CONFIGURADOS:"
-echo "   • Producción: dev-sofia-chat.sofiacall.com"
-echo "   • Pruebas: internal-dev-sofia-chat.sofiacall.com"
+echo "   • Producción: dev-converxa-chat.sofiacall.com"
+echo "   • Pruebas: internal-dev-converxa-chat.sofiacall.com"
 echo
 echo "⚠️  PASOS SIGUIENTES:"
-echo "   1. Configurar DNS para internal-dev-sofia-chat.sofiacall.com"
-echo "   2. Obtener certificado SSL: certbot --nginx -d internal-dev-sofia-chat.sofiacall.com"
+echo "   1. Configurar DNS para internal-dev-converxa-chat.sofiacall.com"
+echo "   2. Obtener certificado SSL: certbot --nginx -d internal-dev-converxa-chat.sofiacall.com"
 echo "   3. Actualizar docker-compose.yml para usar docker-compose.blue-green.yml"
 echo "   4. Ejecutar primer deployment: bg-deploy"
 echo

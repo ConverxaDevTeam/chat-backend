@@ -1,6 +1,6 @@
 # Flujo de Autenticación
 
-Este documento describe los diferentes flujos de autenticación implementados en el backend de Sofia Chat.
+Este documento describe los diferentes flujos de autenticación implementados en el backend de Converxa Chat.
 
 ## Flujo de Autenticación con Email y Contraseña
 

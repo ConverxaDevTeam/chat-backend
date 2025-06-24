@@ -43,7 +43,7 @@ output "ssh_connection" {
 
 output "blue_green_status" {
   description = "Command to check Blue-Green deployment status"
-  value       = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/sofia-chat/blue-green-simple.sh status'"
+  value       = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/converxa-chat/blue-green-simple.sh status'"
 }
 
 # Backend URLs
@@ -129,10 +129,10 @@ output "deployment_commands" {
   description = "Useful deployment commands"
   value = {
     ssh_connect     = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address}"
-    bg_status       = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/sofia-chat/blue-green-simple.sh status'"
-    frontend_deploy = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/sofia-chat/frontend-deploy.sh'"
-    full_deploy     = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/sofia-chat/full-deploy.sh'"
-    clone_backend   = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} 'git clone git@github.com:your-org/converxa-backend.git /root/repos/sofia-chat-backend-v2'"
+    bg_status       = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/converxa-chat/blue-green-simple.sh status'"
+    frontend_deploy = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/converxa-chat/frontend-deploy.sh'"
+    full_deploy     = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/converxa-chat/full-deploy.sh'"
+    clone_backend   = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} 'git clone git@github.com:your-org/converxa-backend.git /root/repos/converxa-chat-backend-v2'"
     clone_frontend  = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} 'git clone git@github.com:your-org/converxa-frontend.git /root/repos/converxa-frontend'"
   }
 }

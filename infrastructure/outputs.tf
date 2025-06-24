@@ -30,7 +30,7 @@ output "ssh_connection" {
 
 output "blue_green_status" {
   description = "Command to check Blue-Green deployment status"
-  value       = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/sofia-chat/blue-green-simple.sh status'"
+  value       = "ssh -i ${var.private_key_path} root@${module.droplet.ipv4_address} '/opt/converxa-chat/blue-green-simple.sh status'"
 }
 
 output "production_url" {

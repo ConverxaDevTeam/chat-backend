@@ -24,7 +24,7 @@ recuerda, el codigo lo puedes ver en local, pero los cambios debes de verlos en 
 git rev-parse --short HEAD  # → 960c2d0
 
 # Pero contenedor tenía commit viejo
-docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 | cut -c1-7  # → c29a4e2
+docker exec converxa-chat-backend-blue cat /app/.git/refs/heads/develop-v1 | cut -c1-7  # → c29a4e2
 ```
 
 ### SOLUCIÓN IMPLEMENTADA ✅
@@ -38,10 +38,10 @@ docker exec sofia-chat-backend-blue cat /app/.git/refs/heads/develop-v1 | cut -c
 ```yaml
 # Copia solo scripts necesarios
 source: 'scripts/blue-green/blue-green-simple.sh'
-target: '/opt/sofia-chat/'
+target: '/opt/converxa-chat/'
 
 # Ejecuta directamente sin PROJECT_DIR
-/opt/sofia-chat/blue-green-simple.sh $ACTION
+/opt/converxa-chat/blue-green-simple.sh $ACTION
 ```
 
 #### 3. **Mejoras en funcionalidad**:
@@ -60,7 +60,7 @@ graph TD
     C --> D[Copy update-prod-config.sh]
     D --> E[Update repository + git reset --hard HEAD]
     E --> F[Create .env file]
-    F --> G[Execute /opt/sofia-chat/blue-green-simple.sh ACTION]
+    F --> G[Execute /opt/converxa-chat/blue-green-simple.sh ACTION]
     G --> H[Docker Compose build + deploy]
     H --> I[Integrated health checks]
     I --> J[Auto backup if switch]
@@ -78,9 +78,9 @@ Cambios específicos: Presentes en contenedor ✅
 ```
 
 #### URLs de verificación:
-- **BLUE**: http://dev-sofia-chat.sofiacall.com:3001/api/health
-- **Producción**: https://dev-sofia-chat.sofiacall.com/api/health
-- **Pruebas internas**: https://internal-dev-sofia-chat.sofiacall.com/api/health
+- **BLUE**: http://dev-converxa-chat.converxa.com:3001/api/health
+- **Producción**: https://dev-converxa-chat.converxa.com/api/health
+- **Pruebas internas**: https://internal-dev-converxa-chat.converxa.com/api/health
 
 ### INTENTOS PREVIOS QUE NO FUNCIONARON
 
@@ -100,23 +100,23 @@ Cambios específicos: Presentes en contenedor ✅
 #### Comandos de diagnóstico:
 ```bash
 # Verificar estado completo (UNIFICADO)
-/opt/sofia-chat/blue-green-simple.sh status
+/opt/converxa-chat/blue-green-simple.sh status
 
 # Comandos disponibles
-/opt/sofia-chat/blue-green-simple.sh help
+/opt/converxa-chat/blue-green-simple.sh help
 
 # Verificar funciones específicas
-/opt/sofia-chat/blue-green-simple.sh deploy   # Deploy a slot inactivo
-/opt/sofia-chat/blue-green-simple.sh switch   # Cambiar producción
-/opt/sofia-chat/blue-green-simple.sh cleanup  # Limpiar slot inactivo
-/opt/sofia-chat/blue-green-simple.sh rollback # Revertir cambios
+/opt/converxa-chat/blue-green-simple.sh deploy   # Deploy a slot inactivo
+/opt/converxa-chat/blue-green-simple.sh switch   # Cambiar producción
+/opt/converxa-chat/blue-green-simple.sh cleanup  # Limpiar slot inactivo
+/opt/converxa-chat/blue-green-simple.sh rollback # Revertir cambios
 ```
 
 ### ESTRUCTURA FINAL LIMPIA
 
 **Scripts activos:**
-- `/opt/sofia-chat/blue-green-simple.sh` (principal)
-- `/opt/sofia-chat/scripts/update-prod-config.sh` (helper)
+- `/opt/converxa-chat/blue-green-simple.sh` (principal)
+- `/opt/converxa-chat/scripts/update-prod-config.sh` (helper)
 
 **Scripts legacy (backup):**
 - `scripts/blue-green/backup/blue-green-control.sh`

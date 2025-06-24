@@ -1,6 +1,6 @@
 # Flujo de Creación de Organizaciones
 
-Este documento describe el flujo de creación de organizaciones en el backend de Sofia Chat.
+Este documento describe el flujo de creación de organizaciones en el backend de Converxa Chat.
 
 ## Flujo de Creación de Organización
 

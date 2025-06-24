@@ -1,6 +1,6 @@
 # Flujo de Gestión de Roles de Usuario en Organizaciones
 
-Este documento describe el flujo para gestionar los roles de usuarios dentro de organizaciones en el backend de Sofia Chat.
+Este documento describe el flujo para gestionar los roles de usuarios dentro de organizaciones en el backend de Converxa Chat.
 
 ## Diagrama de Flujo
 

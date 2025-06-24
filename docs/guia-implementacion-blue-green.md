@@ -2,7 +2,7 @@
 
 ## Descripción General
 
-Esta guía te llevará paso a paso para implementar Blue-Green deployment en el servidor de Sofia Chat Backend. El proceso está diseñado para ser seguro y reversible.
+Esta guía te llevará paso a paso para implementar Blue-Green deployment en el servidor de Converxa Chat Backend. El proceso está diseñado para ser seguro y reversible.
 
 ## Prerrequisitos
 
@@ -19,9 +19,9 @@ ssh -i ~/.ssh/digitalOcean root@137.184.227.234
 ### 3. Estado Actual del Servidor
 El servidor actualmente tiene:
 - Nginx corriendo en puerto 80/443
-- Backend en contenedor `sofia-chat-backend-v2` (puerto 3001)
+- Backend en contenedor `converxa-chat-backend-v2` (puerto 3001)
 - PostgreSQL con pgvector
-- Certificados SSL de Let's Encrypt para `dev-sofia-chat.sofiacall.com`
+- Certificados SSL de Let's Encrypt para `dev-converxa-chat.converxa.com`
 
 ## Fase 1: Preparación del Servidor
 
@@ -51,13 +51,13 @@ cp -r /etc/nginx/sites-available /root/backups/$(date +%Y%m%d)/
 cp -r /etc/nginx/sites-enabled /root/backups/$(date +%Y%m%d)/
 
 # Backup de la aplicación actual
-cd /root/repos/sofia-chat-backend-v2
+cd /root/repos/converxa-chat-backend-v2
 git stash
 git checkout develop
 git pull origin develop
 
 # Backup de base de datos
-docker exec sofia-chat-backend-v2 pg_dump -U postgres sofia_chat > /root/backups/$(date +%Y%m%d)/sofia_chat_backup.sql
+docker exec converxa-chat-backend-v2 pg_dump -U postgres converxa_chat > /root/backups/$(date +%Y%m%d)/converxa_chat_backup.sql
 ```
 
 ## Fase 2: Instalación de Blue-Green
@@ -69,7 +69,7 @@ Desde tu máquina local:
 scp -i ~/.ssh/digitalOcean -r scripts/blue-green/ root@137.184.227.234:/tmp/
 
 # Subir docker-compose actualizado
-scp -i ~/.ssh/digitalOcean docker-compose.blue-green.yml root@137.184.227.234:/root/repos/sofia-chat-backend-v2/
+scp -i ~/.ssh/digitalOcean docker-compose.blue-green.yml root@137.184.227.234:/root/repos/converxa-chat-backend-v2/
 ```
 
 ### Paso 2.2: Ejecutar Instalación
@@ -85,7 +85,7 @@ chmod +x /tmp/blue-green/*.sh
 ### Paso 2.3: Verificar Instalación
 ```bash
 # Verificar que los scripts están instalados
-ls -la /opt/sofia-chat/scripts/
+ls -la /opt/converxa-chat/scripts/
 
 # Verificar aliases (recargar bash primero)
 source /root/.bashrc
@@ -98,14 +98,14 @@ bg-status
 
 ### Paso 3.1: Configurar DNS
 En tu proveedor DNS (DigitalOcean, Cloudflare, etc.):
-1. Crear registro A para `internal-dev-sofia-chat.sofiacall.com`
+1. Crear registro A para `internal-dev-converxa-chat.converxa.com`
 2. Apuntar a la misma IP: `137.184.227.234`
 
 ### Paso 3.2: Obtener Certificado SSL
 En el servidor:
 ```bash
 # Obtener certificado para dominio de pruebas internas
-certbot --nginx -d internal-dev-sofia-chat.sofiacall.com --non-interactive --agree-tos --email admin@sofiacall.com
+certbot --nginx -d internal-dev-converxa-chat.converxa.com --non-interactive --agree-tos --email admin@converxa.com
 
 # Verificar certificados
 certbot certificates
@@ -115,7 +115,7 @@ certbot certificates
 ```bash
 # El script de instalación ya creó la configuración básica
 # Actualizar para usar el certificado correcto
-/opt/sofia-chat/scripts/update-internal-config.sh blue
+/opt/converxa-chat/scripts/update-internal-config.sh blue
 
 # Verificar configuración
 nginx -t
@@ -126,7 +126,7 @@ systemctl reload nginx
 
 ### Paso 4.1: Preparar Nuevo Docker Compose
 ```bash
-cd /root/repos/sofia-chat-backend-v2
+cd /root/repos/converxa-chat-backend-v2
 
 # Backup del docker-compose actual
 cp docker-compose.yml docker-compose.yml.backup
@@ -141,10 +141,10 @@ cp docker-compose.blue-green.yml docker-compose.yml
 docker-compose down
 
 # Renombrar contenedor existente para que sea "blue"
-# Editar docker-compose.yml para que el servicio principal se llame sofia-chat-backend-blue
+# Editar docker-compose.yml para que el servicio principal se llame converxa-chat-backend-blue
 
 # Levantar como Blue
-docker-compose up -d sofia-chat-backend-blue
+docker-compose up -d converxa-chat-backend-blue
 
 # Verificar que funciona
 curl http://localhost:3002/health
@@ -153,7 +153,7 @@ curl http://localhost:3002/health
 ### Paso 4.3: Actualizar Configuración de Producción
 ```bash
 # Actualizar Nginx para apuntar explícitamente a blue
-/opt/sofia-chat/scripts/update-prod-config.sh blue
+/opt/converxa-chat/scripts/update-prod-config.sh blue
 
 # Establecer estado inicial
 echo "blue" > /opt/.blue-green-state
@@ -189,7 +189,7 @@ git push origin develop
 En el servidor:
 ```bash
 # Pull de cambios
-cd /root/repos/sofia-chat-backend-v2
+cd /root/repos/converxa-chat-backend-v2
 git pull origin develop
 
 # Desplegar a Green (slot inactivo)
@@ -205,7 +205,7 @@ bg-status
 curl http://localhost:3003/health
 
 # Probar vía dominio interno
-curl https://internal-dev-sofia-chat.sofiacall.com/health
+curl https://internal-dev-converxa-chat.converxa.com/health
 ```
 
 ## Fase 6: Primer Switch de Tráfico
@@ -224,7 +224,7 @@ bg-health green
 bg-switch
 
 # Verificar que producción ahora apunta a Green
-curl https://dev-sofia-chat.sofiacall.com/health
+curl https://dev-converxa-chat.converxa.com/health
 ```
 
 ### Paso 6.3: Monitorear Post-Switch
@@ -243,7 +243,7 @@ bg-rollback
 
 # Verificar que volvió a Blue
 bg-status
-curl https://dev-sofia-chat.sofiacall.com/health
+curl https://dev-converxa-chat.converxa.com/health
 ```
 
 ## Fase 7: Configuración de CI/CD
@@ -325,14 +325,14 @@ bg-rollback
 bg-health blue
 
 # Investigar logs de Green
-docker logs sofia-chat-backend-green
+docker logs converxa-chat-backend-green
 ```
 
 ### Si Necesitas Forzar Blue como Producción
 ```bash
 # Procedimiento de emergencia
 echo "blue" > /opt/.blue-green-state
-/opt/sofia-chat/scripts/update-prod-config.sh blue
+/opt/converxa-chat/scripts/update-prod-config.sh blue
 systemctl reload nginx
 ```
 
@@ -349,9 +349,9 @@ systemctl reload nginx
 ## Monitoreo Continuo
 
 ### Logs a Monitorear
-- `/var/log/sofia-chat/blue-green/health-check.log`
-- `/var/log/sofia-chat/blue/*.log`
-- `/var/log/sofia-chat/green/*.log`
+- `/var/log/converxa-chat/blue-green/health-check.log`
+- `/var/log/converxa-chat/blue/*.log`
+- `/var/log/converxa-chat/green/*.log`
 - `/var/log/nginx/access.log`
 - `/var/log/nginx/error.log`
 
@@ -366,10 +366,10 @@ systemctl reload nginx
 ### Contenedor No Levanta
 ```bash
 # Ver logs del contenedor
-docker logs sofia-chat-backend-green
+docker logs converxa-chat-backend-green
 
 # Verificar configuración
-docker inspect sofia-chat-backend-green
+docker inspect converxa-chat-backend-green
 
 # Verificar recursos
 docker stats
@@ -391,10 +391,10 @@ systemctl restart nginx
 ```bash
 # Verificar PostgreSQL
 docker ps | grep postgres
-docker logs sofia-chat-postgres
+docker logs converxa-chat-postgres
 
 # Probar conexión
-docker exec sofia-chat-backend-blue psql -h localhost -U postgres -d sofia_chat -c "SELECT 1;"
+docker exec converxa-chat-backend-blue psql -h localhost -U postgres -d converxa_chat -c "SELECT 1;"
 ```
 
 ## Mantenimiento
@@ -408,13 +408,13 @@ docker image prune -f
 docker container prune -f
 
 # Limpiar logs antiguos
-find /var/log/sofia-chat -name "*.log" -mtime +30 -delete
+find /var/log/converxa-chat -name "*.log" -mtime +30 -delete
 ```
 
 ### Backup Regular
 ```bash
 # Backup de base de datos (automático vía cron)
-docker exec sofia-chat-postgres pg_dump -U postgres sofia_chat > /root/backups/sofia_chat_$(date +%Y%m%d).sql
+docker exec converxa-chat-postgres pg_dump -U postgres converxa_chat > /root/backups/converxa_chat_$(date +%Y%m%d).sql
 
 # Backup de configuraciones
 tar -czf /root/backups/nginx_config_$(date +%Y%m%d).tar.gz /etc/nginx/sites-available /etc/nginx/sites-enabled
@@ -431,7 +431,7 @@ tar -czf /root/backups/nginx_config_$(date +%Y%m%d).tar.gz /etc/nginx/sites-avai
 ## Contacto y Soporte
 
 Para dudas o problemas durante la implementación:
-- Revisar logs detallados en `/var/log/sofia-chat/`
+- Revisar logs detallados en `/var/log/converxa-chat/`
 - Usar `bg-status` para diagnóstico rápido
 - En emergencia, usar procedimientos de rollback
 

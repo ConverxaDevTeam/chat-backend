@@ -22,7 +22,7 @@ const databaseConfig = {
   port: parseInt(getEnv('TYPEORM_PORT', '5432')),
   user: getEnv('TYPEORM_USERNAME', 'postgres'),
   pass: getEnv('TYPEORM_PASSWORD', 'postgres'),
-  name: getEnv('TYPEORM_DB_NAME', 'sofia_chat_v2'),
+  name: getEnv('TYPEORM_DB_NAME', 'converxa_chat_v1'),
 };
 
 // Exportar la configuración de DataSource

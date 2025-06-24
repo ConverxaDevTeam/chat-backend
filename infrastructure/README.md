@@ -1,4 +1,4 @@
-# Infraestructura Sofia Chat Backend v2 - Blue-Green Deployment
+# Infraestructura Converxa Chat Backend v2 - Blue-Green Deployment
 
 Este directorio contiene la configuración de Terraform para desplegar la infraestructura del backend en DigitalOcean con soporte completo para Blue-Green deployment.
 
@@ -27,7 +27,7 @@ infrastructure/
 ## 🚀 Características Blue-Green
 
 ### Lo que se Instala Automáticamente
-- ✅ **Scripts Blue-Green**: Instalados permanentemente en `/opt/sofia-chat/`
+- ✅ **Scripts Blue-Green**: Instalados permanentemente en `/opt/converxa-chat/`
 - ✅ **Configuración Nginx**: Preparada para Blue-Green switching
 - ✅ **Health Checks**: Monitoreo automático cada 5 minutos
 - ✅ **Aliases de Comandos**: `bg-status`, `bg-deploy`, `bg-switch`, etc.
@@ -35,21 +35,21 @@ infrastructure/
 - ✅ **Backup Automático**: Base de datos y estado antes de cada switch
 
 ### Dominios Configurados
-- `dev-sofia-chat.sofiacall.com` → Producción (tráfico de usuarios)
-- `internal-dev-sofia-chat.sofiacall.com` → Pruebas internas (slot inactivo)
+- `dev-converxa-chat.converxa.com` → Producción (tráfico de usuarios)
+- `internal-dev-converxa-chat.converxa.com` → Pruebas internas (slot inactivo)
 
 ## 📋 Requisitos Previos
 
 1. **Terraform instalado** (v1.0+)
 2. **Cuenta de DigitalOcean** con API token
 3. **SSH Key configurada** en DigitalOcean
-4. **Dominio `sofiacall.com`** registrado en DigitalOcean DNS
+4. **Dominio `converxa.com`** registrado en DigitalOcean DNS
 
 ## ⚡ Inicio Rápido
 
 ### 1. Configuración Inicial
 ```bash
-cd sofia-chat-backend-v2/infrastructure
+cd converxa-chat-backend-v2/infrastructure
 
 # Copiar y configurar variables
 cp terraform.tfvars.example terraform.tfvars
@@ -123,14 +123,14 @@ make connect             # Conectar al servidor
 ## 📊 Recursos Creados
 
 ### 1. **Droplet (Servidor Virtual)**
-- **Nombre**: `sofia-chat-backend-dev-v2`
+- **Nombre**: `converxa-chat-backend-dev-v2`
 - **Imagen**: Ubuntu 24.10 x64
 - **Tamaño**: s-2vcpu-2gb (configurable)
 - **Región**: sfo3 (configurable)
 
 ### 2. **Registros DNS Automáticos**
-- `dev-sofia-chat.sofiacall.com` → IP del droplet
-- `internal-dev-sofia-chat.sofiacall.com` → IP del droplet
+- `dev-converxa-chat.converxa.com` → IP del droplet
+- `internal-dev-converxa-chat.converxa.com` → IP del droplet
 
 ### 3. **Configuración Automática del Servidor**
 
@@ -142,7 +142,7 @@ make connect             # Conectar al servidor
 - Git y herramientas de desarrollo
 
 **Blue-Green Setup:**
-- Scripts en `/opt/sofia-chat/`
+- Scripts en `/opt/converxa-chat/`
 - Configuración Nginx dinámica
 - Health checks automáticos
 - Logging estructurado
@@ -235,8 +235,8 @@ Una vez desplegado, tendrás acceso a:
 
 | Propósito | URL | Uso |
 |-----------|-----|-----|
-| **Producción** | `https://dev-sofia-chat.sofiacall.com` | Tráfico de usuarios |
-| **Pruebas Internas** | `https://internal-dev-sofia-chat.sofiacall.com` | Probar slot inactivo |
+| **Producción** | `https://dev-converxa-chat.converxa.com` | Tráfico de usuarios |
+| **Pruebas Internas** | `https://internal-dev-converxa-chat.converxa.com` | Probar slot inactivo |
 | **Blue Directo** | `http://IP:3002/api/health` | Debug Blue container |
 | **Green Directo** | `http://IP:3003/api/health` | Debug Green container |
 
@@ -276,7 +276,7 @@ chmod 600 ~/.ssh/digitalOcean
 doctl compute domain list
 
 # Verificar registros
-doctl compute domain records list sofiacall.com
+doctl compute domain records list converxa.com
 ```
 
 ### Error de Provisioning
@@ -293,7 +293,7 @@ tail -f /var/log/cloud-init-output.log
 
 # Conectar y revisar scripts
 ./deploy.sh connect
-ls -la /opt/sofia-chat/
+ls -la /opt/converxa-chat/
 bg-status
 ```
 
@@ -312,7 +312,7 @@ make emergency-restore
 
 # O manualmente en el servidor
 echo "blue" > /opt/.blue-green-state
-/opt/sofia-chat/scripts/update-prod-config.sh blue
+/opt/converxa-chat/scripts/update-prod-config.sh blue
 systemctl reload nginx
 ```
 

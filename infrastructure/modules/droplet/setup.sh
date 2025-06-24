@@ -82,11 +82,11 @@ cat > /etc/nginx/sites-available/backend.conf << 'EOL'
 # Configuración para HTTPS (backend)
 server {
     listen 443 ssl;
-    server_name dev-sofia-chat.sofiacall.com;
+    server_name dev-converxa-chat.sofiacall.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -123,7 +123,7 @@ server {
 # Redirección de HTTP a HTTPS (backend)
 server {
     listen 80;
-    server_name dev-sofia-chat.sofiacall.com;
+    server_name dev-converxa-chat.sofiacall.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://$host$request_uri;
@@ -144,13 +144,13 @@ apt install -y certbot python3-certbot-nginx
 mkdir -p /root/repos
 
 # Crear directorios para Blue-Green deployment
-mkdir -p /var/log/sofia-chat/blue
-mkdir -p /var/log/sofia-chat/green
-mkdir -p /var/log/sofia-chat/nginx
-mkdir -p /opt/sofia-chat/scripts
+mkdir -p /var/log/converxa-chat/blue
+mkdir -p /var/log/converxa-chat/green
+mkdir -p /var/log/converxa-chat/nginx
+mkdir -p /opt/converxa-chat/scripts
 
 # Instalar scripts Blue-Green permanentemente
-cat > /opt/sofia-chat/blue-green-simple.sh << 'BLUE_GREEN_SCRIPT_EOF'
+cat > /opt/converxa-chat/blue-green-simple.sh << 'BLUE_GREEN_SCRIPT_EOF'
 #!/bin/bash
 
 # Script simplificado para Blue-Green Deployment
@@ -158,7 +158,7 @@ cat > /opt/sofia-chat/blue-green-simple.sh << 'BLUE_GREEN_SCRIPT_EOF'
 
 set -e
 
-PROJECT_DIR="/root/repos/sofia-chat-backend-v2"
+PROJECT_DIR="/root/repos/converxa-chat-backend-v2"
 STATE_FILE="/opt/.blue-green-state"
 
 # Detect environment and use appropriate docker-compose file
@@ -225,8 +225,8 @@ update_nginx_config() {
     log "Actualizando configuración de nginx para $target_color (puerto $target_port)..."
 
     # Usar el script de actualización de producción
-    if [ -f "/opt/sofia-chat/scripts/update-prod-config.sh" ]; then
-        /opt/sofia-chat/scripts/update-prod-config.sh "$target_color" || {
+    if [ -f "/opt/converxa-chat/scripts/update-prod-config.sh" ]; then
+        /opt/converxa-chat/scripts/update-prod-config.sh "$target_color" || {
             error "Error al actualizar configuración de nginx"
         }
         log "✅ Configuración de nginx actualizada"
@@ -250,8 +250,8 @@ backup_state() {
     cat > "$backup_file" << EOF
 TIMESTAMP=$(date)
 CURRENT_STATE=$current_state
-BLUE_RUNNING=$(is_container_running "sofia-chat-backend-blue" && echo "yes" || echo "no")
-GREEN_RUNNING=$(is_container_running "sofia-chat-backend-green" && echo "yes" || echo "no")
+BLUE_RUNNING=$(is_container_running "converxa-chat-backend-blue" && echo "yes" || echo "no")
+GREEN_RUNNING=$(is_container_running "converxa-chat-backend-green" && echo "yes" || echo "no")
 EOF
 
     # Backup de base de datos usando variables del archivo .env
@@ -390,13 +390,13 @@ show_status() {
     echo ""
 
     # Verificar contenedores
-    if is_container_running "sofia-chat-backend-blue"; then
+    if is_container_running "converxa-chat-backend-blue"; then
         echo "🔵 Blue (puerto 3002): RUNNING"
     else
         echo "🔵 Blue (puerto 3002): STOPPED"
     fi
 
-    if is_container_running "sofia-chat-backend-green"; then
+    if is_container_running "converxa-chat-backend-green"; then
         echo "🟢 Green (puerto 3003): RUNNING"
     else
         echo "🟢 Green (puerto 3003): STOPPED"
@@ -432,32 +432,32 @@ deploy() {
     echo "Servicios disponibles: $AVAILABLE_SERVICES"
 
     # Detener y remover contenedor existente si está corriendo
-    if is_container_running "sofia-chat-backend-$target_slot"; then
-        log "Deteniendo contenedor existente: sofia-chat-backend-$target_slot"
-        $DOCKER_COMPOSE stop sofia-chat-backend-$target_slot
-        $DOCKER_COMPOSE rm -f sofia-chat-backend-$target_slot
+    if is_container_running "converxa-chat-backend-$target_slot"; then
+        log "Deteniendo contenedor existente: converxa-chat-backend-$target_slot"
+        $DOCKER_COMPOSE stop converxa-chat-backend-$target_slot
+        $DOCKER_COMPOSE rm -f converxa-chat-backend-$target_slot
     fi
 
     # Build de la nueva imagen con --no-cache para garantizar imagen fresca
     log "Construyendo nueva imagen..."
-    $DOCKER_COMPOSE build --no-cache sofia-chat-backend-$target_slot
+    $DOCKER_COMPOSE build --no-cache converxa-chat-backend-$target_slot
 
     # Deploy al slot objetivo usando nueva imagen
     if [ "$target_slot" = "green" ]; then
         log "Desplegando a Green (puerto 3003)..."
-        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green"
-        $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green
+        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d converxa-chat-backend-green"
+        $DOCKER_COMPOSE --profile green up -d converxa-chat-backend-green
     else
         log "Desplegando a Blue (puerto 3002)..."
-        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d sofia-chat-backend-blue"
-        $DOCKER_COMPOSE up -d sofia-chat-backend-blue
+        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d converxa-chat-backend-blue"
+        $DOCKER_COMPOSE up -d converxa-chat-backend-blue
     fi
 
     # Verificar salud del nuevo deployment
     if [ "$target_slot" = "green" ]; then
-        health_check "sofia-chat-backend-green" "3003"
+        health_check "converxa-chat-backend-green" "3003"
     else
-        health_check "sofia-chat-backend-blue" "3002"
+        health_check "converxa-chat-backend-blue" "3002"
     fi
 
     log "✅ Deployment a $target_slot completado exitosamente"
@@ -479,12 +479,12 @@ switch() {
     fi
 
     # Verificar que el nuevo slot esté corriendo y saludable
-    if ! is_container_running "sofia-chat-backend-$new_state"; then
-        error "El contenedor sofia-chat-backend-$new_state no está corriendo. Ejecuta deploy primero."
+    if ! is_container_running "converxa-chat-backend-$new_state"; then
+        error "El contenedor converxa-chat-backend-$new_state no está corriendo. Ejecuta deploy primero."
     fi
 
     log "Verificando salud del nuevo slot antes del switch..."
-    health_check "sofia-chat-backend-$new_state" "$new_port"
+    health_check "converxa-chat-backend-$new_state" "$new_port"
 
     # Crear backup antes del switch
     backup_state
@@ -520,12 +520,12 @@ rollback() {
     cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
 
     # Verificar que el rollback slot esté disponible
-    if ! is_container_running "sofia-chat-backend-$rollback_state"; then
+    if ! is_container_running "converxa-chat-backend-$rollback_state"; then
         error "❌ El contenedor $rollback_state no está disponible para rollback"
     fi
 
     # Verificar salud del rollback slot
-    health_check "sofia-chat-backend-$rollback_state" "$rollback_port"
+    health_check "converxa-chat-backend-$rollback_state" "$rollback_port"
 
     # Hacer rollback
     save_state "$rollback_state"
@@ -568,7 +568,7 @@ cleanup() {
     log "Producción está en: $prod_state (puerto $prod_port)"
     log "Limpiando entorno inactivo: $inactive_state"
 
-    local container_name="sofia-chat-backend-$inactive_state"
+    local container_name="converxa-chat-backend-$inactive_state"
     log "Contenedor a eliminar: $container_name"
 
     # Verificar que el contenedor existe
@@ -663,7 +663,7 @@ main "$@"
 BLUE_GREEN_SCRIPT_EOF
 
 # Instalar script de actualización de configuración de producción
-cat > /opt/sofia-chat/scripts/update-prod-config.sh << 'UPDATE_PROD_SCRIPT_EOF'
+cat > /opt/converxa-chat/scripts/update-prod-config.sh << 'UPDATE_PROD_SCRIPT_EOF'
 #!/bin/bash
 
 # Script para actualizar la configuración de producción de Nginx
@@ -712,7 +712,7 @@ else
 fi
 
 # Detectar entorno para logging
-if [ -f "/root/repos/sofia-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
+if [ -f "/root/repos/converxa-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
     log_info "Entorno: PRODUCCIÓN"
 else
     log_info "Entorno: DESARROLLO"
@@ -725,11 +725,11 @@ cat > "$CONFIG_FILE" << EOL
 # Configuración para HTTPS (backend)
 server {
     listen 443 ssl;
-    server_name dev-sofia-chat.sofiacall.com;
+    server_name dev-converxa-chat.sofiacall.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -766,7 +766,7 @@ server {
 # Redirección de HTTP a HTTPS (backend)
 server {
     listen 80;
-    server_name dev-sofia-chat.sofiacall.com;
+    server_name dev-converxa-chat.sofiacall.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;
@@ -775,11 +775,11 @@ server {
 # Configuración para HTTPS (internal testing)
 server {
     listen 443 ssl;
-    server_name internal-dev-sofia-chat.sofiacall.com;
+    server_name internal-dev-converxa-chat.sofiacall.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/internal-dev-sofia-chat.sofiacall.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/internal-dev-sofia-chat.sofiacall.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/internal-dev-converxa-chat.sofiacall.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/internal-dev-converxa-chat.sofiacall.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -817,7 +817,7 @@ server {
 # Redirección de HTTP a HTTPS (internal testing)
 server {
     listen 80;
-    server_name internal-dev-sofia-chat.sofiacall.com;
+    server_name internal-dev-converxa-chat.sofiacall.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;
@@ -845,32 +845,32 @@ fi
 UPDATE_PROD_SCRIPT_EOF
 
 # Hacer scripts ejecutables
-chmod +x /opt/sofia-chat/blue-green-simple.sh
-chmod +x /opt/sofia-chat/scripts/update-prod-config.sh
+chmod +x /opt/converxa-chat/blue-green-simple.sh
+chmod +x /opt/converxa-chat/scripts/update-prod-config.sh
 
 # Crear aliases para facilitar el uso
 cat >> /root/.bashrc << 'ALIASES_EOF'
 
 # Blue-Green Deployment Aliases
-alias bg-status='/opt/sofia-chat/blue-green-simple.sh status'
-alias bg-deploy='/opt/sofia-chat/blue-green-simple.sh deploy'
-alias bg-switch='/opt/sofia-chat/blue-green-simple.sh switch'
-alias bg-rollback='/opt/sofia-chat/blue-green-simple.sh rollback'
-alias bg-cleanup='/opt/sofia-chat/blue-green-simple.sh cleanup'
+alias bg-status='/opt/converxa-chat/blue-green-simple.sh status'
+alias bg-deploy='/opt/converxa-chat/blue-green-simple.sh deploy'
+alias bg-switch='/opt/converxa-chat/blue-green-simple.sh switch'
+alias bg-rollback='/opt/converxa-chat/blue-green-simple.sh rollback'
+alias bg-cleanup='/opt/converxa-chat/blue-green-simple.sh cleanup'
 alias bg-logs='docker logs -f'
 alias bg-health='curl -s http://localhost:3002/api/health && echo "" && curl -s http://localhost:3003/api/health'
 ALIASES_EOF
 
 # Configurar certificados SSL para el dominio de pruebas internas
-# Nota: Se debe configurar el DNS para internal-dev-sofia-chat.sofiacall.com primero
-# certbot --nginx -d internal-dev-sofia-chat.sofiacall.com --non-interactive --agree-tos --email admin@sofiacall.com
+# Nota: Se debe configurar el DNS para internal-dev-converxa-chat.sofiacall.com primero
+# certbot --nginx -d internal-dev-converxa-chat.sofiacall.com --non-interactive --agree-tos --email admin@sofiacall.com
 
 # Crear archivo de estado inicial para Blue-Green
 echo "blue" > /opt/.blue-green-state
 
 # Configurar permisos para logs
-chown -R www-data:www-data /var/log/sofia-chat/
-chmod -R 755 /var/log/sofia-chat/
+chown -R www-data:www-data /var/log/converxa-chat/
+chmod -R 755 /var/log/converxa-chat/
 
 # Instalar curl si no está instalado (necesario para health checks)
 apt install -y curl
@@ -881,17 +881,17 @@ cat > /etc/nginx/sites-available/internal-backend.conf << 'INTERNAL_EOL'
 # Se actualizará dinámicamente por los scripts de Blue-Green
 server {
     listen 80;
-    server_name internal-dev-sofia-chat.sofiacall.com;
+    server_name internal-dev-converxa-chat.sofiacall.com;
     return 301 https://$host$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name internal-dev-sofia-chat.sofiacall.com;
+    server_name internal-dev-converxa-chat.sofiacall.com;
 
     # Usar los mismos certificados por ahora
-    ssl_certificate /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dev-converxa-chat.sofiacall.com/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
@@ -917,8 +917,8 @@ server {
 INTERNAL_EOL
 
 # Configurar logrotate para logs de Blue-Green
-cat > /etc/logrotate.d/sofia-chat << 'LOGROTATE_EOL'
-/var/log/sofia-chat/*/*.log {
+cat > /etc/logrotate.d/converxa-chat << 'LOGROTATE_EOL'
+/var/log/converxa-chat/*/*.log {
     daily
     missingok
     rotate 30
@@ -939,7 +939,7 @@ systemctl restart nginx
 (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
 
 # Crear script de health check automático
-cat > /opt/sofia-chat/scripts/health-check.sh << 'HEALTH_CHECK_SCRIPT_EOF'
+cat > /opt/converxa-chat/scripts/health-check.sh << 'HEALTH_CHECK_SCRIPT_EOF'
 #!/bin/bash
 
 # Script de health check para Blue-Green deployment
@@ -947,7 +947,7 @@ cat > /opt/sofia-chat/scripts/health-check.sh << 'HEALTH_CHECK_SCRIPT_EOF'
 
 set -e
 
-LOG_FILE="/var/log/sofia-chat/health-check.log"
+LOG_FILE="/var/log/converxa-chat/health-check.log"
 STATE_FILE="/opt/.blue-green-state"
 
 # Función de logging
@@ -976,8 +976,8 @@ main() {
     case "$${1:-check}" in
         "check")
             local current_state=$(cat "$STATE_FILE" 2>/dev/null || echo "blue")
-            local blue_health=$(check_container_health "sofia-chat-backend-blue" "3002")
-            local green_health=$(check_container_health "sofia-chat-backend-green" "3003")
+            local blue_health=$(check_container_health "converxa-chat-backend-blue" "3002")
+            local green_health=$(check_container_health "converxa-chat-backend-green" "3003")
 
             log "Estado actual: $current_state | Blue: $blue_health | Green: $green_health"
 
@@ -1006,10 +1006,10 @@ main "$@"
 HEALTH_CHECK_SCRIPT_EOF
 
 # Hacer ejecutable el script de health check
-chmod +x /opt/sofia-chat/scripts/health-check.sh
+chmod +x /opt/converxa-chat/scripts/health-check.sh
 
 # Configurar health check automático cada 5 minutos
-(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/sofia-chat/scripts/health-check.sh check >> /var/log/sofia-chat/health-check.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/converxa-chat/scripts/health-check.sh check >> /var/log/converxa-chat/health-check.log 2>&1") | crontab -
 
 # Validación final del setup
 echo "=== VALIDACIÓN FINAL DEL SETUP ==="
@@ -1024,19 +1024,19 @@ systemctl is-active --quiet ssh && echo "✅ SSH: ACTIVO" || echo "❌ SSH: INAC
 # Verificar scripts Blue-Green
 echo ""
 echo "Verificando scripts Blue-Green..."
-if [ -f "/opt/sofia-chat/blue-green-simple.sh" ] && [ -x "/opt/sofia-chat/blue-green-simple.sh" ]; then
+if [ -f "/opt/converxa-chat/blue-green-simple.sh" ] && [ -x "/opt/converxa-chat/blue-green-simple.sh" ]; then
     echo "✅ Script principal: INSTALADO"
 else
     echo "❌ Script principal: ERROR"
 fi
 
-if [ -f "/opt/sofia-chat/scripts/update-prod-config.sh" ] && [ -x "/opt/sofia-chat/scripts/update-prod-config.sh" ]; then
+if [ -f "/opt/converxa-chat/scripts/update-prod-config.sh" ] && [ -x "/opt/converxa-chat/scripts/update-prod-config.sh" ]; then
     echo "✅ Script de configuración: INSTALADO"
 else
     echo "❌ Script de configuración: ERROR"
 fi
 
-if [ -f "/opt/sofia-chat/scripts/health-check.sh" ] && [ -x "/opt/sofia-chat/scripts/health-check.sh" ]; then
+if [ -f "/opt/converxa-chat/scripts/health-check.sh" ] && [ -x "/opt/converxa-chat/scripts/health-check.sh" ]; then
     echo "✅ Script de health check: INSTALADO"
 else
     echo "❌ Script de health check: ERROR"
@@ -1072,7 +1072,7 @@ fi
 # Verificar directorios
 echo ""
 echo "Verificando directorios..."
-for dir in "/var/log/sofia-chat/blue" "/var/log/sofia-chat/green" "/var/log/sofia-chat/nginx" "/opt/sofia-chat/scripts"; do
+for dir in "/var/log/converxa-chat/blue" "/var/log/converxa-chat/green" "/var/log/converxa-chat/nginx" "/opt/converxa-chat/scripts"; do
     if [ -d "$dir" ]; then
         echo "✅ Directorio $(basename $dir): CREADO"
     else
@@ -1092,10 +1092,10 @@ fi
 echo ""
 echo "=== SETUP COMPLETADO ==="
 echo "Setup del droplet backend con Blue-Green deployment completado"
-echo "IMPORTANTE: Scripts Blue-Green instalados en /opt/sofia-chat/"
-echo "IMPORTANTE: DNS configurado automáticamente para dev-sofia-chat.sofiacall.com"
-echo "IMPORTANTE: DNS configurado automáticamente para internal-dev-sofia-chat.sofiacall.com"
-echo "Luego ejecutar: certbot --nginx -d internal-dev-sofia-chat.sofiacall.com"
+echo "IMPORTANTE: Scripts Blue-Green instalados en /opt/converxa-chat/"
+echo "IMPORTANTE: DNS configurado automáticamente para dev-converxa-chat.sofiacall.com"
+echo "IMPORTANTE: DNS configurado automáticamente para internal-dev-converxa-chat.sofiacall.com"
+echo "Luego ejecutar: certbot --nginx -d internal-dev-converxa-chat.sofiacall.com"
 echo ""
 echo "Comandos disponibles:"
 echo "  bg-status    - Ver estado actual"
@@ -1105,7 +1105,7 @@ echo "  bg-rollback  - Volver al slot anterior"
 echo "  bg-cleanup   - Limpiar slot inactivo"
 echo ""
 echo "URLs disponibles:"
-echo "  - Producción: https://dev-sofia-chat.sofiacall.com"
-echo "  - Pruebas internas: https://internal-dev-sofia-chat.sofiacall.com"
+echo "  - Producción: https://dev-converxa-chat.sofiacall.com"
+echo "  - Pruebas internas: https://internal-dev-converxa-chat.sofiacall.com"
 echo "  - Blue directo: http://$(curl -s ifconfig.me):3002/api/health"
 echo "  - Green directo: http://$(curl -s ifconfig.me):3003/api/health"

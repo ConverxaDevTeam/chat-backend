@@ -1,6 +1,6 @@
 # Blue-Green Deployment Scripts
 
-Sistema simplificado de Blue-Green Deployment para Sofia Chat Backend v2.
+Sistema simplificado de Blue-Green Deployment para Converxa Chat Backend v2.
 
 ## Estructura Actual
 
@@ -52,19 +52,19 @@ scripts/blue-green/
 
 ```bash
 # 1. Ver estado actual
-/opt/sofia-chat/blue-green-simple.sh status
+/opt/converxa-chat/blue-green-simple.sh status
 
 # 2. Deploy nuevo código a slot inactivo
-/opt/sofia-chat/blue-green-simple.sh deploy
+/opt/converxa-chat/blue-green-simple.sh deploy
 
 # 3. Verificar que todo esté bien (testing manual)
 # Revisar logs, health checks, etc.
 
 # 4. Cambiar producción al nuevo slot
-/opt/sofia-chat/blue-green-simple.sh switch
+/opt/converxa-chat/blue-green-simple.sh switch
 
 # 5. Limpiar slot anterior (opcional)
-/opt/sofia-chat/blue-green-simple.sh cleanup
+/opt/converxa-chat/blue-green-simple.sh cleanup
 ```
 
 ### Características
@@ -80,10 +80,10 @@ scripts/blue-green/
 
 ```
 /opt/.blue-green-state                           # Estado actual (blue/green)
-/opt/sofia-chat/blue-green-simple.sh            # Script principal
-/opt/sofia-chat/scripts/update-prod-config.sh   # Helper Nginx
-/root/repos/sofia-chat-backend-v2/               # Código fuente
-/root/repos/sofia-chat-backend-v2/db-backup.sql # Backup DB (temporal)
+/opt/converxa-chat/blue-green-simple.sh            # Script principal
+/opt/converxa-chat/scripts/update-prod-config.sh   # Helper Nginx
+/root/repos/converxa-chat-backend-v2/               # Código fuente
+/root/repos/converxa-chat-backend-v2/db-backup.sql # Backup DB (temporal)
 ```
 
 ## Integración con GitHub Actions
@@ -96,19 +96,19 @@ scripts/blue-green/
   uses: appleboy/scp-action@master
   with:
     source: 'scripts/blue-green/blue-green-simple.sh'
-    target: '/opt/sofia-chat/'
+    target: '/opt/converxa-chat/'
     strip_components: 2
 
 - name: Copy helper scripts to server
   uses: appleboy/scp-action@master
   with:
     source: 'scripts/blue-green/update-prod-config.sh'
-    target: '/opt/sofia-chat/scripts/'
+    target: '/opt/converxa-chat/scripts/'
     strip_components: 2
 
 # Ejecuta la acción
 - name: Execute Blue-Green Action
-  run: /opt/sofia-chat/blue-green-simple.sh ${{ github.event.inputs.action || 'deploy' }}
+  run: /opt/converxa-chat/blue-green-simple.sh ${{ github.event.inputs.action || 'deploy' }}
 ```
 
 ### Acciones Automáticas vs Manuales
@@ -128,7 +128,7 @@ scripts/blue-green/
 El script usa configuración embebida (no requiere variables de entorno):
 
 ```bash
-PROJECT_DIR="/root/repos/sofia-chat-backend-v2"
+PROJECT_DIR="/root/repos/converxa-chat-backend-v2"
 STATE_FILE="/opt/.blue-green-state"
 DOCKER_COMPOSE="docker-compose -f docker-compose.yml"
 ```
@@ -148,10 +148,10 @@ DOCKER_COMPOSE="docker-compose -f docker-compose.yml"
 **Error: "Script no encontrado"**
 ```bash
 # Verificar ubicación
-ls -la /opt/sofia-chat/blue-green-simple.sh
+ls -la /opt/converxa-chat/blue-green-simple.sh
 
 # Hacer ejecutable
-chmod +x /opt/sofia-chat/blue-green-simple.sh
+chmod +x /opt/converxa-chat/blue-green-simple.sh
 ```
 
 **Error: "No se pudo determinar estado"**
@@ -166,8 +166,8 @@ grep localhost /etc/nginx/sites-available/backend.conf
 **Error: "Contenedor no saludable"**
 ```bash
 # Verificar logs del contenedor
-docker logs sofia-chat-backend-blue
-docker logs sofia-chat-backend-green
+docker logs converxa-chat-backend-blue
+docker logs converxa-chat-backend-green
 
 # Verificar health endpoint
 curl http://localhost:3001/api/health
@@ -178,7 +178,7 @@ curl http://localhost:3002/api/health
 
 ```bash
 # Logs detallados están incluidos automáticamente
-/opt/sofia-chat/blue-green-simple.sh status
+/opt/converxa-chat/blue-green-simple.sh status
 
 # Para más información, revisar:
 docker ps                    # Estado de contenedores
@@ -192,13 +192,13 @@ nginx -t                     # Validar configuración Nginx
 
 ```bash
 # 1. Rollback inmediato
-/opt/sofia-chat/blue-green-simple.sh rollback
+/opt/converxa-chat/blue-green-simple.sh rollback
 
 # 2. Restaurar DB si es necesario
-/opt/sofia-chat/blue-green-simple.sh restore
+/opt/converxa-chat/blue-green-simple.sh restore
 
 # 3. Verificar estado
-/opt/sofia-chat/blue-green-simple.sh status
+/opt/converxa-chat/blue-green-simple.sh status
 ```
 
 ## Migración desde Scripts Legacy
@@ -207,10 +207,10 @@ Si actualmente usas `blue-green-control.sh`:
 
 ```bash
 # ANTES
-PROJECT_DIR=/root/repos/sofia-chat-backend-v2 /opt/sofia-chat/scripts/blue-green-control.sh status
+PROJECT_DIR=/root/repos/converxa-chat-backend-v2 /opt/converxa-chat/scripts/blue-green-control.sh status
 
 # AHORA
-/opt/sofia-chat/blue-green-simple.sh status
+/opt/converxa-chat/blue-green-simple.sh status
 ```
 
 **Beneficios de la migración:**
@@ -229,17 +229,17 @@ PROJECT_DIR=/root/repos/sofia-chat-backend-v2 /opt/sofia-chat/scripts/blue-green
 cat /opt/.blue-green-state  # blue|green
 
 # Backup temporal (solo después de switch)
-cat /root/repos/sofia-chat-backend-v2/.blue-green-backup
+cat /root/repos/converxa-chat-backend-v2/.blue-green-backup
 
 # Backup de DB (solo después de switch)
-ls -la /root/repos/sofia-chat-backend-v2/db-backup.sql
+ls -la /root/repos/converxa-chat-backend-v2/db-backup.sql
 ```
 
 ### Verificación Completa
 
 ```bash
 # Script todo-en-uno para verificar estado completo
-/opt/sofia-chat/blue-green-simple.sh status
+/opt/converxa-chat/blue-green-simple.sh status
 
 # Salida esperada:
 # ==================================

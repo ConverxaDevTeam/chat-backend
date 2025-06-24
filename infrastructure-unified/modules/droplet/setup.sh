@@ -182,15 +182,15 @@ echo "🔄 PASO 9/12: Creando directorios del proyecto..."
 mkdir -p /root/repos
 
 # Crear directorios para Blue-Green deployment
-mkdir -p /var/log/sofia-chat/blue
-mkdir -p /var/log/sofia-chat/green
-mkdir -p /var/log/sofia-chat/nginx
-mkdir -p /opt/sofia-chat/scripts
+mkdir -p /var/log/converxa-chat/blue
+mkdir -p /var/log/converxa-chat/green
+mkdir -p /var/log/converxa-chat/nginx
+mkdir -p /opt/converxa-chat/scripts
 
 # Crear directorios para el frontend
 mkdir -p /var/www/frontend/prod
 mkdir -p /var/www/frontend/internal
-mkdir -p /var/log/sofia-chat/frontend
+mkdir -p /var/log/converxa-chat/frontend
 
 # Crear directorio para estado blue-green
 mkdir -p /opt
@@ -198,7 +198,7 @@ mkdir -p /opt
 echo "✅ Directorios del proyecto creados"
 
 # Instalar scripts Blue-Green permanentemente
-cat > /opt/sofia-chat/blue-green-simple.sh << 'BLUE_GREEN_SCRIPT_EOF'
+cat > /opt/converxa-chat/blue-green-simple.sh << 'BLUE_GREEN_SCRIPT_EOF'
 #!/bin/bash
 
 # Script simplificado para Blue-Green Deployment
@@ -206,7 +206,7 @@ cat > /opt/sofia-chat/blue-green-simple.sh << 'BLUE_GREEN_SCRIPT_EOF'
 
 set -e
 
-PROJECT_DIR="/root/repos/sofia-chat-backend-v2"
+PROJECT_DIR="/root/repos/converxa-chat-backend-v2"
 STATE_FILE="/opt/.blue-green-state"
 
 # Detect environment and use appropriate docker-compose file
@@ -273,8 +273,8 @@ update_nginx_config() {
     log "Actualizando configuración de nginx para $target_color (puerto $target_port)..."
 
     # Usar el script de actualización de producción
-    if [ -f "/opt/sofia-chat/scripts/update-prod-config.sh" ]; then
-        /opt/sofia-chat/scripts/update-prod-config.sh "$target_color" || {
+    if [ -f "/opt/converxa-chat/scripts/update-prod-config.sh" ]; then
+        /opt/converxa-chat/scripts/update-prod-config.sh "$target_color" || {
             error "Error al actualizar configuración de nginx"
         }
         log "✅ Configuración de nginx actualizada"
@@ -298,8 +298,8 @@ backup_state() {
     cat > "$backup_file" << EOF
 TIMESTAMP=$(date)
 CURRENT_STATE=$current_state
-BLUE_RUNNING=$(is_container_running "sofia-chat-backend-blue" && echo "yes" || echo "no")
-GREEN_RUNNING=$(is_container_running "sofia-chat-backend-green" && echo "yes" || echo "no")
+BLUE_RUNNING=$(is_container_running "converxa-chat-backend-blue" && echo "yes" || echo "no")
+GREEN_RUNNING=$(is_container_running "converxa-chat-backend-green" && echo "yes" || echo "no")
 EOF
 
     # Backup de base de datos usando variables del archivo .env
@@ -438,13 +438,13 @@ show_status() {
     echo ""
 
     # Verificar contenedores
-    if is_container_running "sofia-chat-backend-blue"; then
+    if is_container_running "converxa-chat-backend-blue"; then
         echo "🔵 Blue (puerto 3002): RUNNING"
     else
         echo "🔵 Blue (puerto 3002): STOPPED"
     fi
 
-    if is_container_running "sofia-chat-backend-green"; then
+    if is_container_running "converxa-chat-backend-green"; then
         echo "🟢 Green (puerto 3003): RUNNING"
     else
         echo "🟢 Green (puerto 3003): STOPPED"
@@ -480,32 +480,32 @@ deploy() {
     echo "Servicios disponibles: $AVAILABLE_SERVICES"
 
     # Detener y remover contenedor existente si está corriendo
-    if is_container_running "sofia-chat-backend-$target_slot"; then
-        log "Deteniendo contenedor existente: sofia-chat-backend-$target_slot"
-        $DOCKER_COMPOSE stop sofia-chat-backend-$target_slot
-        $DOCKER_COMPOSE rm -f sofia-chat-backend-$target_slot
+    if is_container_running "converxa-chat-backend-$target_slot"; then
+        log "Deteniendo contenedor existente: converxa-chat-backend-$target_slot"
+        $DOCKER_COMPOSE stop converxa-chat-backend-$target_slot
+        $DOCKER_COMPOSE rm -f converxa-chat-backend-$target_slot
     fi
 
     # Build de la nueva imagen con --no-cache para garantizar imagen fresca
     log "Construyendo nueva imagen..."
-    $DOCKER_COMPOSE build --no-cache sofia-chat-backend-$target_slot
+    $DOCKER_COMPOSE build --no-cache converxa-chat-backend-$target_slot
 
     # Deploy al slot objetivo usando nueva imagen
     if [ "$target_slot" = "green" ]; then
         log "Desplegando a Green (puerto 3003)..."
-        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green"
-        $DOCKER_COMPOSE --profile green up -d sofia-chat-backend-green
+        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE --profile green up -d converxa-chat-backend-green"
+        $DOCKER_COMPOSE --profile green up -d converxa-chat-backend-green
     else
         log "Desplegando a Blue (puerto 3002)..."
-        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d sofia-chat-backend-blue"
-        $DOCKER_COMPOSE up -d sofia-chat-backend-blue
+        log "DEBUG: Comando a ejecutar: $DOCKER_COMPOSE up -d converxa-chat-backend-blue"
+        $DOCKER_COMPOSE up -d converxa-chat-backend-blue
     fi
 
     # Verificar salud del nuevo deployment
     if [ "$target_slot" = "green" ]; then
-        health_check "sofia-chat-backend-green" "3003"
+        health_check "converxa-chat-backend-green" "3003"
     else
-        health_check "sofia-chat-backend-blue" "3002"
+        health_check "converxa-chat-backend-blue" "3002"
     fi
 
     log "✅ Deployment a $target_slot completado exitosamente"
@@ -527,12 +527,12 @@ switch() {
     fi
 
     # Verificar que el nuevo slot esté corriendo y saludable
-    if ! is_container_running "sofia-chat-backend-$new_state"; then
-        error "El contenedor sofia-chat-backend-$new_state no está corriendo. Ejecuta deploy primero."
+    if ! is_container_running "converxa-chat-backend-$new_state"; then
+        error "El contenedor converxa-chat-backend-$new_state no está corriendo. Ejecuta deploy primero."
     fi
 
     log "Verificando salud del nuevo slot antes del switch..."
-    health_check "sofia-chat-backend-$new_state" "$new_port"
+    health_check "converxa-chat-backend-$new_state" "$new_port"
 
     # Crear backup antes del switch
     backup_state
@@ -568,12 +568,12 @@ rollback() {
     cd "$PROJECT_DIR" || error "No se pudo cambiar al directorio $PROJECT_DIR"
 
     # Verificar que el rollback slot esté disponible
-    if ! is_container_running "sofia-chat-backend-$rollback_state"; then
+    if ! is_container_running "converxa-chat-backend-$rollback_state"; then
         error "❌ El contenedor $rollback_state no está disponible para rollback"
     fi
 
     # Verificar salud del rollback slot
-    health_check "sofia-chat-backend-$rollback_state" "$rollback_port"
+    health_check "converxa-chat-backend-$rollback_state" "$rollback_port"
 
     # Hacer rollback
     save_state "$rollback_state"
@@ -616,7 +616,7 @@ cleanup() {
     log "Producción está en: $prod_state (puerto $prod_port)"
     log "Limpiando entorno inactivo: $inactive_state"
 
-    local container_name="sofia-chat-backend-$inactive_state"
+    local container_name="converxa-chat-backend-$inactive_state"
     log "Contenedor a eliminar: $container_name"
 
     # Verificar que el contenedor existe
@@ -711,7 +711,7 @@ main "$@"
 BLUE_GREEN_SCRIPT_EOF
 
 # Instalar script de actualización de configuración de producción
-cat > /opt/sofia-chat/scripts/update-prod-config.sh << 'UPDATE_PROD_SCRIPT_EOF'
+cat > /opt/converxa-chat/scripts/update-prod-config.sh << 'UPDATE_PROD_SCRIPT_EOF'
 #!/bin/bash
 
 # Script para actualizar la configuración de producción de Nginx
@@ -760,7 +760,7 @@ else
 fi
 
 # Detectar entorno para logging
-if [ -f "/root/repos/sofia-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
+if [ -f "/root/repos/converxa-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
     log_info "Entorno: PRODUCCIÓN"
 else
     log_info "Entorno: DESARROLLO"
@@ -897,7 +897,7 @@ fi
 UPDATE_PROD_SCRIPT_EOF
 
 # Crear script de build del frontend
-cat > /opt/sofia-chat/scripts/frontend-build.sh << 'FRONTEND_BUILD_SCRIPT_EOF'
+cat > /opt/converxa-chat/scripts/frontend-build.sh << 'FRONTEND_BUILD_SCRIPT_EOF'
 #!/bin/bash
 
 # Script para buildear el frontend para diferentes entornos
@@ -906,7 +906,7 @@ cat > /opt/sofia-chat/scripts/frontend-build.sh << 'FRONTEND_BUILD_SCRIPT_EOF'
 set -e
 
 ENVIRONMENT="$1"
-FRONTEND_DIR="/root/repos/sofia-chat-frontend-v2"
+FRONTEND_DIR="/root/repos/converxa-chat-frontend-v2"
 BUILD_DIR=""
 API_URL=""
 
@@ -1002,7 +1002,7 @@ fi
 FRONTEND_BUILD_SCRIPT_EOF
 
 # Crear script de deploy del frontend
-cat > /opt/sofia-chat/scripts/frontend-deploy.sh << 'FRONTEND_DEPLOY_SCRIPT_EOF'
+cat > /opt/converxa-chat/scripts/frontend-deploy.sh << 'FRONTEND_DEPLOY_SCRIPT_EOF'
 #!/bin/bash
 
 # Script para deploy completo del frontend
@@ -1010,8 +1010,8 @@ cat > /opt/sofia-chat/scripts/frontend-deploy.sh << 'FRONTEND_DEPLOY_SCRIPT_EOF'
 
 set -e
 
-FRONTEND_DIR="/root/repos/sofia-chat-frontend-v2"
-BACKEND_DIR="/root/repos/sofia-chat-backend-v2"
+FRONTEND_DIR="/root/repos/converxa-chat-frontend-v2"
+BACKEND_DIR="/root/repos/converxa-chat-backend-v2"
 
 # Colores para output
 RED='\033[0;31m'
@@ -1038,7 +1038,7 @@ log "=== INICIANDO DEPLOY DEL FRONTEND ==="
 if [[ ! -d "$FRONTEND_DIR" ]]; then
     log "Clonando repositorio del frontend..."
     cd /root/repos
-    git clone https://github.com/your-org/sofia-chat-frontend-v2.git
+    git clone https://github.com/your-org/converxa-chat-frontend-v2.git
     cd "$FRONTEND_DIR"
 else
     log "Actualizando repositorio del frontend..."
@@ -1052,15 +1052,15 @@ log "Commit actual del frontend: $(git rev-parse --short HEAD)"
 
 # Build para producción
 log "=== BUILDING FRONTEND PARA PRODUCCIÓN ==="
-/opt/sofia-chat/scripts/frontend-build.sh prod
+/opt/converxa-chat/scripts/frontend-build.sh prod
 
 # Build para pruebas internas
 log "=== BUILDING FRONTEND PARA PRUEBAS INTERNAS ==="
-/opt/sofia-chat/scripts/frontend-build.sh internal
+/opt/converxa-chat/scripts/frontend-build.sh internal
 
 # Actualizar configuración de Nginx para incluir frontend
 log "=== ACTUALIZANDO CONFIGURACIÓN DE NGINX ==="
-/opt/sofia-chat/scripts/update-nginx-full.sh
+/opt/converxa-chat/scripts/update-nginx-full.sh
 
 log "✅ Deploy del frontend completado exitosamente"
 log ""
@@ -1073,7 +1073,7 @@ ls -la /var/www/frontend/
 FRONTEND_DEPLOY_SCRIPT_EOF
 
 # Crear script de configuración completa de Nginx
-cat > /opt/sofia-chat/scripts/update-nginx-full.sh << 'NGINX_FULL_SCRIPT_EOF'
+cat > /opt/converxa-chat/scripts/update-nginx-full.sh << 'NGINX_FULL_SCRIPT_EOF'
 #!/bin/bash
 
 # Script para actualizar la configuración completa de Nginx (Backend + Frontend)
@@ -1199,7 +1199,7 @@ server {
 FRONTEND_NGINX_EOF
 
 # Actualizar configuración de Backend (usando el script existente)
-/opt/sofia-chat/scripts/update-prod-config.sh "$CURRENT_STATE"
+/opt/converxa-chat/scripts/update-prod-config.sh "$CURRENT_STATE"
 
 # Habilitar configuración de frontend
 ln -sf "$FRONTEND_CONFIG" /etc/nginx/sites-enabled/frontend.conf
@@ -1232,11 +1232,11 @@ log_info "   Frontend Internal: https://internal-app.converxa.com"
 NGINX_FULL_SCRIPT_EOF
 
 # Hacer scripts ejecutables
-chmod +x /opt/sofia-chat/blue-green-simple.sh
-chmod +x /opt/sofia-chat/scripts/update-prod-config.sh
-chmod +x /opt/sofia-chat/scripts/frontend-build.sh
-chmod +x /opt/sofia-chat/scripts/frontend-deploy.sh
-chmod +x /opt/sofia-chat/scripts/update-nginx-full.sh
+chmod +x /opt/converxa-chat/blue-green-simple.sh
+chmod +x /opt/converxa-chat/scripts/update-prod-config.sh
+chmod +x /opt/converxa-chat/scripts/frontend-build.sh
+chmod +x /opt/converxa-chat/scripts/frontend-deploy.sh
+chmod +x /opt/converxa-chat/scripts/update-nginx-full.sh
 
 echo "✅ Scripts ejecutables configurados"
 
@@ -1244,18 +1244,18 @@ echo "✅ Scripts ejecutables configurados"
 cat >> /root/.bashrc << 'ALIASES_EOF'
 
 # Blue-Green Deployment Aliases
-alias bg-status='/opt/sofia-chat/blue-green-simple.sh status'
-alias bg-deploy='/opt/sofia-chat/blue-green-simple.sh deploy'
-alias bg-switch='/opt/sofia-chat/blue-green-simple.sh switch'
-alias bg-rollback='/opt/sofia-chat/blue-green-simple.sh rollback'
-alias bg-cleanup='/opt/sofia-chat/blue-green-simple.sh cleanup'
+alias bg-status='/opt/converxa-chat/blue-green-simple.sh status'
+alias bg-deploy='/opt/converxa-chat/blue-green-simple.sh deploy'
+alias bg-switch='/opt/converxa-chat/blue-green-simple.sh switch'
+alias bg-rollback='/opt/converxa-chat/blue-green-simple.sh rollback'
+alias bg-cleanup='/opt/converxa-chat/blue-green-simple.sh cleanup'
 alias bg-logs='docker logs -f'
 alias bg-health='curl -s http://localhost:3002/api/health && echo "" && curl -s http://localhost:3003/api/health'
 
 # Frontend Deployment Aliases
-alias frontend-deploy='/opt/sofia-chat/scripts/frontend-deploy.sh'
-alias frontend-build-prod='/opt/sofia-chat/scripts/frontend-build.sh prod'
-alias frontend-build-internal='/opt/sofia-chat/scripts/frontend-build.sh internal'
+alias frontend-deploy='/opt/converxa-chat/scripts/frontend-deploy.sh'
+alias frontend-build-prod='/opt/converxa-chat/scripts/frontend-build.sh prod'
+alias frontend-build-internal='/opt/converxa-chat/scripts/frontend-build.sh internal'
 alias frontend-status='ls -la /var/www/frontend/'
 ALIASES_EOF
 
@@ -1278,8 +1278,8 @@ echo "blue" > /opt/.blue-green-state
 echo "Archivo de estado Blue-Green creado: $(cat /opt/.blue-green-state)"
 
 # Configurar permisos para logs
-chown -R www-data:www-data /var/log/sofia-chat/ 2>/dev/null || echo "⚠️ www-data user not available yet, permissions will be set later"
-chmod -R 755 /var/log/sofia-chat/
+chown -R www-data:www-data /var/log/converxa-chat/ 2>/dev/null || echo "⚠️ www-data user not available yet, permissions will be set later"
+chmod -R 755 /var/log/converxa-chat/
 echo "✅ Permisos de logs configurados"
 
 # Instalar curl si no está instalado (necesario para health checks)
@@ -1335,8 +1335,8 @@ server {
 INTERNAL_EOL
 
 # Configurar logrotate para logs de Blue-Green
-cat > /etc/logrotate.d/sofia-chat << 'LOGROTATE_EOL'
-/var/log/sofia-chat/*/*.log {
+cat > /etc/logrotate.d/converxa-chat << 'LOGROTATE_EOL'
+/var/log/converxa-chat/*/*.log {
     daily
     missingok
     rotate 30
@@ -1359,7 +1359,7 @@ systemctl restart nginx
 (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | crontab -
 
 # Crear script de health check automático
-cat > /opt/sofia-chat/scripts/health-check.sh << 'HEALTH_CHECK_SCRIPT_EOF'
+cat > /opt/converxa-chat/scripts/health-check.sh << 'HEALTH_CHECK_SCRIPT_EOF'
 #!/bin/bash
 
 # Script de health check para Blue-Green deployment
@@ -1367,7 +1367,7 @@ cat > /opt/sofia-chat/scripts/health-check.sh << 'HEALTH_CHECK_SCRIPT_EOF'
 
 set -e
 
-LOG_FILE="/var/log/sofia-chat/health-check.log"
+LOG_FILE="/var/log/converxa-chat/health-check.log"
 STATE_FILE="/opt/.blue-green-state"
 
 # Función de logging
@@ -1396,8 +1396,8 @@ main() {
     case "$${1:-check}" in
         "check")
             local current_state=$(cat "$STATE_FILE" 2>/dev/null || echo "blue")
-            local blue_health=$(check_container_health "sofia-chat-backend-blue" "3002")
-            local green_health=$(check_container_health "sofia-chat-backend-green" "3003")
+            local blue_health=$(check_container_health "converxa-chat-backend-blue" "3002")
+            local green_health=$(check_container_health "converxa-chat-backend-green" "3003")
 
             log "Estado actual: $current_state | Blue: $blue_health | Green: $green_health"
 
@@ -1426,10 +1426,10 @@ main "$@"
 HEALTH_CHECK_SCRIPT_EOF
 
 # Hacer ejecutable el script de health check
-chmod +x /opt/sofia-chat/scripts/health-check.sh
+chmod +x /opt/converxa-chat/scripts/health-check.sh
 
 # Configurar health check automático cada 5 minutos
-(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/sofia-chat/scripts/health-check.sh check >> /var/log/sofia-chat/health-check.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "*/5 * * * * /opt/converxa-chat/scripts/health-check.sh check >> /var/log/converxa-chat/health-check.log 2>&1") | crontab -
 
 # Validación final del setup
 echo "=== VALIDACIÓN FINAL DEL SETUP ==="
@@ -1444,19 +1444,19 @@ systemctl is-active --quiet ssh && echo "✅ SSH: ACTIVO" || echo "❌ SSH: INAC
 # Verificar scripts Blue-Green
 echo ""
 echo "Verificando scripts Blue-Green..."
-if [ -f "/opt/sofia-chat/blue-green-simple.sh" ] && [ -x "/opt/sofia-chat/blue-green-simple.sh" ]; then
+if [ -f "/opt/converxa-chat/blue-green-simple.sh" ] && [ -x "/opt/converxa-chat/blue-green-simple.sh" ]; then
     echo "✅ Script principal: INSTALADO"
 else
     echo "❌ Script principal: ERROR"
 fi
 
-if [ -f "/opt/sofia-chat/scripts/update-prod-config.sh" ] && [ -x "/opt/sofia-chat/scripts/update-prod-config.sh" ]; then
+if [ -f "/opt/converxa-chat/scripts/update-prod-config.sh" ] && [ -x "/opt/converxa-chat/scripts/update-prod-config.sh" ]; then
     echo "✅ Script de configuración: INSTALADO"
 else
     echo "❌ Script de configuración: ERROR"
 fi
 
-if [ -f "/opt/sofia-chat/scripts/health-check.sh" ] && [ -x "/opt/sofia-chat/scripts/health-check.sh" ]; then
+if [ -f "/opt/converxa-chat/scripts/health-check.sh" ] && [ -x "/opt/converxa-chat/scripts/health-check.sh" ]; then
     echo "✅ Script de health check: INSTALADO"
 else
     echo "❌ Script de health check: ERROR"
@@ -1492,7 +1492,7 @@ fi
 # Verificar directorios
 echo ""
 echo "Verificando directorios..."
-for dir in "/var/log/sofia-chat/blue" "/var/log/sofia-chat/green" "/var/log/sofia-chat/nginx" "/opt/sofia-chat/scripts" "/var/www/frontend/prod" "/var/www/frontend/internal"; do
+for dir in "/var/log/converxa-chat/blue" "/var/log/converxa-chat/green" "/var/log/converxa-chat/nginx" "/opt/converxa-chat/scripts" "/var/www/frontend/prod" "/var/www/frontend/internal"; do
     if [ -d "$dir" ]; then
         echo "✅ Directorio $(basename $dir): CREADO"
     else
@@ -1503,19 +1503,19 @@ done
 # Verificar scripts de frontend
 echo ""
 echo "Verificando scripts de frontend..."
-if [ -f "/opt/sofia-chat/scripts/frontend-build.sh" ] && [ -x "/opt/sofia-chat/scripts/frontend-build.sh" ]; then
+if [ -f "/opt/converxa-chat/scripts/frontend-build.sh" ] && [ -x "/opt/converxa-chat/scripts/frontend-build.sh" ]; then
     echo "✅ Script de build frontend: INSTALADO"
 else
     echo "❌ Script de build frontend: ERROR"
 fi
 
-if [ -f "/opt/sofia-chat/scripts/frontend-deploy.sh" ] && [ -x "/opt/sofia-chat/scripts/frontend-deploy.sh" ]; then
+if [ -f "/opt/converxa-chat/scripts/frontend-deploy.sh" ] && [ -x "/opt/converxa-chat/scripts/frontend-deploy.sh" ]; then
     echo "✅ Script de deploy frontend: INSTALADO"
 else
     echo "❌ Script de deploy frontend: ERROR"
 fi
 
-if [ -f "/opt/sofia-chat/scripts/update-nginx-full.sh" ] && [ -x "/opt/sofia-chat/scripts/update-nginx-full.sh" ]; then
+if [ -f "/opt/converxa-chat/scripts/update-nginx-full.sh" ] && [ -x "/opt/converxa-chat/scripts/update-nginx-full.sh" ]; then
     echo "✅ Script de Nginx completo: INSTALADO"
 else
     echo "❌ Script de Nginx completo: ERROR"
@@ -1551,7 +1551,7 @@ echo "=========================================="
 echo "✅ SETUP COMPLETADO EXITOSAMENTE"
 echo "=========================================="
 echo "Setup del droplet Converxa con Blue-Green deployment completado"
-echo "IMPORTANTE: Scripts Blue-Green instalados en /opt/sofia-chat/"
+echo "IMPORTANTE: Scripts Blue-Green instalados en /opt/converxa-chat/"
 echo "🔧 PASOS MANUALES REQUERIDOS DESPUÉS DEL SETUP:"
 echo "1. Configurar DNS:"
 echo "   back-chat.converxa.com → $(curl -s ifconfig.me)"

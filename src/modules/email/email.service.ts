@@ -163,7 +163,7 @@ export class EmailService {
       const messageData = {
         from: this.configService.get<string>('mailgun.from'),
         to: user.email,
-        subject: `Cambio de Plan en Sofia Chat - ${organization.name}`,
+        subject: `Cambio de Plan en Converxa Chat - ${organization.name}`,
         html,
       };
 

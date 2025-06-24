@@ -1,4 +1,4 @@
-# Arquitectura Sofia Chat Backend v2
+# Arquitectura Converxa Chat Backend v2
 
 ## Estructura General del Proyecto
 

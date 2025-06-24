@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script de utilidades para infraestructura Sofia Chat Backend v2
+# Script de utilidades para infraestructura Converxa Chat Backend v2
 # Uso: ./deploy.sh [comando] [opciones]
 
 set -e
@@ -225,7 +225,7 @@ status() {
         log_info "Ejecutando verificación Blue-Green en el servidor..."
 
         ssh -o StrictHostKeyChecking=no $(echo $SSH_CMD | sed 's/ssh //' | sed 's/-i [^ ]* //' | awk '{print "-i " $2 " " $3}') \
-            '/opt/sofia-chat/blue-green-simple.sh status'
+            '/opt/converxa-chat/blue-green-simple.sh status'
     }
 
     # Configurar certificados SSL para ambos dominios
@@ -294,7 +294,7 @@ status() {
 
 # Mostrar ayuda
 show_help() {
-    echo "Script de utilidades para infraestructura Sofia Chat Backend v2"
+    echo "Script de utilidades para infraestructura Converxa Chat Backend v2"
     echo ""
     echo "Uso: $0 [comando]"
     echo ""

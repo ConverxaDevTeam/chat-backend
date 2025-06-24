@@ -9,7 +9,7 @@ terraform {
 
 resource "digitalocean_droplet" "backend" {
   image  = var.image
-  name   = "sofia-chat-backend-dev-v2"
+  name   = "converxa-chat-backend-dev-v2"
   region = var.region
   size   = var.droplet_size
   ssh_keys = [var.ssh_key]

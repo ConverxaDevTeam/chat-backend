@@ -177,7 +177,7 @@ generate_troubleshooting_commands() {
     echo "   ssh -i /home/frank/.ssh/converxa_digitalocean root@$DROPLET_IP"
     echo ""
     echo "   # Ver estado de containers"
-    echo "   ssh -i /home/frank/.ssh/converxa_digitalocean root@$DROPLET_IP '/opt/sofia-chat/blue-green-simple.sh status'"
+    echo "   ssh -i /home/frank/.ssh/converxa_digitalocean root@$DROPLET_IP '/opt/converxa-chat/blue-green-simple.sh status'"
     echo ""
     echo "   # Verificar servicios"
     echo "   ssh -i /home/frank/.ssh/converxa_digitalocean root@$DROPLET_IP 'systemctl status docker nginx postgresql'"

@@ -1,6 +1,6 @@
-# Infraestructura Unificada Sofia Chat Full Stack v2
+# Infraestructura Unificada Converxa Chat Full Stack v2
 
-Este directorio contiene la configuración de Terraform para desplegar la infraestructura completa (Backend + Frontend) de Sofia Chat en DigitalOcean con soporte para Blue-Green deployment.
+Este directorio contiene la configuración de Terraform para desplegar la infraestructura completa (Backend + Frontend) de Converxa Chat en DigitalOcean con soporte para Blue-Green deployment.
 
 ## 🏗️ Arquitectura del Sistema
 
@@ -15,10 +15,10 @@ Este directorio contiene la configuración de Terraform para desplegar la infrae
 
 | Propósito | Dominio | Descripción |
 |-----------|---------|-------------|
-| **Backend Producción** | `dev-sofia-chat.sofiacall.com` | API en producción (Blue/Green activo) |
-| **Backend Pruebas** | `internal-dev-sofia-chat.sofiacall.com` | API de pruebas (Blue/Green inactivo) |
-| **Frontend Producción** | `app-sofia-chat.sofiacall.com` | App conectada al backend de producción |
-| **Frontend Pruebas** | `internal-app-sofia-chat.sofiacall.com` | App conectada al backend de pruebas |
+| **Backend Producción** | `dev-converxa-chat.converxa.com` | API en producción (Blue/Green activo) |
+| **Backend Pruebas** | `internal-dev-converxa-chat.converxa.com` | API de pruebas (Blue/Green inactivo) |
+| **Frontend Producción** | `app-converxa-chat.converxa.com` | App conectada al backend de producción |
+| **Frontend Pruebas** | `internal-app-converxa-chat.converxa.com` | App conectada al backend de pruebas |
 
 ## 🚀 Inicio Rápido
 
@@ -26,7 +26,7 @@ Este directorio contiene la configuración de Terraform para desplegar la infrae
 - Terraform v1.0+
 - Cuenta DigitalOcean con API token
 - SSH Key configurada en DigitalOcean
-- Dominio `sofiacall.com` en DigitalOcean DNS
+- Dominio `converxa.com` en DigitalOcean DNS
 
 ### 2. Configuración
 ```bash
@@ -137,8 +137,8 @@ ssh_key = "aa:bb:cc:dd:ee:ff:..."
 private_key_path = "/path/to/ssh/key"
 
 # Repositorios
-frontend_repo_url = "https://github.com/org/sofia-chat-frontend-v2.git"
-backend_repo_url = "https://github.com/org/sofia-chat-backend-v2.git"
+frontend_repo_url = "https://github.com/org/converxa-chat-frontend-v2.git"
+backend_repo_url = "https://github.com/org/converxa-chat-backend-v2.git"
 ```
 
 ### Opcionales
@@ -149,8 +149,8 @@ droplet_size = "s-2vcpu-2gb"
 image = "ubuntu-24-10-x64"
 
 # URLs de API para Frontend
-frontend_prod_api_url = "https://dev-sofia-chat.sofiacall.com"
-frontend_internal_api_url = "https://internal-dev-sofia-chat.sofiacall.com"
+frontend_prod_api_url = "https://dev-converxa-chat.converxa.com"
+frontend_internal_api_url = "https://internal-dev-converxa-chat.converxa.com"
 ```
 
 ## 🔄 Flujo de Trabajo
@@ -158,7 +158,7 @@ frontend_internal_api_url = "https://internal-dev-sofia-chat.sofiacall.com"
 ### Deployment de Backend
 ```bash
 # Desde el proyecto backend
-cd ../sofia-chat-backend-v2
+cd ../converxa-chat-backend-v2
 make deploy     # Deploy a slot inactivo
 make switch     # Cambiar tráfico
 ```
@@ -178,12 +178,12 @@ make switch     # Cambiar tráfico
 ### Servidor (1x Droplet)
 - **Especificaciones**: s-2vcpu-2gb, Ubuntu 24.10
 - **Software**: Docker, Nginx, PostgreSQL, Node.js
-- **Blue-Green**: Scripts instalados en `/opt/sofia-chat/`
+- **Blue-Green**: Scripts instalados en `/opt/converxa-chat/`
 - **Frontend**: Node.js para build, archivos en `/var/www/frontend/`
 
 ### DNS (4x Registros A)
-- Backend: `dev-sofia-chat` + `internal-dev-sofia-chat`
-- Frontend: `app-sofia-chat` + `internal-app-sofia-chat`
+- Backend: `dev-converxa-chat` + `internal-dev-converxa-chat`
+- Frontend: `app-converxa-chat` + `internal-app-converxa-chat`
 
 ### Configuración Nginx
 - **Backend**: Proxy reverso a contenedores Docker
@@ -195,12 +195,12 @@ make switch     # Cambiar tráfico
 ### Después del Deploy Completo
 ```
 🖥️  BACKEND:
-   🔴 Producción: https://dev-sofia-chat.sofiacall.com/api/health
-   🔵 Pruebas: https://internal-dev-sofia-chat.sofiacall.com/api/health
+   🔴 Producción: https://dev-converxa-chat.converxa.com/api/health
+   🔵 Pruebas: https://internal-dev-converxa-chat.converxa.com/api/health
 
 🌐 FRONTEND:
-   🔴 Producción: https://app-sofia-chat.sofiacall.com
-   🔵 Pruebas: https://internal-app-sofia-chat.sofiacall.com
+   🔴 Producción: https://app-converxa-chat.converxa.com
+   🔵 Pruebas: https://internal-app-converxa-chat.converxa.com
 
 🛠️  DIRECTO (desarrollo):
    Blue: http://IP:3002/api/health
@@ -212,17 +212,17 @@ make switch     # Cambiar tráfico
 ### Build Automático
 El frontend se buildea dos veces:
 
-1. **Producción**: Conecta a `https://dev-sofia-chat.sofiacall.com`
-2. **Pruebas**: Conecta a `https://internal-dev-sofia-chat.sofiacall.com`
+1. **Producción**: Conecta a `https://dev-converxa-chat.converxa.com`
+2. **Pruebas**: Conecta a `https://internal-dev-converxa-chat.converxa.com`
 
 ### Variables de Entorno
 ```bash
 # Producción
-VITE_API_URL=https://dev-sofia-chat.sofiacall.com
+VITE_API_URL=https://dev-converxa-chat.converxa.com
 VITE_ENVIRONMENT=prod
 
 # Pruebas Internas
-VITE_API_URL=https://internal-dev-sofia-chat.sofiacall.com
+VITE_API_URL=https://internal-dev-converxa-chat.converxa.com
 VITE_ENVIRONMENT=internal
 ```
 
@@ -295,7 +295,7 @@ make rollback  # Si es necesario
 ### DNS no resuelve
 ```bash
 # Verificar registros DNS
-doctl compute domain records list sofiacall.com
+doctl compute domain records list converxa.com
 
 # Verificar configuración
 terraform output all_urls
@@ -355,7 +355,7 @@ terraform output all_urls
 
 - **Backend Blue-Green**: `../docs/flujo-blue-green-automatizado.md`
 - **Arquitectura**: `../docs/ARQUITECTURA.md` 
-- **Frontend Build**: Scripts en `/opt/sofia-chat/scripts/`
+- **Frontend Build**: Scripts en `/opt/converxa-chat/scripts/`
 
 ## 🆘 Comandos de Emergencia
 
