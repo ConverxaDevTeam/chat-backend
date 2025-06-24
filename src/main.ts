@@ -61,7 +61,7 @@ async function bootstrap() {
     preflightContinue: false,
     optionsSuccessStatus: 204,
     origin: (origin, callback) => {
-      const allowedOrigins = [
+      const allowedOrigins: (string | RegExp)[] = [
         'https://app-chat.converxa.net',
         'https://internal-app.converxa.net',
         'https://ci3.googleusercontent.com',
@@ -76,7 +76,7 @@ async function bootstrap() {
       }
 
       // Si no hay origin (requests directos como Postman) o está en la lista permitida
-      if (!origin || allowedOrigins.some((allowed) => (typeof allowed === 'string' ? allowed === origin : allowed.test(origin)))) {
+      if (!origin || allowedOrigins.some((allowed) => (typeof allowed === 'string' ? allowed === origin : (allowed as RegExp).test(origin)))) {
         callback(null, true);
       } else {
         callback(new Error('Not allowed by CORS'));
