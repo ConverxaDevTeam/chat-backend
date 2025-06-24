@@ -60,15 +60,28 @@ async function bootstrap() {
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
-    origin: [
-      /http\:\/\/localhost\:\d{1,5}$/,
-      'https://internal-app.converxa.com',
-      'https://app.converxa.com',
-      'https://ci3.googleusercontent.com',
-      'https://drlntz6nkra23p6khm9h89.webrelay.io',
-      'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
-      'https://wki5y7wysxt8gqj0dw0yzh.webrelay.io',
-    ],
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        'https://app-chat.converxa.net',
+        'https://internal-app.converxa.net',
+        'https://ci3.googleusercontent.com',
+        'https://drlntz6nkra23p6khm9h89.webrelay.io',
+        'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
+        'https://wki5y7wysxt8gqj0dw0yzh.webrelay.io',
+      ];
+
+      // Localhost solo en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        allowedOrigins.push(/http\:\/\/localhost\:\d{1,5}$/);
+      }
+
+      // Si no hay origin (requests directos como Postman) o está en la lista permitida
+      if (!origin || allowedOrigins.some((allowed) => (typeof allowed === 'string' ? allowed === origin : allowed.test(origin)))) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
   });
 
   // Configuración de CORS específica para '/converxa-chat'
