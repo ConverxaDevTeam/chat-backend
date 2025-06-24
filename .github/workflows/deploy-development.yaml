@@ -25,10 +25,10 @@ on:
         default: 'deploy'
 
 env:
-  DEPLOY_HOST: ${{ secrets.DEVELOPMENT_SSH_HOST }}
-  DEPLOY_USER: ${{ secrets.DEVELOPMENT_SSH_USERNAME }}
-  SSH_KEY: ${{ secrets.DEVELOPMENT_SSH_PRIVATE_KEY }}
-  PROJECT_PATH: /root/repos/converxa-backend-v2
+  DEPLOY_HOST: 137.184.227.234
+  DEPLOY_USER: root
+  SSH_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+  PROJECT_PATH: /root/repos/converxa-backend-v1
 
 jobs:
   blue-green-production:
@@ -48,7 +48,7 @@ jobs:
           key: ${{ env.SSH_KEY }}
           port: 22
           source: 'scripts/blue-green/blue-green-simple.sh'
-          target: '/opt/converxa/'
+          target: /opt/converxa-chat/
           strip_components: 2
 
       - name: Copy helper scripts to server
@@ -178,7 +178,7 @@ jobs:
             echo "Ejecutando acción Blue-Green: $ACTION"
 
             # Execute the blue-green script
-            /opt/converxa/blue-green-simple.sh $ACTION
+            /opt/converxa-chat/blue-green-simple.sh $ACTION
 
             echo "=== VERIFICACIÓN POST-DEPLOY ==="
             echo "Verificando estado de contenedores después del deploy:"
@@ -213,7 +213,7 @@ jobs:
             echo ""
 
             # Show current status
-            /opt/converxa/blue-green-simple.sh status
+            /opt/converxa-chat/blue-green-simple.sh status
 
             echo ""
             echo "=== VERIFICACIÓN DE SALUD ==="
@@ -263,10 +263,10 @@ jobs:
           script: |
             if [ "${{ needs.blue-green-production.result }}" = "success" ]; then
               echo "✅ Blue-Green production deployment completado exitosamente"
-              echo "📋 Ejecuta '/opt/converxa/blue-green-simple.sh status' para ver el estado actual"
+              echo "📋 Ejecuta '/opt/converxa-chat/blue-green-simple.sh status' para ver el estado actual"
             else
               echo "❌ Error en Blue-Green production deployment"
               echo "🔍 Revisar logs para más detalles"
               echo "📋 Estado actual:"
-              /opt/converxa/blue-green-simple.sh status || echo "No se pudo obtener el estado"
+              /opt/converxa-chat/blue-green-simple.sh status || echo "No se pudo obtener el estado"
             fi
