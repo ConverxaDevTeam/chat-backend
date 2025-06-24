@@ -110,6 +110,7 @@ jobs:
             TYPEORM_USERNAME=doadmin
             TYPEORM_PASSWORD=${{ secrets.PROD_TYPEORM_PASSWORD }}
             TYPEORM_DB_NAME=defaultdb
+            TYPEORM_SSL=true
             JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
             JWT_SECRET_KEY_REFRESH=${{ secrets.PROD_JWT_SECRET_KEY_REFRESH }}
             NODEMAILER_HOST=smtp.gmail.com
@@ -139,9 +140,6 @@ jobs:
             GOOGLE_CLIENT_SECRET=your-google-client-secret
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=admin@converxa.com
             ENV_EOF
-
-            # Ensure pgvector is installed
-            node src/config/install-pgvector.js || true
 
       - name: Execute Blue-Green Action
         uses: appleboy/ssh-action@master
