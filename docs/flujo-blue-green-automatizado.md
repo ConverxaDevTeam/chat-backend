@@ -147,8 +147,8 @@ Staging: Blue (puerto 3002)     ← Versión anterior (rollback)
 
 El script `update-prod-config.sh` mantiene dos configuraciones:
 
-1. **Producción**: `dev-converxa-chat.converxa.net` → Puerto activo
-2. **Testing Interno**: `internal-dev-converxa-chat.converxa.net` → Puerto inactivo
+1. **Producción**: `back-chat.converxa.net` → Puerto activo
+2. **Testing Interno**: `internal-back-chat.converxa.net` → Puerto inactivo
 
 ### Health Checks Automáticos
 
@@ -183,14 +183,14 @@ terraform apply
 
 ```bash
 # Configurar registros DNS
-internal-dev-converxa-chat.converxa.net → IP_DEL_SERVIDOR
+internal-back-chat.converxa.net → IP_DEL_SERVIDOR
 ```
 
 ### Paso 3: Obtener Certificados SSL
 
 ```bash
 # En el servidor (via SSH)
-certbot --nginx -d internal-dev-converxa-chat.converxa.net --non-interactive --agree-tos --email admin@converxa.net
+certbot --nginx -d internal-back-chat.converxa.net --non-interactive --agree-tos --email admin@converxa.net
 ```
 
 ### Paso 4: Primer Deployment
