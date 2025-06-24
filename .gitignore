@@ -1,0 +1,63 @@
+# compiled output
+/dist
+/node_modules
+.env
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+db-entrypoint
+postgresdb
+
+# OS
+.DS_Store
+
+# Tests
+/coverage
+/.nyc_output
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Uploader files
+uploads/audio/*
+!uploads/audio/index.html
+
+uploads/logos/*
+!uploads/logos/logo.svg
+!uploads/logos/horizontal-logo.svg
+!uploads/logos/index.html
+
+uploads/users/*
+
+uploads/chats/*
+!uploads/chats/index.html
+uploads/images/*
+!uploads/images/index.html
+.windsurfrules
+uploads/organizations/*
+uploads/templates/*
+.windsurf/*
+infrastructure/.terraform
+infrastructure-unified/.terraform
+infrastructure-unified/terraform.tfvars
+infrastructure-unified/.terraform.lock.hcl
+.blue-green-state
+backup_prod_sofia_chat_20250618_120352.sql

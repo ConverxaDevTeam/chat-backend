@@ -1,0 +1,258 @@
+name: Blue-Green Deployment for Sofia Chat Backend
+
+on:
+  push:
+    branches:
+      - develop-v1
+    paths:
+      - '.github/workflows/**'
+      - 'package.json'
+      - 'scripts/**'
+      - 'src/**'
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Blue-Green action to perform'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - switch
+          - rollback
+          - status
+        default: 'deploy'
+env:
+  DEPLOY_HOST: ${{ secrets.DEV_SSH_HOST }}
+  DEPLOY_USER: ${{ secrets.DEV_SSH_USERNAME }}
+  SSH_KEY: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+  PROJECT_PATH: /root/repos/converxa-backend-v1
+
+jobs:
+  blue-green-deployment:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify Blue-Green scripts are installed
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            echo "=== VERIFICANDO SCRIPTS BLUE-GREEN ==="
+            if [[ ! -f "/opt/converxa/blue-green-simple.sh" ]]; then
+                echo "❌ ERROR: Scripts Blue-Green no están instalados"
+                echo "Los scripts deben instalarse via Terraform durante la creación del servidor"
+                echo "Para instalar manualmente, ejecutar:"
+                echo "  terraform apply (reinstalar servidor)"
+                exit 1
+            fi
+
+            if [[ ! -f "/opt/converxa/scripts/update-prod-config.sh" ]]; then
+                echo "❌ ERROR: Script de configuración no encontrado"
+                exit 1
+            fi
+
+            echo "✅ Scripts Blue-Green encontrados y listos"
+            ls -la /opt/converxa/
+            ls -la /opt/converxa/scripts/
+
+      - name: Update repository and environment
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.PROJECT_PATH }}
+
+            echo "=== ESTADO INICIAL DEL REPOSITORIO ==="
+            echo "Commit actual: $(git rev-parse --short HEAD)"
+            echo "Branch actual: $(git branch --show-current)"
+            git status --short
+
+            # Pull latest changes and ensure working files are synchronized
+            echo "=== ACTUALIZANDO REPOSITORIO ==="
+            git fetch origin
+            git checkout develop-v1
+            git pull origin develop-v1
+            git reset --hard HEAD
+
+            echo "=== ESTADO DESPUÉS DE LA ACTUALIZACIÓN ==="
+            echo "Commit final: $(git rev-parse --short HEAD)"
+            echo "Último commit: $(git log --oneline -1)"
+            git status --short
+
+            # Create environment file with proper quoting
+            cat > .env << 'ENV_EOF'
+            NODE_ENV=development
+            LOG_LEVEL=info
+            TYPEORM_HOST=${{ secrets.DEV_TYPEORM_HOST }}
+            TYPEORM_PORT=${{ secrets.DEV_TYPEORM_PORT }}
+            TYPEORM_USERNAME=${{ secrets.DEV_TYPEORM_USERNAME }}
+            TYPEORM_PASSWORD=${{ secrets.DEV_TYPEORM_PASSWORD }}
+            TYPEORM_DB_NAME=${{ secrets.DEV_TYPEORM_DB_NAME }}
+            JWT_SECRET_KEY=${{ secrets.DEV_JWT_SECRET_KEY }}
+            JWT_SECRET_KEY_REFRESH=${{ secrets.DEV_JWT_SECRET_KEY_REFRESH }}
+            NODEMAILER_HOST=${{ secrets.DEV_NODEMAILER_HOST }}
+            NODEMAILER_PORT=${{ secrets.DEV_NODEMAILER_PORT }}
+            NODEMAILER_USER=${{ secrets.DEV_NODEMAILER_USER }}
+            NODEMAILER_PASS=${{ secrets.DEV_NODEMAILER_PASS }}
+            NODEMAILER_FROM=${{ secrets.DEV_NODEMAILER_FROM }}
+            URL_FILES=${{ secrets.DEV_URL_FILES }}
+            URL_WSS=${{ secrets.DEV_URL_WSS }}
+            URL_WEBHOOK_WA=${{ secrets.DEV_URL_WEBHOOK_WA }}
+            OPENAI_API_KEY=${{ secrets.DEV_OPENAI_API_KEY }}
+            FACEBOOK_APP_ID=${{ secrets.DEV_FACEBOOK_APP_ID }}
+            FACEBOOK_APP_SECRET=${{ secrets.DEV_FACEBOOK_APP_SECRET }}
+            FACEBOOK_WEBHOOK_SECRET=${{ secrets.DEV_FACEBOOK_WEBHOOK_SECRET }}
+            FACEBOOK_GRAPH_API=${{ secrets.DEV_FACEBOOK_GRAPH_API }}
+            APP_URL=${{ secrets.DEV_APP_URL }}
+            URL_FRONTEND=${{ secrets.DEV_URL_FRONTEND }}
+            MAILGUN_API_KEY=${{ secrets.DEV_MAILGUN_API_KEY }}
+            MAILGUN_DOMAIN=${{ secrets.DEV_MAILGUN_DOMAIN }}
+            MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
+            VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
+            CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
+            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ secrets.DEV_CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
+            ENV_EOF
+
+            # Ensure pgvector is installed
+            node src/config/install-pgvector.js || true
+
+      - name: Execute Blue-Green Action
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            cd ${{ env.PROJECT_PATH }}
+
+            # Determine action
+            ACTION="${{ github.event.inputs.action || 'deploy' }}"
+
+            echo "=== INFORMACIÓN DE DEPLOY ==="
+            echo "Acción: $ACTION"
+            echo "Commit a deployar: $(git rev-parse --short HEAD)"
+            echo "Timestamp: $(date)"
+            echo "Directorio del proyecto: ${{ env.PROJECT_PATH }}"
+            echo "Script a ejecutar: /opt/converxa/blue-green-simple.sh"
+
+            # Los scripts ya están instalados via Terraform, no necesitan verificación adicional
+
+            echo "=== EJECUTANDO BLUE-GREEN ACTION ==="
+            echo "Ejecutando acción Blue-Green: $ACTION"
+
+            # Execute the blue-green script
+            /opt/converxa/blue-green-simple.sh $ACTION
+
+            echo "=== VERIFICACIÓN POST-DEPLOY ==="
+            echo "Verificando estado de contenedores después del deploy:"
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+
+            echo "Verificando commits en contenedores:"
+            echo "BLUE: $(docker exec converxa-backend-blue cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'N/A')"
+            echo "GREEN: $(docker exec converxa-backend-green cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'N/A')"
+
+      - name: Show deployment summary
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            echo "=================================="
+            echo "   BLUE-GREEN DEPLOYMENT SUMMARY"
+            echo "=================================="
+            echo "Acción ejecutada: ${{ github.event.inputs.action || 'deploy' }}"
+            echo "Commit deployado: $(cd ${{ env.PROJECT_PATH }} && git rev-parse --short HEAD)"
+            echo "Commit completo: $(cd ${{ env.PROJECT_PATH }} && git rev-parse HEAD)"
+            echo "Mensaje del commit: $(cd ${{ env.PROJECT_PATH }} && git log --format=%B -n 1 HEAD | head -1)"
+            echo "Timestamp: $(date)"
+            echo "=================================="
+
+            echo "=== COMMITS EN CONTENEDORES ==="
+            echo "BLUE container commit: $(docker exec converxa-backend-blue cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'Container not running')"
+            echo "GREEN container commit: $(docker exec converxa-backend-green cat /app/.git/refs/heads/develop-v1 2>/dev/null | cut -c1-7 || echo 'Container not running')"
+            echo "Repository commit: $(cd ${{ env.PROJECT_PATH }} && git rev-parse --short HEAD)"
+            echo ""
+
+            # Show current status
+            /opt/converxa/blue-green-simple.sh status
+
+            echo ""
+            echo "=== VERIFICACIÓN DE SALUD ==="
+            echo "Verificando endpoints básicos:"
+
+            echo -n "BLUE (3002): "
+            if curl -sf http://localhost:3002/api/health >/dev/null 2>&1; then
+                echo "✅ SALUDABLE"
+            else
+                echo "❌ NO SALUDABLE"
+            fi
+
+            echo -n "GREEN (3003): "
+            if curl -sf http://localhost:3003/api/health >/dev/null 2>&1; then
+                echo "✅ SALUDABLE"
+            else
+                echo "❌ NO SALUDABLE"
+            fi
+
+            echo -n "Producción: "
+            if curl -sf https://dev-converxa.sofiacall.com/api/health >/dev/null 2>&1; then
+                echo "✅ SALUDABLE"
+            else
+                echo "❌ NO SALUDABLE"
+            fi
+
+            echo ""
+            echo "🔧 Comandos disponibles:"
+            echo "  - Ver estado: /opt/converxa/blue-green-simple.sh status"
+            echo "  - Hacer switch: /opt/converxa/blue-green-simple.sh switch"
+            echo "  - Rollback: /opt/converxa/blue-green-simple.sh rollback"
+            echo "  - Limpiar: /opt/converxa/blue-green-simple.sh cleanup"
+            echo ""
+            echo "🌐 URLs de prueba:"
+            echo "  - Blue (3002): http://dev-converxa.sofiacall.com:3002/api/health"
+            echo "  - Green (3003): http://dev-converxa.sofiacall.com:3003/api/health"
+            echo "  - Producción: https://dev-converxa.sofiacall.com/api/health"
+            echo "  - Pruebas internas: https://internal-dev-converxa.sofiacall.com/api/health"
+            echo ""
+            echo "📋 Aliases disponibles en el servidor:"
+            echo "  - bg-status, bg-deploy, bg-switch, bg-rollback, bg-cleanup"
+
+  notify-result:
+    needs: blue-green-deployment
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Notify deployment result
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: 22
+          script: |
+            if [ "${{ needs.blue-green-deployment.result }}" = "success" ]; then
+              echo "✅ Blue-Green deployment completado exitosamente"
+              echo "📋 Ejecuta '/opt/converxa/blue-green-simple.sh status' para ver el estado actual"
+            else
+              echo "❌ Error en Blue-Green deployment"
+              echo "🔍 Revisar logs para más detalles"
+              echo "📋 Estado actual:"
+              /opt/converxa/blue-green-simple.sh status || echo "No se pudo obtener el estado"
+            fi

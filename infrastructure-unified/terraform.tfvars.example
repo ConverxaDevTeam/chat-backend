@@ -1,0 +1,44 @@
+# Ejemplo de variables para Terraform - Sofia Chat Full Stack
+# Copia este archivo a terraform.tfvars y completa con tus valores reales
+
+# === CONFIGURACIÓN DE DIGITALOCEAN ===
+# Token de API de DigitalOcean
+do_token = "your_digitalocean_api_token_here"
+
+# Fingerprint de tu SSH key en DigitalOcean
+ssh_key = "your_ssh_key_fingerprint_here"
+
+# Ruta absoluta a tu llave privada SSH
+private_key_path = "/home/user/.ssh/your_private_key"
+
+# === CONFIGURACIÓN DEL SERVIDOR (OPCIONAL) ===
+# Región de DigitalOcean (opcional, por defecto sfo3)
+region = "sfo3"
+
+# Tamaño del droplet (opcional, por defecto s-2vcpu-2gb)
+droplet_size = "s-2vcpu-2gb"
+
+# Imagen del droplet (opcional, por defecto ubuntu-24-10-x64)
+image = "ubuntu-24-10-x64"
+
+# === CONFIGURACIÓN DE REPOSITORIOS ===
+# URL del repositorio del frontend
+frontend_repo_url = "https://github.com/your-org/sofia-chat-frontend-v2.git"
+
+# URL del repositorio del backend
+backend_repo_url = "https://github.com/your-org/sofia-chat-backend-v2.git"
+
+# === CONFIGURACIÓN DE APIs PARA FRONTEND ===
+# URL de la API para el frontend de producción
+frontend_prod_api_url = "https://dev-sofia-chat.sofiacall.com"
+
+# URL de la API para el frontend de pruebas internas
+frontend_internal_api_url = "https://internal-dev-sofia-chat.sofiacall.com"
+
+# === DOMINIOS CONFIGURADOS AUTOMÁTICAMENTE ===
+# Backend:
+#   - Producción: dev-sofia-chat.sofiacall.com
+#   - Pruebas: internal-dev-sofia-chat.sofiacall.com
+# Frontend:
+#   - Producción: app-sofia-chat.sofiacall.com
+#   - Pruebas: internal-app-sofia-chat.sofiacall.com
