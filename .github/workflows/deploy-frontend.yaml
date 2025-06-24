@@ -16,7 +16,6 @@ on:
 env:
   DEPLOY_HOST: 137.184.44.230
   DEPLOY_USER: root
-  SSH_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
   FRONTEND_REPO: https://github.com/ConverxaDevTeam/chat-frontend.git
   FRONTEND_DIR: /root/repos/converxa-chat-frontend
 
@@ -33,7 +32,7 @@ jobs:
         with:
           host: ${{ env.DEPLOY_HOST }}
           username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           port: 22
           script: |
             echo "=== FRONTEND DEPLOYMENT INICIADO ==="
@@ -153,7 +152,7 @@ jobs:
         with:
           host: ${{ env.DEPLOY_HOST }}
           username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           port: 22
           script: |
             echo "=== CONFIGURACIÓN DE NGINX PARA FRONTEND ==="
@@ -254,7 +253,7 @@ jobs:
         with:
           host: ${{ env.DEPLOY_HOST }}
           username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           port: 22
           script: |
             echo "=== VERIFICACIÓN FINAL ==="
@@ -294,7 +293,7 @@ jobs:
         with:
           host: ${{ env.DEPLOY_HOST }}
           username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
           port: 22
           script: |
             if [ "${{ needs.frontend-deployment.result }}" = "success" ]; then
