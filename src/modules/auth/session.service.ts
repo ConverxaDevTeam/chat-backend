@@ -82,7 +82,7 @@ export class SessionService {
         id: session.id,
         userId: session.user?.id,
         expiredAt: session.expiredAt,
-        createdAt: session.createdAt,
+        createdAt: session.created_at,
       });
     }
 
