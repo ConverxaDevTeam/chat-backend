@@ -1,4 +1,4 @@
-# Makefile para Sofia Chat Full Stack v2 - Infraestructura Unificada
+# Makefile para Converxa Full Stack v2 - Infraestructura Unificada
 # Gestiona Backend (Blue-Green) + Frontend + Infraestructura
 
 # Configuración del servidor
@@ -23,7 +23,7 @@ NC := \033[0m # No Color
 
 # Comando por defecto
 help:
-	@echo "$(GREEN)Sofia Chat Full Stack v2 - Infraestructura Unificada$(NC)"
+	@echo "$(GREEN)Converxa Full Stack v2 - Infraestructura Unificada$(NC)"
 	@echo ""
 	@echo "$(YELLOW)🏗️  COMANDOS DE TERRAFORM:$(NC)"
 	@echo "  make init             - Inicializar Terraform"

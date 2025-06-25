@@ -1,4 +1,4 @@
-# Ejemplo de variables para Terraform - Sofia Chat Full Stack
+# Ejemplo de variables para Terraform - Converxa Full Stack
 # Copia este archivo a terraform.tfvars y completa con tus valores reales
 
 # === CONFIGURACIÓN DE DIGITALOCEAN ===
