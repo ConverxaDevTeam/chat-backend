@@ -44,14 +44,23 @@ import { CoreModule } from '@modules/core/core.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'assets'),
       serveRoot: '/assets',
+      serveStaticOptions: {
+        index: false,
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'chats'),
       serveRoot: '/converxa-chat',
+      serveStaticOptions: {
+        index: false,
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'logos'),
       serveRoot: '/logos',
+      serveStaticOptions: {
+        index: false,
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'scripts'),
@@ -65,18 +74,7 @@ import { CoreModule } from '@modules/core/core.module';
       rootPath: join(__dirname, '..', '..', 'uploads', 'images'),
       serveRoot: '/images',
     }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads', 'users'),
-      serveRoot: '/users',
-    }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads', 'organizations'),
-      serveRoot: '/organizations',
-    }),
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads', 'templates'),
-      serveRoot: '/templates',
-    }),
+
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

@@ -5,11 +5,14 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { urlencoded, json } from 'express';
+import * as express from 'express';
+import * as path from 'path';
 import * as pg from 'pg';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { winstonLogger } from '@infrastructure/loggers/winston.logger';
 import { HttpExceptionFilter } from '@infrastructure/filters/global-exception.filter';
 import { WebChatSocketGateway } from '@modules/socket/socket.gateway';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import * as cors from 'cors';
 
 export const logger = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production' ? winstonLogger : new Logger('backend-chat');
@@ -30,7 +33,7 @@ async function bootstrap() {
   pg.defaults.parseInputDatesAsUTC = false;
   pg.types.setTypeParser(1114, (stringValue: string) => new Date(`${stringValue}Z`));
 
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'debug', 'log', 'verbose'],
   });
 
@@ -89,6 +92,29 @@ async function bootstrap() {
   app.use('/files', cors());
   app.use('/assets', cors());
   app.use('/images', cors());
+
+  // Configuración manual de archivos estáticos para uploads
+  app.use(
+    '/users',
+    express.static(path.join(process.cwd(), 'uploads', 'users'), {
+      index: false,
+      dotfiles: 'deny',
+    }),
+  );
+  app.use(
+    '/organizations',
+    express.static(path.join(process.cwd(), 'uploads', 'organizations'), {
+      index: false,
+      dotfiles: 'deny',
+    }),
+  );
+  app.use(
+    '/templates',
+    express.static(path.join(process.cwd(), 'uploads', 'templates'), {
+      index: false,
+      dotfiles: 'deny',
+    }),
+  );
 
   app.setGlobalPrefix('api');
 

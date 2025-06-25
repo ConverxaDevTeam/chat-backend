@@ -90,6 +90,9 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
+    # Configuración para uploads de imágenes
+    client_max_body_size 10M;
+
     location / {
         proxy_pass http://localhost:3002;  # Redirige al backend Blue por defecto
         proxy_set_header Host $host;

@@ -67,6 +67,9 @@ server {
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
+    # Configuración para uploads de imágenes
+    client_max_body_size 10M;
+
     location / {
         proxy_pass http://localhost:$TARGET_PORT;  # Redirige al backend $TARGET_COLOR
         proxy_set_header Host \$host;
@@ -116,6 +119,9 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/internal-back-chat.converxa.net/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+    # Configuración para uploads de imágenes
+    client_max_body_size 10M;
 
     location / {
         proxy_pass http://localhost:$INTERNAL_PORT;  # Redirige al backend inactivo para pruebas
