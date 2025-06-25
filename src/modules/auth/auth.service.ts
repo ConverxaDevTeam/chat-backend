@@ -24,6 +24,8 @@ import { GoogleLoginDto } from './dto/google-login.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { OAuth2Client } from 'google-auth-library';
 import axios from 'axios';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 export class validatedSession {
   user: User;
@@ -54,14 +56,21 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @Inject(forwardRef(() => EmailService))
     private readonly emailService: EmailService,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
   ) {
     this.googleClient = new OAuth2Client(this.configService.get<string>('GOOGLE_CLIENT_ID'));
   }
 
   async logIn(req, logInDto: LogInDto) {
+    console.log('[DEBUG-AUTH-1] Iniciando logIn con email:', logInDto.email);
+
+    console.log('[DEBUG-AUTH-2] Antes de llamar userExistByEmail');
     const user = await this.userService.userExistByEmail(logInDto.email);
+    console.log('[DEBUG-AUTH-3] Después de userExistByEmail, usuario:', user ? `ID: ${user.id}` : 'NULL');
 
     if (!user) {
+      console.log('[DEBUG-AUTH-4] Usuario no encontrado, lanzando excepción');
       throw new NotFoundException('El usuario no existe.');
     }
 
