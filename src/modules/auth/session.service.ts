@@ -80,12 +80,12 @@ export class SessionService {
     console.log('[SESSION-DEBUG-8] findByIds called with userId:', userId, 'sessionId:', sessionId);
     console.log('[SESSION-DEBUG-8.1] findByIds input types:', typeof userId, typeof sessionId);
 
-    // Use query builder to properly join user relation
+    // Use direct query with userId field since table has userId column
     const session = await this.sessionRepository
       .createQueryBuilder('session')
       .leftJoinAndSelect('session.user', 'user')
       .where('session.id = :sessionId', { sessionId })
-      .andWhere('user.id = :userId', { userId })
+      .andWhere('session.userId = :userId', { userId })
       .getOne();
 
     console.log('[SESSION-DEBUG-9] findByIds result:', session ? 'FOUND' : 'NOT FOUND');
@@ -107,13 +107,12 @@ export class SessionService {
         .getOne();
 
       if (sessionOnly) {
-        console.log('[SESSION-DEBUG-10.1] Session exists but user mismatch:', {
-          sessionId: sessionOnly.id,
-          sessionUserId: sessionOnly.user?.id,
-          requestedUserId: userId,
-        });
+        console.log('[SESSION-DEBUG-10.1] Session exists - checking userId field directly');
+        // Try raw query to see actual database content
+        const rawSession = await this.sessionRepository.query('SELECT id, "userId", "expiredAt" FROM "Sessions" WHERE id = $1', [sessionId]);
+        console.log('[SESSION-DEBUG-10.2] Raw session data:', rawSession[0]);
       } else {
-        console.log('[SESSION-DEBUG-10.2] Session does not exist at all with ID:', sessionId);
+        console.log('[SESSION-DEBUG-10.3] Session does not exist at all with ID:', sessionId);
       }
     }
 
