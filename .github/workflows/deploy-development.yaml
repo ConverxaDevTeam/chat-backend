@@ -118,7 +118,7 @@ jobs:
             NODEMAILER_USER=${{ secrets.PROD_NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.PROD_NODEMAILER_PASS }}
             NODEMAILER_FROM=noreply@converxa.net
-            URL_FILES=https://back-chat.converxa.net/files
+            URL_FILES=https://back-chat.converxa.net
             URL_WSS=wss://back-chat.converxa.net
             URL_WEBHOOK_WA=https://back-chat.converxa.net/webhook/whatsapp
             OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}
