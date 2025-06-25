@@ -116,6 +116,7 @@ export class SocketService {
   async sendToChatBot(message: string, room: string, identifier: agentIdentifier | TestAgentIdentifier, conversationId: number, images: string[] = []) {
     this.socketServer.to(room).emit('typing', { message, images });
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
+      console.log('set to chatbot:', identifier.type);
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;

@@ -204,6 +204,7 @@ export class AgentManagerService {
 
       const llmService = createAgentService(identifier, config);
       if (!previousConfig.agentId) {
+        console.log('set to chatbot:', identifier.type);
         throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
       }
       await llmService.updateAgent(config, previousConfig.agentId);
