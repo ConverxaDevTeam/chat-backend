@@ -27,6 +27,7 @@ export class SessionService {
 
   async createSession(req, user: User): Promise<Session> {
     console.log('[SESSION-DEBUG-1] createSession called for user:', user.id);
+    console.log('[SESSION-DEBUG-1.1] User object properties:', Object.keys(user));
 
     const jwtTokenRefreshExpiration: number = this.configService.get<number>('session.jwtTokenRefreshExpiration') ?? 604800; // 1 semana
     console.log('[SESSION-DEBUG-2] JWT expiration:', jwtTokenRefreshExpiration);
@@ -43,14 +44,20 @@ export class SessionService {
     const browser = ExtraInfo?.client?.name || 'undefined';
     const operatingSystem = ExtraInfo?.os?.name || 'undefined';
 
-    session.user = user;
+    // Fix: Ensure user relation is properly set by creating a minimal user reference
+    const userRef = new User();
+    userRef.id = user.id;
+    userRef.email = user.email;
+
+    console.log('[SESSION-DEBUG-3.1] Setting user relation with ID:', userRef.id);
+    session.user = userRef;
     session.ip = this.extractIpAddress(ipAddress);
     session.browser = browser;
     session.operatingSystem = operatingSystem;
     session.expiredAt = expiredAt;
 
     console.log('[SESSION-DEBUG-4] Session data before save:', {
-      userId: user.id,
+      userId: userRef.id,
       ip: session.ip,
       browser: session.browser,
       operatingSystem: session.operatingSystem,
