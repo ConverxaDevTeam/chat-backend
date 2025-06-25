@@ -116,24 +116,36 @@ export class UserService {
 
   async getUserForEmailOrCreate(email: string) {
     console.log('🔍 [DEBUG] getUserForEmailOrCreate iniciado con email:', email);
-    const user = await this.userRepository.findOne({ where: { email } });
+
+    // Usar SQL raw para buscar el usuario
+    const userResults = await this.userRepository.query(
+      'SELECT id, email, email_verified, is_super_admin, first_name, last_name, created_at, updated_at FROM "Users" WHERE email = $1 AND deleted_at IS NULL',
+      [email],
+    );
+
+    const user = userResults.length > 0 ? userResults[0] : null;
     console.log('🔍 [DEBUG] Usuario encontrado:', user ? { id: user.id, email: user.email } : 'NO ENCONTRADO');
 
     if (!user) {
       console.log('🔍 [DEBUG] Creando nuevo usuario...');
-      const newUser = new User();
-      newUser.email = email;
       const password = this.generateRandomPassword();
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(password, salt);
-      newUser.password = hashedPassword;
-      console.log('🔍 [DEBUG] Guardando nuevo usuario en DB...');
-      await this.userRepository.save(newUser);
+
+      // Crear usuario con SQL raw
+      const newUserResults = await this.userRepository.query(
+        `INSERT INTO "Users" (email, password, email_verified, is_super_admin, created_at, updated_at)
+         VALUES ($1, $2, false, false, NOW(), NOW())
+         RETURNING id, email, email_verified, is_super_admin, first_name, last_name, created_at, updated_at`,
+        [email, hashedPassword],
+      );
+
+      const newUser = newUserResults[0];
       console.log('🔍 [DEBUG] Usuario creado con ID:', newUser.id);
 
-      if (newUser.password) {
-        await this.emailService.sendUserWellcome(newUser.email, password);
-      }
+      // Enviar email de bienvenida
+      await this.emailService.sendUserWellcome(newUser.email, password);
+
       return { created: true, user: newUser, password };
     }
 
