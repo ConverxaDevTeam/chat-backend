@@ -24,6 +24,8 @@ export class UserService {
   }
 
   async findById(userId: number): Promise<User> {
+    console.log('[USER-DEBUG-1] findById called with userId:', userId);
+
     const user = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['userOrganizations'],
@@ -33,9 +35,16 @@ export class UserService {
         email: true,
       },
     });
+
+    console.log('[USER-DEBUG-2] User query result:', user ? 'FOUND' : 'NOT FOUND');
+    console.log('[USER-DEBUG-3] User data:', user);
+
     if (!user) {
+      console.log('[USER-DEBUG-4] Throwing NotFoundException for userId:', userId);
       throw new NotFoundException('El usuario no existe.');
     }
+
+    console.log('[USER-DEBUG-5] Returning user successfully');
     return user;
   }
 

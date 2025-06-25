@@ -3,7 +3,14 @@ FROM node:23-alpine
 WORKDIR /app
 
 # Install curl for health checks
-RUN apk add --no-cache curl
+RUN apk add --no-cache \
+    curl \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev \
+    linux-headers
 
 COPY package.json ./
 
