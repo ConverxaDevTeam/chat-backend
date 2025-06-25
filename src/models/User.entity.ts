@@ -13,7 +13,7 @@ export class User extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   email_verified: boolean;
 
-  @Column({ type: 'varchar', length: 128, nullable: false, select: false })
+  @Column({ type: 'varchar', length: 128, nullable: false })
   password: string;
 
   @Column({ type: 'boolean', default: false })
