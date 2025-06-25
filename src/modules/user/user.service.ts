@@ -126,9 +126,9 @@ export class UserService {
       newUser.password = hashedPassword;
       await this.userRepository.save(newUser);
 
-      if (newUser.password) {
-        await this.emailService.sendUserWellcome(newUser.email, password);
-      }
+      // Enviar email de bienvenida
+      await this.emailService.sendUserWellcome(newUser.email, password);
+
       return { created: true, user: newUser, password };
     }
 
