@@ -23,11 +23,26 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
-  async findById(userId: number): Promise<User> {
-    // Use native query for user data like other working methods
-    const userResult = await this.userRepository.query('SELECT id, email, is_super_admin FROM "Users" WHERE id = $1 AND "deletedAt" IS NULL', [userId]);
+  private async findUserByQuery(whereClause: string, params: any[]): Promise<User | null> {
+    const userResult = await this.userRepository.query(`SELECT id, email, is_super_admin FROM "Users" WHERE ${whereClause} AND "deletedAt" IS NULL`, params);
 
     if (userResult.length === 0) {
+      return null;
+    }
+
+    const userData = userResult[0];
+    const user = new User();
+    user.id = userData.id;
+    user.email = userData.email;
+    user.is_super_admin = userData.is_super_admin;
+
+    return user;
+  }
+
+  async findById(userId: number): Promise<User> {
+    const user = await this.findUserByQuery('id = $1', [userId]);
+
+    if (!user) {
       throw new NotFoundException('El usuario no existe.');
     }
 
@@ -39,13 +54,6 @@ export class UserService {
        WHERE uo."userId" = $1 AND uo."deletedAt" IS NULL`,
       [userId],
     );
-
-    // Create User entity from raw result with same structure as before
-    const userData = userResult[0];
-    const user = new User();
-    user.id = userData.id;
-    user.email = userData.email;
-    user.is_super_admin = userData.is_super_admin;
 
     // Add userOrganizations relation data to maintain same functionality
     user.userOrganizations = orgResult.map((org) => ({
@@ -60,20 +68,7 @@ export class UserService {
 
   async userExistByEmail(email: string): Promise<User | null> {
     try {
-      // Usar consulta SQL nativa para evitar problemas con TypeORM/SSL
-      const result = await this.userRepository.query('SELECT id, email, is_super_admin FROM "Users" WHERE email = $1 AND "deletedAt" IS NULL', [email]);
-
-      if (result.length === 0) {
-        return null;
-      }
-
-      const userData = result[0];
-      const user = new User();
-      user.id = userData.id;
-      user.email = userData.email;
-      user.is_super_admin = userData.is_super_admin;
-
-      return user;
+      return await this.findUserByQuery('email = $1', [email]);
     } catch (error) {
       this.logger.error(`Error en userExistByEmail: ${error.message}`);
       throw error;
