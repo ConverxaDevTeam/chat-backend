@@ -24,16 +24,10 @@ export class UserService {
   }
 
   async findById(userId: number): Promise<User> {
-    console.log('[USER-DEBUG-1] findById called with userId:', userId);
-
     // Use native query for user data like other working methods
     const userResult = await this.userRepository.query('SELECT id, email, is_super_admin FROM "Users" WHERE id = $1 AND "deletedAt" IS NULL', [userId]);
 
-    console.log('[USER-DEBUG-2] User query result:', userResult.length > 0 ? 'FOUND' : 'NOT FOUND');
-    console.log('[USER-DEBUG-3] Raw user query result:', userResult);
-
     if (userResult.length === 0) {
-      console.log('[USER-DEBUG-4] Throwing NotFoundException for userId:', userId);
       throw new NotFoundException('El usuario no existe.');
     }
 
@@ -45,8 +39,6 @@ export class UserService {
        WHERE uo."userId" = $1 AND uo."deletedAt" IS NULL`,
       [userId],
     );
-
-    console.log('[USER-DEBUG-3.1] UserOrganizations query result:', orgResult);
 
     // Create User entity from raw result with same structure as before
     const userData = userResult[0];
@@ -63,11 +55,6 @@ export class UserService {
       organization: org.organizationName ? { id: org.organizationId, name: org.organizationName } : null,
     })) as any;
 
-    console.log('[USER-DEBUG-5] Returning user successfully with organizations:', {
-      userId: user.id,
-      email: user.email,
-      organizationsCount: user.userOrganizations.length,
-    });
     return user;
   }
 

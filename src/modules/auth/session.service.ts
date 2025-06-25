@@ -26,15 +26,10 @@ export class SessionService {
   }
 
   async createSession(req, user: User): Promise<Session> {
-    console.log('[SESSION-DEBUG-1] createSession called for user:', user.id);
-    console.log('[SESSION-DEBUG-1.1] User object properties:', Object.keys(user));
-
     const jwtTokenRefreshExpiration: number = this.configService.get<number>('session.jwtTokenRefreshExpiration') ?? 604800; // 1 semana
-    console.log('[SESSION-DEBUG-2] JWT expiration:', jwtTokenRefreshExpiration);
 
     const expiredAt = new Date();
     expiredAt.setSeconds(expiredAt.getSeconds() + jwtTokenRefreshExpiration);
-    console.log('[SESSION-DEBUG-3] Session will expire at:', expiredAt);
 
     const session = new Session();
 
@@ -44,32 +39,17 @@ export class SessionService {
     const browser = ExtraInfo?.client?.name || 'undefined';
     const operatingSystem = ExtraInfo?.os?.name || 'undefined';
 
-    // Fix: Ensure user relation is properly set by creating a minimal user reference
     const userRef = new User();
     userRef.id = user.id;
     userRef.email = user.email;
 
-    console.log('[SESSION-DEBUG-3.1] Setting user relation with ID:', userRef.id);
     session.user = userRef;
     session.ip = this.extractIpAddress(ipAddress);
     session.browser = browser;
     session.operatingSystem = operatingSystem;
     session.expiredAt = expiredAt;
 
-    console.log('[SESSION-DEBUG-4] Session data before save:', {
-      userId: userRef.id,
-      ip: session.ip,
-      browser: session.browser,
-      operatingSystem: session.operatingSystem,
-      expiredAt: session.expiredAt,
-    });
-
-    console.log('[SESSION-DEBUG-5] About to save session to database');
-    const savedSession = await this.sessionRepository.save(session);
-    console.log('[SESSION-DEBUG-6] Session saved successfully with ID:', savedSession.id);
-    console.log('[SESSION-DEBUG-7] Saved session data:', savedSession);
-
-    return savedSession;
+    return this.sessionRepository.save(session);
   }
 
   async removeSession(session: Session): Promise<void> {
@@ -77,46 +57,12 @@ export class SessionService {
   }
 
   async findByIds(userId, sessionId): Promise<Session | null> {
-    console.log('[SESSION-DEBUG-8] findByIds called with userId:', userId, 'sessionId:', sessionId);
-    console.log('[SESSION-DEBUG-8.1] findByIds input types:', typeof userId, typeof sessionId);
-
-    // Use direct query with userId field since table has userId column
-    const session = await this.sessionRepository
+    return this.sessionRepository
       .createQueryBuilder('session')
       .leftJoinAndSelect('session.user', 'user')
       .where('session.id = :sessionId', { sessionId })
       .andWhere('session.userId = :userId', { userId })
       .getOne();
-
-    console.log('[SESSION-DEBUG-9] findByIds result:', session ? 'FOUND' : 'NOT FOUND');
-    if (session) {
-      console.log('[SESSION-DEBUG-10] Found session details:', {
-        id: session.id,
-        userId: session.user?.id,
-        expiredAt: session.expiredAt,
-        createdAt: session.created_at,
-      });
-    } else {
-      console.log('[SESSION-DEBUG-10] Session NOT FOUND - checking if session exists at all');
-
-      // Check if session exists without user filter
-      const sessionOnly = await this.sessionRepository
-        .createQueryBuilder('session')
-        .leftJoinAndSelect('session.user', 'user')
-        .where('session.id = :sessionId', { sessionId })
-        .getOne();
-
-      if (sessionOnly) {
-        console.log('[SESSION-DEBUG-10.1] Session exists - checking userId field directly');
-        // Try raw query to see actual database content
-        const rawSession = await this.sessionRepository.query('SELECT id, "userId", "expiredAt" FROM "Sessions" WHERE id = $1', [sessionId]);
-        console.log('[SESSION-DEBUG-10.2] Raw session data:', rawSession[0]);
-      } else {
-        console.log('[SESSION-DEBUG-10.3] Session does not exist at all with ID:', sessionId);
-      }
-    }
-
-    return session;
   }
 
   async removeByIds(user: User, sessionId): Promise<void> {

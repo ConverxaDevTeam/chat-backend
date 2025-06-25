@@ -70,8 +70,6 @@ export class AuthService {
     }
 
     const userPassword = await this.userService.findByEmailWithPassword(logInDto.email);
-    console.log('passwords;', userPassword, logInDto);
-    console.log(bcrypt.compareSync(logInDto.password, userPassword));
     if (!bcrypt.compareSync(logInDto.password, userPassword)) {
       throw new UnauthorizedException('Contraseña no válida.');
     }
@@ -152,17 +150,13 @@ export class AuthService {
   }
 
   async validateSession(accessToken: string): Promise<validatedSession> {
-    console.log('[GUARD-DEBUG-1] validateSession called with token:', accessToken?.substring(0, 20) + '...');
-
     if (!accessToken) {
       throw new UnauthorizedException({
         message: 'Token no valido',
       });
     }
 
-    console.log('[GUARD-DEBUG-2] About to validate access token');
     const accessTokenData = await this.validateAccessToken(accessToken);
-    console.log('[GUARD-DEBUG-3] Access token data:', accessTokenData);
 
     if (!accessTokenData) {
       throw new UnauthorizedException({
@@ -170,9 +164,7 @@ export class AuthService {
       });
     }
 
-    console.log('[GUARD-DEBUG-4] About to find session for userId:', accessTokenData.userId, 'sessionId:', accessTokenData.sessionId);
     const session = await this.sessionService.findByIds(accessTokenData.userId, accessTokenData.sessionId);
-    console.log('[GUARD-DEBUG-5] Session found:', !!session);
 
     if (!session) {
       throw new UnauthorizedException({
@@ -180,11 +172,8 @@ export class AuthService {
       });
     }
 
-    console.log('[GUARD-DEBUG-6] About to find user by ID:', accessTokenData.userId);
     const user = await this.userService.findById(accessTokenData.userId);
-    console.log('[GUARD-DEBUG-7] User found:', user ? 'YES' : 'NO', 'user data:', user);
 
-    console.log('[GUARD-DEBUG-8] validateSession completed successfully');
     return { user: user, sessionId: accessTokenData.sessionId };
   }
 
@@ -195,7 +184,7 @@ export class AuthService {
       });
 
       return data;
-    } catch (e) {
+    } catch {
       return null;
     }
   }
