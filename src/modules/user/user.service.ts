@@ -70,7 +70,12 @@ export class UserService {
   }
 
   async findByEmailWithPassword(email: string): Promise<User | null> {
+    console.log('[DEBUG-PASSWORD-1] findByEmailWithPassword llamado con email:', email);
     const user = await this.userRepository.createQueryBuilder('user').select('user.password').where('user.email = :email', { email }).getRawOne();
+
+    console.log('[DEBUG-PASSWORD-2] Resultado de query:', user);
+    console.log('[DEBUG-PASSWORD-3] user.user_password:', user?.user_password);
+    console.log('[DEBUG-PASSWORD-4] user.password:', user?.password);
 
     if (user) return user.user_password;
 
