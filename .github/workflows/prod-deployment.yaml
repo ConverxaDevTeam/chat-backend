@@ -113,11 +113,11 @@ jobs:
             TYPEORM_SSL=true
             JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
             JWT_SECRET_KEY_REFRESH=${{ secrets.PROD_JWT_SECRET_KEY_REFRESH }}
-            NODEMAILER_HOST=smtp.gmail.com
-            NODEMAILER_PORT=587
+            NODEMAILER_HOST=smtp.mailgun.org
+            NODEMAILER_PORT=465
             NODEMAILER_USER=${{ secrets.PROD_NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.PROD_NODEMAILER_PASS }}
-            NODEMAILER_FROM=noreply@converxa.net
+            NODEMAILER_FROM=hola@sofiacall.com
             URL_FILES=https://back-chat.converxa.net
             URL_WSS=wss://back-chat.converxa.net
             URL_WEBHOOK_WA=https://back-chat.converxa.net/webhook/whatsapp
@@ -129,15 +129,15 @@ jobs:
             APP_URL=https://back-chat.converxa.net
             URL_FRONTEND=https://app-chat.converxa.net
             MAILGUN_API_KEY=${{ secrets.PROD_MAILGUN_API_KEY }}
-            MAILGUN_DOMAIN=converxa.net
-            MAILGUN_FROM=noreply@converxa.net
+            MAILGUN_DOMAIN=sofiallm.com
+            MAILGUN_FROM=hola@sofiallm.com
             SLACK_CLIENT_ID=your-slack-client-id
             SLACK_CLIENT_SECRET=your-slack-client-secret
             SLACK_REDIRECT_URI=https://back-chat.converxa.net/auth/slack/callback
             VOYAGE_API_KEY=${{ secrets.PROD_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.PROD_CLAUDE_API_KEY }}
-            GOOGLE_CLIENT_ID=your-google-client-id
-            GOOGLE_CLIENT_SECRET=your-google-client-secret
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=admin@converxa.net
             ENV_EOF
 
