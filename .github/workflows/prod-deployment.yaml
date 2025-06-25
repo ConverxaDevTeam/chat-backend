@@ -138,7 +138,10 @@ jobs:
             CLAUDE_API_KEY=${{ secrets.PROD_CLAUDE_API_KEY }}
             GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
             GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=admin@converxa.net
+            PINECONE_API_KEY=${{ secrets.PROD_PINECONE_API_KEY }}
+            BASE_MODEL_API_KEY=${{ secrets.PROD_BASE_MODEL_API_KEY }}
+            FREE_CONVERSATION_LIMIT=50
+            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=frank@pixeldigita.com
             ENV_EOF
 
       - name: Execute Blue-Green Action
