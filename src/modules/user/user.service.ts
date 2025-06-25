@@ -26,25 +26,48 @@ export class UserService {
   async findById(userId: number): Promise<User> {
     console.log('[USER-DEBUG-1] findById called with userId:', userId);
 
-    // Use native query like other working methods
-    const result = await this.userRepository.query('SELECT id, email, is_super_admin FROM "Users" WHERE id = $1 AND "deletedAt" IS NULL', [userId]);
+    // Use native query for user data like other working methods
+    const userResult = await this.userRepository.query('SELECT id, email, is_super_admin FROM "Users" WHERE id = $1 AND "deletedAt" IS NULL', [userId]);
 
-    console.log('[USER-DEBUG-2] User query result:', result.length > 0 ? 'FOUND' : 'NOT FOUND');
-    console.log('[USER-DEBUG-3] Raw query result:', result);
+    console.log('[USER-DEBUG-2] User query result:', userResult.length > 0 ? 'FOUND' : 'NOT FOUND');
+    console.log('[USER-DEBUG-3] Raw user query result:', userResult);
 
-    if (result.length === 0) {
+    if (userResult.length === 0) {
       console.log('[USER-DEBUG-4] Throwing NotFoundException for userId:', userId);
       throw new NotFoundException('El usuario no existe.');
     }
 
-    // Create User entity from raw result
-    const userData = result[0];
+    // Get userOrganizations relation using native query to maintain exact same functionality
+    const orgResult = await this.userRepository.query(
+      `SELECT uo.id, uo.role, uo.organizationId, o.name as organizationName
+       FROM "UserOrganizations" uo
+       LEFT JOIN "Organizations" o ON o.id = uo.organizationId
+       WHERE uo.userId = $1 AND uo."deletedAt" IS NULL`,
+      [userId],
+    );
+
+    console.log('[USER-DEBUG-3.1] UserOrganizations query result:', orgResult);
+
+    // Create User entity from raw result with same structure as before
+    const userData = userResult[0];
     const user = new User();
     user.id = userData.id;
     user.email = userData.email;
     user.is_super_admin = userData.is_super_admin;
 
-    console.log('[USER-DEBUG-5] Returning user successfully:', user);
+    // Add userOrganizations relation data to maintain same functionality
+    user.userOrganizations = orgResult.map((org) => ({
+      id: org.id,
+      role: org.role,
+      organizationId: org.organizationId,
+      organization: org.organizationName ? { id: org.organizationId, name: org.organizationName } : null,
+    })) as any;
+
+    console.log('[USER-DEBUG-5] Returning user successfully with organizations:', {
+      userId: user.id,
+      email: user.email,
+      organizationsCount: user.userOrganizations.length,
+    });
     return user;
   }
 
