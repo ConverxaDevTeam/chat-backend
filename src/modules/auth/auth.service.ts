@@ -70,7 +70,8 @@ export class AuthService {
     }
 
     const userPassword = await this.userService.findByEmailWithPassword(logInDto.email);
-
+    console.log('passwords;', userPassword, logInDto);
+    console.log(bcrypt.compareSync(logInDto.password, userPassword));
     if (!bcrypt.compareSync(logInDto.password, userPassword)) {
       throw new UnauthorizedException('Contraseña no válida.');
     }
