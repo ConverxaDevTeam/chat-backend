@@ -71,12 +71,9 @@ export class OrganizationService {
   }
 
   async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File, isSuperUser: boolean = false): Promise<Organization> {
-    console.log('🔍 [DEBUG] Iniciando createOrganization con:', { email: createOrganizationDto.email, hasFile: !!file });
-
     // Obtener el usuario por email
     const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
     const user = responseCreateUser.user;
-    console.log('🔍 [DEBUG] Usuario obtenido:', { userId: user.id, email: user.email });
 
     // Si no es superusuario, verificar si ya tiene una organización
     if (!isSuperUser) {
@@ -96,47 +93,32 @@ export class OrganizationService {
     }
 
     // Crear la organización
-    console.log('🔍 [DEBUG] Creando organización...');
     const organization = this.organizationRepository.create(createOrganizationDto);
     await this.organizationRepository.save(organization);
-    console.log('🔍 [DEBUG] Organización creada con ID:', organization.id);
 
     // Guardar el logo
-    console.log('🔍 [DEBUG] Guardando logo...');
     const logoUrl = await this.fileService.saveFile(file, `organizations/${organization.id}`, 'logo');
-    console.log('🔍 [DEBUG] Logo guardado:', logoUrl);
     organization.logo = logoUrl;
     await this.organizationRepository.save(organization);
-    console.log('🔍 [DEBUG] Organización actualizada con logo');
 
     // Asignar el usuario como propietario de la organización
-    console.log('🔍 [DEBUG] Asignando usuario como owner...');
     await this.userOrganizationService.create({
       organization,
       user: user,
       role: OrganizationRoleType.OWNER,
     });
-    console.log('🔍 [DEBUG] Usuario asignado como owner');
 
     // Crear límites según el tipo de organización
-    console.log('🔍 [DEBUG] Creando límites para tipo:', organization.type);
     if (organization.type === OrganizationType.FREE || organization.type === OrganizationType.CUSTOM) {
       await this.createOrganizationLimits(organization);
-      console.log('🔍 [DEBUG] Límites creados');
     }
 
     // Enviar email de notificación
     // Si el usuario fue creado, ya se envió un email de bienvenida con la contraseña desde getUserForEmailOrCreate
     // Solo enviamos el email de nueva organización si el usuario ya existía
-    console.log('🔍 [DEBUG] Enviando email...');
     if (!responseCreateUser.created) {
       await this.emailService.sendNewOrganizationEmail(user.email, 'Tu contraseña actual', organization.name);
-      console.log('🔍 [DEBUG] Email enviado');
-    } else {
-      console.log('🔍 [DEBUG] Email omitido (usuario recién creado)');
     }
-
-    console.log('🔍 [DEBUG] Organización creada exitosamente');
     return organization;
   }
 

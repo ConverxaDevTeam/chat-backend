@@ -115,21 +115,16 @@ export class UserService {
   }
 
   async getUserForEmailOrCreate(email: string) {
-    console.log('🔍 [DEBUG] getUserForEmailOrCreate iniciado con email:', email);
-    const user = await this.userRepository.findOne({ where: { email } });
-    console.log('🔍 [DEBUG] Usuario encontrado:', user ? { id: user.id, email: user.email } : 'NO ENCONTRADO');
+    const user = await this.findUserByQuery('email = $1', [email]);
 
     if (!user) {
-      console.log('🔍 [DEBUG] Creando nuevo usuario...');
       const newUser = new User();
       newUser.email = email;
       const password = this.generateRandomPassword();
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(password, salt);
       newUser.password = hashedPassword;
-      console.log('🔍 [DEBUG] Guardando nuevo usuario en DB...');
       await this.userRepository.save(newUser);
-      console.log('🔍 [DEBUG] Usuario creado con ID:', newUser.id);
 
       if (newUser.password) {
         await this.emailService.sendUserWellcome(newUser.email, password);
@@ -137,7 +132,6 @@ export class UserService {
       return { created: true, user: newUser, password };
     }
 
-    console.log('🔍 [DEBUG] Retornando usuario existente');
     return { created: false, user };
   }
 
