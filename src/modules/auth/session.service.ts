@@ -80,22 +80,13 @@ export class SessionService {
     console.log('[SESSION-DEBUG-8] findByIds called with userId:', userId, 'sessionId:', sessionId);
     console.log('[SESSION-DEBUG-8.1] findByIds input types:', typeof userId, typeof sessionId);
 
-    // First, let's try to find all sessions for this user
-    const allUserSessions = await this.sessionRepository.find({
-      where: { user: { id: userId } },
-      relations: ['user'],
-    });
-    console.log('[SESSION-DEBUG-8.2] All sessions for user:', allUserSessions.length);
-    console.log(
-      '[SESSION-DEBUG-8.3] Session IDs found:',
-      allUserSessions.map((s) => ({ id: s.id, created: s.created_at })),
-    );
-
-    // Now try the original query
-    const session = await this.sessionRepository.findOne({
-      where: { id: sessionId, user: { id: userId } },
-      relations: ['user'],
-    });
+    // Use query builder to properly join user relation
+    const session = await this.sessionRepository
+      .createQueryBuilder('session')
+      .leftJoinAndSelect('session.user', 'user')
+      .where('session.id = :sessionId', { sessionId })
+      .andWhere('user.id = :userId', { userId })
+      .getOne();
 
     console.log('[SESSION-DEBUG-9] findByIds result:', session ? 'FOUND' : 'NOT FOUND');
     if (session) {
@@ -106,18 +97,19 @@ export class SessionService {
         createdAt: session.created_at,
       });
     } else {
-      console.log('[SESSION-DEBUG-10] Session NOT FOUND - trying alternative query');
+      console.log('[SESSION-DEBUG-10] Session NOT FOUND - checking if session exists at all');
 
-      // Try finding just by session ID to see if it exists at all
-      const sessionById = await this.sessionRepository.findOne({
-        where: { id: sessionId },
-        relations: ['user'],
-      });
+      // Check if session exists without user filter
+      const sessionOnly = await this.sessionRepository
+        .createQueryBuilder('session')
+        .leftJoinAndSelect('session.user', 'user')
+        .where('session.id = :sessionId', { sessionId })
+        .getOne();
 
-      if (sessionById) {
+      if (sessionOnly) {
         console.log('[SESSION-DEBUG-10.1] Session exists but user mismatch:', {
-          sessionId: sessionById.id,
-          sessionUserId: sessionById.user?.id,
+          sessionId: sessionOnly.id,
+          sessionUserId: sessionOnly.user?.id,
           requestedUserId: userId,
         });
       } else {
