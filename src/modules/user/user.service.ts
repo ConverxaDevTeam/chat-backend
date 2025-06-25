@@ -39,10 +39,10 @@ export class UserService {
 
     // Get userOrganizations relation using native query to maintain exact same functionality
     const orgResult = await this.userRepository.query(
-      `SELECT uo.id, uo.role, uo.organizationId, o.name as organizationName
+      `SELECT uo.id, uo.role, uo."organizationId", o.name as organizationName
        FROM "UserOrganizations" uo
-       LEFT JOIN "Organizations" o ON o.id = uo.organizationId
-       WHERE uo.userId = $1 AND uo."deletedAt" IS NULL`,
+       LEFT JOIN "Organizations" o ON o.id = uo."organizationId"
+       WHERE uo."userId" = $1 AND uo."deletedAt" IS NULL`,
       [userId],
     );
 
