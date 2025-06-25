@@ -43,49 +43,35 @@ export class UserService {
     console.log('[DEBUG-USER-1] userExistByEmail llamado con email:', email);
 
     try {
-      console.log('[DEBUG-USER-2] Antes de ejecutar query SQL');
       // Usar consulta SQL nativa para evitar problemas con TypeORM/SSL
       const result = await this.userRepository.query('SELECT id, email, is_super_admin FROM "Users" WHERE email = $1 AND "deletedAt" IS NULL', [email]);
-      console.log('[DEBUG-USER-3] Resultado de query:', result);
 
       if (result.length === 0) {
-        console.log('[DEBUG-USER-4] No se encontró usuario');
         return null;
       }
 
-      // Crear objeto User desde el resultado SQL
       const userData = result[0];
       const user = new User();
       user.id = userData.id;
       user.email = userData.email;
       user.is_super_admin = userData.is_super_admin;
 
-      console.log('[DEBUG-USER-5] Usuario creado:', { id: user.id, email: user.email });
       return user;
     } catch (error) {
-      console.log('[DEBUG-USER-6] Error en userExistByEmail:', error.message);
       this.logger.error(`Error en userExistByEmail: ${error.message}`);
       throw error;
     }
   }
 
   async findByEmailWithPassword(email: string): Promise<string | null> {
-    console.log('[DEBUG-PASSWORD-1] findByEmailWithPassword llamado con email:', email);
-
     // Usar query nativa para obtener la contraseña
     const result = await this.userRepository.query('SELECT password FROM "Users" WHERE email = $1 AND "deletedAt" IS NULL', [email]);
 
-    console.log('[DEBUG-PASSWORD-2] Resultado de query:', result);
-
     if (result.length === 0) {
-      console.log('[DEBUG-PASSWORD-3] No se encontró usuario para contraseña');
       return null;
     }
 
-    const password = result[0].password;
-    console.log('[DEBUG-PASSWORD-4] Contraseña encontrada:', password ? 'SÍ' : 'NO');
-
-    return password;
+    return result[0].password;
   }
 
   async findByEmail(email: string) {
