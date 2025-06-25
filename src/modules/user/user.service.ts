@@ -129,7 +129,7 @@ export class UserService {
       // Enviar email de bienvenida
       await this.emailService.sendUserWellcome(newUser.email, password);
 
-      return { created: true, user: newUser, password };
+      return { created: true, user: newUser };
     }
 
     return { created: false, user };
