@@ -26,10 +26,14 @@ export class SessionService {
   }
 
   async createSession(req, user: User): Promise<Session> {
+    console.log('[SESSION-DEBUG-1] createSession called for user:', user.id);
+
     const jwtTokenRefreshExpiration: number = this.configService.get<number>('session.jwtTokenRefreshExpiration') ?? 604800; // 1 semana
+    console.log('[SESSION-DEBUG-2] JWT expiration:', jwtTokenRefreshExpiration);
 
     const expiredAt = new Date();
     expiredAt.setSeconds(expiredAt.getSeconds() + jwtTokenRefreshExpiration);
+    console.log('[SESSION-DEBUG-3] Session will expire at:', expiredAt);
 
     const session = new Session();
 
@@ -45,7 +49,20 @@ export class SessionService {
     session.operatingSystem = operatingSystem;
     session.expiredAt = expiredAt;
 
-    return this.sessionRepository.save(session);
+    console.log('[SESSION-DEBUG-4] Session data before save:', {
+      userId: user.id,
+      ip: session.ip,
+      browser: session.browser,
+      operatingSystem: session.operatingSystem,
+      expiredAt: session.expiredAt,
+    });
+
+    console.log('[SESSION-DEBUG-5] About to save session to database');
+    const savedSession = await this.sessionRepository.save(session);
+    console.log('[SESSION-DEBUG-6] Session saved successfully with ID:', savedSession.id);
+    console.log('[SESSION-DEBUG-7] Saved session data:', savedSession);
+
+    return savedSession;
   }
 
   async removeSession(session: Session): Promise<void> {
@@ -53,9 +70,23 @@ export class SessionService {
   }
 
   async findByIds(userId, sessionId): Promise<Session | null> {
-    return this.sessionRepository.findOne({
+    console.log('[SESSION-DEBUG-8] findByIds called with userId:', userId, 'sessionId:', sessionId);
+
+    const session = await this.sessionRepository.findOne({
       where: { id: sessionId, user: { id: userId } },
     });
+
+    console.log('[SESSION-DEBUG-9] findByIds result:', session ? 'FOUND' : 'NOT FOUND');
+    if (session) {
+      console.log('[SESSION-DEBUG-10] Found session details:', {
+        id: session.id,
+        userId: session.user?.id,
+        expiredAt: session.expiredAt,
+        createdAt: session.createdAt,
+      });
+    }
+
+    return session;
   }
 
   async removeByIds(user: User, sessionId): Promise<void> {

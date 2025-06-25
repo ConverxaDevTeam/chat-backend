@@ -49,8 +49,6 @@ export class UserService {
   }
 
   async userExistByEmail(email: string): Promise<User | null> {
-    console.log('[DEBUG-USER-1] userExistByEmail llamado con email:', email);
-
     try {
       // Usar consulta SQL nativa para evitar problemas con TypeORM/SSL
       const result = await this.userRepository.query('SELECT id, email, is_super_admin FROM "Users" WHERE email = $1 AND "deletedAt" IS NULL', [email]);
