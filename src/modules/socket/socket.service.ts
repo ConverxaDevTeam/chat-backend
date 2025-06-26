@@ -61,17 +61,31 @@ export class SocketService {
       socket.join(`organization-${org.organization}`);
     }
     this.logger.debug(`User ${userId} joined ${userOrg.length} organizations`);
+    this.logger.verbose(`[SOCKET-SETUP] Configurando event listeners para usuario ${userId}`);
+
     // Cuando un cliente se une a un room
     socket.on('join', (room: string) => {
       // El room se crea de manera implícita si no existe
       socket.join(room);
-      this.logger.debug(`User ${userId} joined room ${room}`);
+      this.logger.verbose(`[SOCKET-JOIN] User ${userId} joined room ${room}`);
     });
 
     // Cuando un cliente deja un room
     socket.on('leave', (room: string) => {
       socket.leave(room);
+      this.logger.verbose(`[SOCKET-LEAVE] User ${userId} left room ${room}`);
     });
+
+    // Log de eventos de desconexión
+    socket.on('disconnect', (reason) => {
+      this.logger.verbose(`[SOCKET-DISCONNECT] User ${userId} desconectado - Razón: ${reason}`);
+    });
+
+    socket.on('error', (error) => {
+      this.logger.error(`[SOCKET-ERROR] Error en socket ${socketId} - User ${userId}: ${error}`);
+    });
+
+    this.logger.verbose(`[SOCKET-READY] Usuario ${userId} completamente configurado y listo`);
   }
 
   // Manejar la desconexión de un socket
