@@ -30,7 +30,7 @@ curl -X POST http://localhost:3001/api/facebook/webhook -H "Content-Type: applic
 curl -X POST http://localhost:3001/api/facebook/webhook -H "Content-Type: application/json" -d @test/facebook/webhook_facebook_example.json
 ```
 
-## 4. Scripts de Prueba Automatizados
+## 4. Scripts de Prueba a usar
 ```bash
 # Script WhatsApp completo
 #!/bin/bash
