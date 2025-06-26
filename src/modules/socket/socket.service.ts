@@ -61,7 +61,7 @@ export class SocketService {
       socket.join(`organization-${org.organization}`);
     }
     this.logger.debug(`User ${userId} joined ${userOrg.length} organizations`);
-    this.logger.error(`[SOCKET-ROOMS-PROD] Usuario ${userId} unido a rooms - Socket: ${socketId}, Connected: ${socket.connected}`);
+
     this.logger.verbose(`[SOCKET-SETUP] Configurando event listeners para usuario ${userId}`);
 
     // Cuando un cliente se une a un room
@@ -80,16 +80,13 @@ export class SocketService {
     // Log de eventos de desconexión
     socket.on('disconnect', (reason) => {
       this.logger.verbose(`[SOCKET-DISCONNECT] User ${userId} desconectado - Razón: ${reason}`);
-      this.logger.error(`[SOCKET-DISCONNECT-PROD] DISCONNECT detected - Socket: ${socketId}, User: ${userId}, Reason: ${reason}`);
     });
 
     socket.on('error', (error) => {
       this.logger.error(`[SOCKET-ERROR] Error en socket ${socketId} - User ${userId}: ${error}`);
-      this.logger.error(`[SOCKET-ERROR-PROD] ERROR detected - Socket: ${socketId}, Connected: ${socket.connected}`);
     });
 
     this.logger.verbose(`[SOCKET-READY] Usuario ${userId} completamente configurado y listo`);
-    this.logger.error(`[SOCKET-READY-PROD] Usuario ${userId} READY - Socket: ${socketId}, Connected: ${socket.connected}`);
   }
 
   // Manejar la desconexión de un socket
