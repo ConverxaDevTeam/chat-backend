@@ -345,7 +345,7 @@ export class IntegrationService {
     const script = `(async () => {
       await import('${this.configService.get<string>('url.files')}/files/converxa-chat.min.js');
       const config = ${configJson};
-      converxa.default.init(config);
+      ConverxaChat.default.init(config);
     })();
 `;
 

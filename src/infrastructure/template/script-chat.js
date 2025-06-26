@@ -8,5 +8,5 @@
     fontFamily: 'Arial, sans-serif',
     theme: 'Light',
   };
-  converxa.default.init(config);
+  ConverxaChat.default.init(config);
 })();

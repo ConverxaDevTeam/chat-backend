@@ -253,8 +253,8 @@ emergency:
 		echo "$(GREEN)Restaurando configuración básica...$(NC)"; \
 		ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '\
 			echo "blue" > /opt/.blue-green-state; \
-			/opt/sofia-chat/scripts/update-prod-config.sh blue; \
-			/opt/sofia-chat/scripts/update-nginx-full.sh; \
+			/opt/converxa/scripts/update-prod-config.sh blue; \
+			/opt/converxa/scripts/update-nginx-full.sh; \
 			systemctl reload nginx; \
 			echo "Configuración básica restaurada"'; \
 	else \
@@ -294,7 +294,7 @@ debug:
 monitor:
 	@echo "$(GREEN)Iniciando monitoreo continuo...$(NC)"
 	@echo "$(YELLOW)Presiona Ctrl+C para salir$(NC)"
-	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/sofia-chat/scripts/health-check.sh monitor'
+	@ssh -i $(SSH_KEY) $(SSH_USER)@$(SSH_HOST) '/opt/converxa/scripts/health-check.sh monitor'
 
 # ========================================
 # HELPERS INTERNOS
@@ -327,10 +327,10 @@ show-config:
 
 show-domains:
 	@echo "$(GREEN)Dominios configurados:$(NC)"
-	@echo "Backend Producción: dev-sofia-chat.sofiacall.com"
-	@echo "Backend Pruebas: internal-dev-sofia-chat.sofiacall.com"
-	@echo "Frontend Producción: app-sofia-chat.sofiacall.com"
-	@echo "Frontend Pruebas: internal-app-sofia-chat.sofiacall.com"
+	@echo "Backend Producción: back-chat.converxa.net"
+	@echo "Backend Pruebas: internal-back-chat.converxa.net"
+	@echo "Frontend Producción: app-chat.converxa.net"
+	@echo "Frontend Pruebas: internal-app-chat.converxa.net"
 
 show-ports:
 	@echo "$(GREEN)Puertos configurados:$(NC)"

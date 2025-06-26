@@ -23,22 +23,22 @@ image = "ubuntu-24-10-x64"
 
 # === CONFIGURACIÓN DE REPOSITORIOS ===
 # URL del repositorio del frontend
-frontend_repo_url = "https://github.com/your-org/sofia-chat-frontend-v2.git"
+frontend_repo_url = "https://github.com/your-org/converxat-frontend-v2.git"
 
 # URL del repositorio del backend
-backend_repo_url = "https://github.com/your-org/sofia-chat-backend-v2.git"
+backend_repo_url = "https://github.com/your-org/converxa-backend-v2.git"
 
 # === CONFIGURACIÓN DE APIs PARA FRONTEND ===
 # URL de la API para el frontend de producción
-frontend_prod_api_url = "https://dev-sofia-chat.sofiacall.com"
+frontend_prod_api_url = "https://devconverxa.converxa.com"
 
 # URL de la API para el frontend de pruebas internas
-frontend_internal_api_url = "https://internal-dev-sofia-chat.sofiacall.com"
+frontend_internal_api_url = "https://internal-dev-converxa.converxa.com"
 
 # === DOMINIOS CONFIGURADOS AUTOMÁTICAMENTE ===
 # Backend:
-#   - Producción: dev-sofia-chat.sofiacall.com
-#   - Pruebas: internal-dev-sofia-chat.sofiacall.com
+#   - Producción: dev-sofia-chat.converxa.com
+#   - Pruebas: internal-dev-sofia-chat.converxa.com
 # Frontend:
-#   - Producción: app-sofia-chat.sofiacall.com
-#   - Pruebas: internal-app-sofia-chat.sofiacall.com
+#   - Producción: app-sofia-chat.converxa.com
+#   - Pruebas: internal-app-sofia-chat.converxa.com
