@@ -19,7 +19,7 @@ RUN npm install
 
 COPY . .
 
-RUN npm run build
+RUN npm run build || (echo "❌ BUILD FAILED - TypeScript compilation errors detected" && exit 1)
 
 # Expose both ports for blue-green
 EXPOSE 3001 3002

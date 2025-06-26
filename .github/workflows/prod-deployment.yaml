@@ -101,18 +101,7 @@ jobs:
             echo "Último commit: $(git log --oneline -1)"
             git status --short
 
-            echo "=== VERIFICACIÓN DE TYPESCRIPT ==="
-            echo "Instalando dependencias para verificación..."
-            npm install --production=false
 
-            echo "Verificando errores de TypeScript..."
-            if npm run build:check; then
-                echo "✅ Verificación de TypeScript exitosa"
-            else
-                echo "❌ Errores de TypeScript encontrados"
-                echo "El deployment se cancela para evitar código roto en producción"
-                exit 1
-            fi
 
             # Create environment file with proper quoting
             cat > .env << 'ENV_EOF'
