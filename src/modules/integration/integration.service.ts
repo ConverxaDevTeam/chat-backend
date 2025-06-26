@@ -64,8 +64,8 @@ export class IntegrationService {
       const config = {
         url: this.configService.get<string>('url.wss'),
         url_assets: this.configService.get<string>('url.files'),
-        name: 'SOF.IA',
-        title: 'SOF.IA CHAT',
+        name: 'CONVERXA',
+        title: 'CONVERXA CHAT',
         cors: [],
         sub_title: 'Descubre todo lo que SOFIA puede hacer por ti.',
         description: '¡Hola y bienvenido a SOFIA! Estoy aquí para ayudarte a encontrar respuestas y soluciones de manera rápida y sencilla. ¿En qué puedo asistirte hoy?',

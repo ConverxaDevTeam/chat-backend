@@ -116,7 +116,7 @@ export class SocketService {
   async sendToChatBot(message: string, room: string, identifier: agentIdentifier | TestAgentIdentifier, conversationId: number, images: string[] = []) {
     this.socketServer.to(room).emit('typing', { message, images });
     if (![AgentIdentifierType.TEST, AgentIdentifierType.CHAT_TEST].includes(identifier.type)) {
-      console.log('set to chatbot:', identifier.type);
+      this.logger.error('set to chatbot:', identifier.type);
       throw new Error('No se ha creado la logica para obtener el agentId para el tipo de agente');
     }
     const agentId = (identifier as TestAgentIdentifier).agentId;
@@ -271,7 +271,7 @@ export class SocketService {
         // Si el usuario es HITL y la notificación es escalamiento general (sin usuario específico),
         // no enviar la notificación (consistente con filtro de DB)
         if (userRole === OrganizationRoleType.HITL) {
-          console.log(`[SOCKET FILTER] No enviando notificación de escalamiento general a usuario HITL ${clientData.userId}`);
+          this.logger.verbose(`[SOCKET FILTER] No enviando notificación de escalamiento general a usuario HITL ${clientData.userId}`);
           continue;
         }
       }

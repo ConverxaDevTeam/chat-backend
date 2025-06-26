@@ -83,6 +83,7 @@ export class SocketGateway {
 @WebSocketGateway()
 export class WebChatSocketGateway implements OnModuleInit {
   private server: ServerWs;
+  private readonly logger = new Logger(WebChatSocketGateway.name);
 
   constructor(
     private readonly integrationService: IntegrationService,
@@ -101,7 +102,7 @@ export class WebChatSocketGateway implements OnModuleInit {
 
     this.server.on('connection', (socket, request) => {
       const origin = request.headers['origin'] as string;
-      console.log(`[WEBCHAT-INIT] Nueva conexión WebSocket desde origen: ${origin}`);
+      this.logger.verbose(`[WEBCHAT-INIT] Nueva conexión WebSocket desde origen: ${origin}`);
       let init: boolean = false;
       let chatUserActual: ChatUser;
       let departamentoActual: Departamento;
@@ -109,29 +110,29 @@ export class WebChatSocketGateway implements OnModuleInit {
       socket.on('message', async (data) => {
         try {
           const dataJson = JSON.parse(data.toString());
-          console.log(`[WEBCHAT-MESSAGE] Mensaje recibido - Action: ${dataJson.action}, Origin: ${origin}`);
+          this.logger.verbose(`[WEBCHAT-MESSAGE] Mensaje recibido - Action: ${dataJson.action}, Origin: ${origin}`);
           if (dataJson.action === 'init') {
-            console.log(`[WEBCHAT-INIT] Iniciando proceso de inicialización con ID: ${dataJson.id}`);
+            this.logger.verbose(`[WEBCHAT-INIT] Iniciando proceso de inicialización con ID: ${dataJson.id}`);
             const integration = await this.integrationService.getIntegrationWebChatById(dataJson.id);
-            console.log(`[WEBCHAT-INTEGRATION] Búsqueda de integración - ID: ${dataJson.id}, Encontrada: ${!!integration}`);
+            this.logger.verbose(`[WEBCHAT-INTEGRATION] Búsqueda de integración - ID: ${dataJson.id}, Encontrada: ${!!integration}`);
             if (!integration) {
-              console.log(`[WEBCHAT-ERROR] Integración no encontrada para ID: ${dataJson.id}`);
+              this.logger.error(`[WEBCHAT-ERROR] Integración no encontrada para ID: ${dataJson.id}`);
               socket.send(JSON.stringify({ action: 'error', message: 'Integration not found' }));
               socket.close();
               return;
             }
             const departamento = await this.integrationService.getDepartamentoById(integration.departamento.id);
-            console.log(`[WEBCHAT-DEPARTMENT] Búsqueda de departamento - ID: ${integration.departamento.id}, Encontrado: ${!!departamento}`);
+            this.logger.verbose(`[WEBCHAT-DEPARTMENT] Búsqueda de departamento - ID: ${integration.departamento.id}, Encontrado: ${!!departamento}`);
             if (!departamento) {
-              console.log(`[WEBCHAT-ERROR] Departamento no encontrado para ID: ${integration.departamento.id}`);
+              this.logger.error(`[WEBCHAT-ERROR] Departamento no encontrado para ID: ${integration.departamento.id}`);
               socket.send(JSON.stringify({ action: 'error', message: 'Department not found' }));
               socket.close();
               return;
             }
             departamentoActual = departamento;
-            console.log(`[WEBCHAT-DEPARTMENT] Departamento asignado - ID: ${departamento.id}, Organización: ${departamento.organizacion?.id || departamento.organizacion}`);
+            this.logger.verbose(`[WEBCHAT-DEPARTMENT] Departamento asignado - ID: ${departamento.id}, Organización: ${departamento.organizacion?.id || departamento.organizacion}`);
             const integrationConfig = JSON.parse(integration.config);
-            console.log(`[WEBCHAT-CORS] Verificando CORS - Origin: ${origin}, CORS config: ${JSON.stringify(integrationConfig?.cors)}`);
+            this.logger.verbose(`[WEBCHAT-CORS] Verificando CORS - Origin: ${origin}, CORS config: ${JSON.stringify(integrationConfig?.cors)}`);
             if (
               !integrationConfig?.cors?.some((corsUrl: string) => {
                 try {
@@ -159,14 +160,14 @@ export class WebChatSocketGateway implements OnModuleInit {
                 }
               })
             ) {
-              console.log(`[WEBCHAT-ERROR] CORS no permitido - Origin: ${origin} no está en la lista de CORS permitidos`);
+              this.logger.error(`[WEBCHAT-ERROR] CORS no permitido - Origin: ${origin} no está en la lista de CORS permitidos`);
               socket.send(JSON.stringify({ action: 'error', message: 'CORS not allowed' }));
               socket.close();
               return;
             }
-            console.log(`[WEBCHAT-CORS] CORS verificado exitosamente para origin: ${origin}`);
+            this.logger.verbose(`[WEBCHAT-CORS] CORS verificado exitosamente para origin: ${origin}`);
             init = true;
-            console.log(`[WEBCHAT-USER] Verificando usuario - User: ${dataJson.user}, HasSecret: ${!!dataJson.user_secret}`);
+            this.logger.verbose(`[WEBCHAT-USER] Verificando usuario - User: ${dataJson.user}, HasSecret: ${!!dataJson.user_secret}`);
             if (!dataJson.user || !dataJson.user_secret) {
               const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
               this.socketService.registerWebChatClient(chatUser.id, socket);
@@ -176,7 +177,9 @@ export class WebChatSocketGateway implements OnModuleInit {
               return;
             }
             const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
-            console.log(`[WEBCHAT-AUTH] Verificando secreto de usuario - UserID: ${dataJson.user}, SecretValid: ${secretUser === dataJson.user_secret && secretUser !== null}`);
+            this.logger.verbose(
+              `[WEBCHAT-AUTH] Verificando secreto de usuario - UserID: ${dataJson.user}, SecretValid: ${secretUser === dataJson.user_secret && secretUser !== null}`,
+            );
             if (secretUser !== dataJson.user_secret || secretUser === null) {
               const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
               this.socketService.registerWebChatClient(chatUser.id, socket);
@@ -186,12 +189,12 @@ export class WebChatSocketGateway implements OnModuleInit {
               return;
             }
             const chatUser = await this.chatUserService.findById(Number(dataJson.user));
-            console.log(`[WEBCHAT-USER] Buscando usuario existente - UserID: ${dataJson.user}, Encontrado: ${!!chatUser}`);
+            this.logger.verbose(`[WEBCHAT-USER] Buscando usuario existente - UserID: ${dataJson.user}, Encontrado: ${!!chatUser}`);
             if (chatUser) {
-              console.log(`[WEBCHAT-USER] Usuario encontrado - ID: ${chatUser.id}, Conversaciones: ${chatUser.conversations?.length || 0}`);
+              this.logger.verbose(`[WEBCHAT-USER] Usuario encontrado - ID: ${chatUser.id}, Conversaciones: ${chatUser.conversations?.length || 0}`);
               this.socketService.registerWebChatClient(chatUser.id, socket);
               await this.chatUserService.updateLastLogin(chatUser);
-              console.log(`[WEBCHAT-CONVERSATIONS] Enviando ${chatUser.conversations?.length || 0} conversaciones para usuario: ${chatUser.id}`);
+              this.logger.verbose(`[WEBCHAT-CONVERSATIONS] Enviando ${chatUser.conversations?.length || 0} conversaciones para usuario: ${chatUser.id}`);
               socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
               chatUserActual = chatUser;
             } else {
@@ -200,7 +203,7 @@ export class WebChatSocketGateway implements OnModuleInit {
             }
           } else {
             if (!init || !chatUserActual) {
-              console.log(`[WEBCHAT-ERROR] Acción sin inicializar - Init: ${init}, User: ${!!chatUserActual}, Action: ${dataJson.action}`);
+              this.logger.error(`[WEBCHAT-ERROR] Acción sin inicializar - Init: ${init}, User: ${!!chatUserActual}, Action: ${dataJson.action}`);
               socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
               socket.close();
               return;
@@ -240,7 +243,7 @@ export class WebChatSocketGateway implements OnModuleInit {
                   if (!messageAi) return;
                   this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
                 } catch (error) {
-                  console.log('error:', error);
+                  this.logger.error('error:', error);
                 }
               }
             } else if (dataJson.action === 'send-audio') {
@@ -272,7 +275,7 @@ export class WebChatSocketGateway implements OnModuleInit {
                   if (!messageAi) return;
                   this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
                 } catch (error) {
-                  console.log('error:', error);
+                  this.logger.error('error:', error);
                 }
               }
             }
@@ -285,7 +288,7 @@ export class WebChatSocketGateway implements OnModuleInit {
       });
 
       socket.on('close', () => {
-        console.log(`[WEBCHAT-CLOSE] Conexión cerrada - Origin: ${origin}, UserID: ${chatUserActual?.id || 'N/A'}`);
+        this.logger.verbose(`[WEBCHAT-CLOSE] Conexión cerrada - Origin: ${origin}, UserID: ${chatUserActual?.id || 'N/A'}`);
         if (chatUserActual?.id) {
           this.socketService.removeWebChatClient(chatUserActual.id);
         }
