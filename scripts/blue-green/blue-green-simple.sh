@@ -308,6 +308,11 @@ deploy() {
     log "Construyendo nueva imagen..."
     $DOCKER_COMPOSE build --no-cache converxa-backend-$target_slot
 
+    # Limpiar imágenes huérfanas después del build exitoso
+    log "Limpiando imágenes huérfanas..."
+    docker image prune -f
+    log "✅ Imágenes huérfanas limpiadas"
+
     # Deploy al slot objetivo usando nueva imagen
 if [ "$target_slot" = "green" ]; then
     log "Desplegando a Green (puerto 3003)..."
@@ -329,6 +334,14 @@ fi
     log "✅ Deployment a $target_slot completado exitosamente"
     log "🧪 Puedes probar el nuevo deployment en puerto $([ "$target_slot" = "green" ] && echo "3003" || echo "3002")"
     log "⚠️  Para hacer switch a producción, ejecuta: ./blue-green-simple.sh switch"
+
+    # Mostrar información del espacio en disco
+    log "📊 Espacio en disco después del deployment:"
+    df -h / | grep -E "Filesystem|/dev"
+
+    # Mostrar imágenes Docker actuales
+    log "🐳 Imágenes Docker actuales:"
+    docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep -E "REPOSITORY|converxa-backend"
 }
 
 # Hacer switch entre blue y green

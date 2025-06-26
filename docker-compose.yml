@@ -4,6 +4,7 @@ services:
   # Blue Environment (Default/Primary)
   converxa-backend-blue:
     container_name: converxa-backend-blue
+    image: converxa-backend:blue
     build:
       dockerfile: Dockerfile
       context: .
@@ -29,6 +30,7 @@ services:
   # Green Environment (Secondary/Staging)
   converxa-backend-green:
     container_name: converxa-backend-green
+    image: converxa-backend:green
     build:
       dockerfile: Dockerfile
       context: .
