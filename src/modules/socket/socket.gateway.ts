@@ -112,172 +112,171 @@ export class WebChatSocketGateway implements OnModuleInit {
           console.log(`[WEBCHAT-MESSAGE] Mensaje recibido - Action: ${dataJson.action}, Origin: ${origin}`);
           if (dataJson.action === 'init') {
             console.log(`[WEBCHAT-INIT] Iniciando proceso de inicialización con ID: ${dataJson.id}`);
-          const integration = await this.integrationService.getIntegrationWebChatById(dataJson.id);
-          console.log(`[WEBCHAT-INTEGRATION] Búsqueda de integración - ID: ${dataJson.id}, Encontrada: ${!!integration}`);
-          if (!integration) {
-            console.log(`[WEBCHAT-ERROR] Integración no encontrada para ID: ${dataJson.id}`);
-            socket.send(JSON.stringify({ action: 'error', message: 'Integration not found' }));
-            socket.close();
-            return;
-          }
-          const departamento = await this.integrationService.getDepartamentoById(integration.departamento.id);
-          console.log(`[WEBCHAT-DEPARTMENT] Búsqueda de departamento - ID: ${integration.departamento.id}, Encontrado: ${!!departamento}`);
-          if (!departamento) {
-            console.log(`[WEBCHAT-ERROR] Departamento no encontrado para ID: ${integration.departamento.id}`);
-            socket.send(JSON.stringify({ action: 'error', message: 'Department not found' }));
-            socket.close();
-            return;
-          }
-          departamentoActual = departamento;
-          console.log(`[WEBCHAT-DEPARTMENT] Departamento asignado - ID: ${departamento.id}, Organización: ${departamento.organizacion?.id || departamento.organizacion}`);
-          const integrationConfig = JSON.parse(integration.config);
-          console.log(`[WEBCHAT-CORS] Verificando CORS - Origin: ${origin}, CORS config: ${JSON.stringify(integrationConfig?.cors)}`);
-          if (
-            !integrationConfig?.cors?.some((corsUrl: string) => {
-              try {
-                // Normalizar URLs para manejar diferentes protocolos
-                let normalizedCorsUrl = corsUrl;
-                let normalizedOrigin = origin;
+            const integration = await this.integrationService.getIntegrationWebChatById(dataJson.id);
+            console.log(`[WEBCHAT-INTEGRATION] Búsqueda de integración - ID: ${dataJson.id}, Encontrada: ${!!integration}`);
+            if (!integration) {
+              console.log(`[WEBCHAT-ERROR] Integración no encontrada para ID: ${dataJson.id}`);
+              socket.send(JSON.stringify({ action: 'error', message: 'Integration not found' }));
+              socket.close();
+              return;
+            }
+            const departamento = await this.integrationService.getDepartamentoById(integration.departamento.id);
+            console.log(`[WEBCHAT-DEPARTMENT] Búsqueda de departamento - ID: ${integration.departamento.id}, Encontrado: ${!!departamento}`);
+            if (!departamento) {
+              console.log(`[WEBCHAT-ERROR] Departamento no encontrado para ID: ${integration.departamento.id}`);
+              socket.send(JSON.stringify({ action: 'error', message: 'Department not found' }));
+              socket.close();
+              return;
+            }
+            departamentoActual = departamento;
+            console.log(`[WEBCHAT-DEPARTMENT] Departamento asignado - ID: ${departamento.id}, Organización: ${departamento.organizacion?.id || departamento.organizacion}`);
+            const integrationConfig = JSON.parse(integration.config);
+            console.log(`[WEBCHAT-CORS] Verificando CORS - Origin: ${origin}, CORS config: ${JSON.stringify(integrationConfig?.cors)}`);
+            if (
+              !integrationConfig?.cors?.some((corsUrl: string) => {
+                try {
+                  // Normalizar URLs para manejar diferentes protocolos
+                  let normalizedCorsUrl = corsUrl;
+                  let normalizedOrigin = origin;
 
-                // Agregar protocolo si no existe
-                if (!normalizedCorsUrl.includes('://')) {
-                  normalizedCorsUrl = `https://${normalizedCorsUrl}`;
+                  // Agregar protocolo si no existe
+                  if (!normalizedCorsUrl.includes('://')) {
+                    normalizedCorsUrl = `https://${normalizedCorsUrl}`;
+                  }
+
+                  if (!normalizedOrigin.includes('://')) {
+                    normalizedOrigin = `https://${normalizedOrigin}`;
+                  }
+
+                  const url = new URL(normalizedCorsUrl);
+                  const originUrl = new URL(normalizedOrigin);
+
+                  // Comparar solo los hostnames para ignorar diferencias de protocolo
+                  return url.hostname === originUrl.hostname;
+                } catch (error) {
+                  console.error(`Error validando CORS URL: ${corsUrl} contra origen: ${origin}`, error);
+                  return false;
                 }
-
-                if (!normalizedOrigin.includes('://')) {
-                  normalizedOrigin = `https://${normalizedOrigin}`;
-                }
-
-                const url = new URL(normalizedCorsUrl);
-                const originUrl = new URL(normalizedOrigin);
-
-                // Comparar solo los hostnames para ignorar diferencias de protocolo
-                return url.hostname === originUrl.hostname;
-              } catch (error) {
-                console.error(`Error validando CORS URL: ${corsUrl} contra origen: ${origin}`, error);
-                return false;
-              }
-            })
-          ) {
-            console.log(`[WEBCHAT-ERROR] CORS no permitido - Origin: ${origin} no está en la lista de CORS permitidos`);
-            socket.send(JSON.stringify({ action: 'error', message: 'CORS not allowed' }));
-            socket.close();
-            return;
-          }
-          console.log(`[WEBCHAT-CORS] CORS verificado exitosamente para origin: ${origin}`);
-          init = true;
-          console.log(`[WEBCHAT-USER] Verificando usuario - User: ${dataJson.user}, HasSecret: ${!!dataJson.user_secret}`);
-          if (!dataJson.user || !dataJson.user_secret) {
-            const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
-            this.socketService.registerWebChatClient(chatUser.id, socket);
-            socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
-            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
-            chatUserActual = chatUser;
-            return;
-          }
-          const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
-          console.log(`[WEBCHAT-AUTH] Verificando secreto de usuario - UserID: ${dataJson.user}, SecretValid: ${secretUser === dataJson.user_secret && secretUser !== null}`);
-          if (secretUser !== dataJson.user_secret || secretUser === null) {
-            const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
-            this.socketService.registerWebChatClient(chatUser.id, socket);
-            socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
-            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
-            chatUserActual = chatUser;
-            return;
-          }
-          const chatUser = await this.chatUserService.findById(Number(dataJson.user));
-          console.log(`[WEBCHAT-USER] Buscando usuario existente - UserID: ${dataJson.user}, Encontrado: ${!!chatUser}`);
-          if (chatUser) {
-            console.log(`[WEBCHAT-USER] Usuario encontrado - ID: ${chatUser.id}, Conversaciones: ${chatUser.conversations?.length || 0}`);
-            this.socketService.registerWebChatClient(chatUser.id, socket);
-            await this.chatUserService.updateLastLogin(chatUser);
-            console.log(`[WEBCHAT-CONVERSATIONS] Enviando ${chatUser.conversations?.length || 0} conversaciones para usuario: ${chatUser.id}`);
-            socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
-            chatUserActual = chatUser;
+              })
+            ) {
+              console.log(`[WEBCHAT-ERROR] CORS no permitido - Origin: ${origin} no está en la lista de CORS permitidos`);
+              socket.send(JSON.stringify({ action: 'error', message: 'CORS not allowed' }));
+              socket.close();
+              return;
+            }
+            console.log(`[WEBCHAT-CORS] CORS verificado exitosamente para origin: ${origin}`);
+            init = true;
+            console.log(`[WEBCHAT-USER] Verificando usuario - User: ${dataJson.user}, HasSecret: ${!!dataJson.user_secret}`);
+            if (!dataJson.user || !dataJson.user_secret) {
+              const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
+              this.socketService.registerWebChatClient(chatUser.id, socket);
+              socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
+              socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
+              chatUserActual = chatUser;
+              return;
+            }
+            const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
+            console.log(`[WEBCHAT-AUTH] Verificando secreto de usuario - UserID: ${dataJson.user}, SecretValid: ${secretUser === dataJson.user_secret && secretUser !== null}`);
+            if (secretUser !== dataJson.user_secret || secretUser === null) {
+              const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
+              this.socketService.registerWebChatClient(chatUser.id, socket);
+              socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
+              socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
+              chatUserActual = chatUser;
+              return;
+            }
+            const chatUser = await this.chatUserService.findById(Number(dataJson.user));
+            console.log(`[WEBCHAT-USER] Buscando usuario existente - UserID: ${dataJson.user}, Encontrado: ${!!chatUser}`);
+            if (chatUser) {
+              console.log(`[WEBCHAT-USER] Usuario encontrado - ID: ${chatUser.id}, Conversaciones: ${chatUser.conversations?.length || 0}`);
+              this.socketService.registerWebChatClient(chatUser.id, socket);
+              await this.chatUserService.updateLastLogin(chatUser);
+              console.log(`[WEBCHAT-CONVERSATIONS] Enviando ${chatUser.conversations?.length || 0} conversaciones para usuario: ${chatUser.id}`);
+              socket.send(JSON.stringify({ action: 'upload-conversations', conversations: chatUser.conversations }));
+              chatUserActual = chatUser;
+            } else {
+              socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
+              socket.close();
+            }
           } else {
-            socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
-            socket.close();
-          }
-          }
-        } else {
-          if (!init || !chatUserActual) {
-            console.log(`[WEBCHAT-ERROR] Acción sin inicializar - Init: ${init}, User: ${!!chatUserActual}, Action: ${dataJson.action}`);
-            socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
-            socket.close();
-            return;
-          }
-          if (dataJson.action === 'create-conversation') {
-            const conversation = await this.conversationService.createConversation(chatUserActual, departamentoActual);
-            socket.send(JSON.stringify({ action: 'conversation-created', conversation }));
-          } else if (dataJson.action === 'delete-conversation') {
-            const conversation = await this.conversationService.deleteConversation(dataJson.id, chatUserActual);
-            if (conversation) {
-              socket.send(JSON.stringify({ action: 'conversation-deleted', id: conversation.id }));
+            if (!init || !chatUserActual) {
+              console.log(`[WEBCHAT-ERROR] Acción sin inicializar - Init: ${init}, User: ${!!chatUserActual}, Action: ${dataJson.action}`);
+              socket.send(JSON.stringify({ action: 'error', message: 'Not initialized' }));
+              socket.close();
+              return;
             }
-          } else if (dataJson.action === 'update-conversation') {
-            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.id, chatUserActual);
-            if (conversation) {
-              socket.send(JSON.stringify({ action: 'conversation-updated', conversation }));
-            }
-          } else if (dataJson.action === 'send-message') {
-            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
-            if (conversation) {
-              const organizationId = Number(departamentoActual.organizacion?.id || departamentoActual.organizacion);
-
-              const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
-              const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, organizationId, conversation?.user?.id, {
-                platform: IntegrationType.CHAT_WEB,
-                format: MessageFormatType.TEXT,
-                images: imageUrls,
-              });
-              socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
-
-              // FIXED: Using organizationId already defined above
-              this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
-              try {
-                const response = await this.integrationRouterService.processMessage(dataJson.message.text, conversation.id, imageUrls);
-                if (!response) return;
-                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format, MessageType.AGENT, organizationId);
-                if (!messageAi) return;
-                this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
-              } catch (error) {
-                console.log('error:', error);
+            if (dataJson.action === 'create-conversation') {
+              const conversation = await this.conversationService.createConversation(chatUserActual, departamentoActual);
+              socket.send(JSON.stringify({ action: 'conversation-created', conversation }));
+            } else if (dataJson.action === 'delete-conversation') {
+              const conversation = await this.conversationService.deleteConversation(dataJson.id, chatUserActual);
+              if (conversation) {
+                socket.send(JSON.stringify({ action: 'conversation-deleted', id: conversation.id }));
               }
-            }
-          } else if (dataJson.action === 'send-audio') {
-            const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
-            if (conversation) {
-              const audioBuffer = Buffer.from(dataJson.array_buffer, 'base64');
-              const uniqueName = `${uuid.v4()}.wav`;
-              const audioDir = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio');
-
-              if (!fs.existsSync(audioDir)) {
-                fs.mkdirSync(audioDir);
+            } else if (dataJson.action === 'update-conversation') {
+              const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.id, chatUserActual);
+              if (conversation) {
+                socket.send(JSON.stringify({ action: 'conversation-updated', conversation }));
               }
+            } else if (dataJson.action === 'send-message') {
+              const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
+              if (conversation) {
+                const organizationId = Number(departamentoActual.organizacion?.id || departamentoActual.organizacion);
 
-              const filePath = join(audioDir, uniqueName);
-              fs.writeFileSync(filePath, audioBuffer);
-              const message = await this.messageService.createMessage(conversation, '', MessageType.USER, Number(departamentoActual.organizacion), conversation?.user?.id, {
-                platform: IntegrationType.CHAT_WEB,
-                format: MessageFormatType.AUDIO,
-                audio_url: uniqueName,
-              });
-              socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+                const imageUrls = await this.integrationRouterService.saveImages(dataJson.message.images as string[]);
+                const message = await this.messageService.createMessage(conversation, dataJson.message.text, MessageType.USER, organizationId, conversation?.user?.id, {
+                  platform: IntegrationType.CHAT_WEB,
+                  format: MessageFormatType.TEXT,
+                  images: imageUrls,
+                });
+                socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
 
-              const organizationId = Number(departamentoActual.organizacion?.id || departamentoActual.organizacion);
-              this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
-              try {
-                const response = await this.integrationRouterService.processMessage(message.text, conversation.id);
-                if (!response) return;
-                const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, MessageFormatType.TEXT, MessageType.AGENT, organizationId);
-                if (!messageAi) return;
-                this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
-              } catch (error) {
-                console.log('error:', error);
+                // FIXED: Using organizationId already defined above
+                this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
+                try {
+                  const response = await this.integrationRouterService.processMessage(dataJson.message.text, conversation.id, imageUrls);
+                  if (!response) return;
+                  const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, message.format, MessageType.AGENT, organizationId);
+                  if (!messageAi) return;
+                  this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
+                } catch (error) {
+                  console.log('error:', error);
+                }
+              }
+            } else if (dataJson.action === 'send-audio') {
+              const conversation = await this.conversationService.findByIdAndByChatUserId(dataJson.conversation_id, chatUserActual);
+              if (conversation) {
+                const audioBuffer = Buffer.from(dataJson.array_buffer, 'base64');
+                const uniqueName = `${uuid.v4()}.wav`;
+                const audioDir = join(__dirname, '..', '..', '..', '..', 'uploads', 'audio');
+
+                if (!fs.existsSync(audioDir)) {
+                  fs.mkdirSync(audioDir);
+                }
+
+                const filePath = join(audioDir, uniqueName);
+                fs.writeFileSync(filePath, audioBuffer);
+                const message = await this.messageService.createMessage(conversation, '', MessageType.USER, Number(departamentoActual.organizacion), conversation?.user?.id, {
+                  platform: IntegrationType.CHAT_WEB,
+                  format: MessageFormatType.AUDIO,
+                  audio_url: uniqueName,
+                });
+                socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
+
+                const organizationId = Number(departamentoActual.organizacion?.id || departamentoActual.organizacion);
+                this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
+                try {
+                  const response = await this.integrationRouterService.processMessage(message.text, conversation.id);
+                  if (!response) return;
+                  const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, MessageFormatType.TEXT, MessageType.AGENT, organizationId);
+                  if (!messageAi) return;
+                  this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
+                } catch (error) {
+                  console.log('error:', error);
+                }
               }
             }
           }
-        }
         } catch (error) {
           console.error(`[WEBCHAT-ERROR] Error procesando mensaje:`, error);
           console.error(`[WEBCHAT-ERROR] Datos del mensaje:`, data.toString());
