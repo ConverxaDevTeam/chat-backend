@@ -65,6 +65,15 @@ import { CoreModule } from '@modules/core/core.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'scripts'),
       serveRoot: '/files',
+      serveStaticOptions: {
+        index: false,
+        setHeaders: (res, path, stat) => {
+          res.set('Access-Control-Allow-Origin', '*');
+          res.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+          res.set('Access-Control-Allow-Headers', 'Content-Type, Accept, Origin, X-Requested-With');
+          res.set('Cache-Control', 'public, max-age=31536000');
+        },
+      },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'audio'),

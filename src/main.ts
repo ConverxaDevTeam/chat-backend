@@ -88,10 +88,20 @@ async function bootstrap() {
     },
   });
 
-  // Configuración de CORS específica para '/converxa-chat'
-  app.use('/files', cors());
-  app.use('/assets', cors());
-  app.use('/images', cors());
+  // Configuración de CORS específica para rutas públicas - permitir todos los orígenes
+  const publicCorsOptions = {
+    origin: '*',
+    methods: ['GET', 'HEAD', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Origin', 'X-Requested-With', 'Cache-Control'],
+    credentials: false,
+    optionsSuccessStatus: 200,
+  };
+
+  app.use('/files', cors(publicCorsOptions));
+  app.use('/assets', cors(publicCorsOptions));
+  app.use('/images', cors(publicCorsOptions));
+  app.use('/logos', cors(publicCorsOptions));
+  app.use('/audio', cors(publicCorsOptions));
 
   // Configuración manual de archivos estáticos para uploads
   app.use(
