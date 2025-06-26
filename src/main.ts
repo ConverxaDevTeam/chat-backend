@@ -88,20 +88,23 @@ async function bootstrap() {
     },
   });
 
-  // Configuración de CORS específica para rutas públicas - permitir todos los orígenes
-  const publicCorsOptions = {
-    origin: '*',
-    methods: ['GET', 'HEAD', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept', 'Origin', 'X-Requested-With', 'Cache-Control'],
-    credentials: false,
-    optionsSuccessStatus: 200,
-  };
+  // Configuración manual de CORS para archivos estáticos públicos usando express middleware
+  app.use('/files', (req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(200);
+    } else {
+      next();
+    }
+  });
 
-  app.use('/files', cors(publicCorsOptions));
-  app.use('/assets', cors(publicCorsOptions));
-  app.use('/images', cors(publicCorsOptions));
-  app.use('/logos', cors(publicCorsOptions));
-  app.use('/audio', cors(publicCorsOptions));
+  // Configuración de CORS específica para otros archivos estáticos públicos
+  app.use('/assets', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
+  app.use('/images', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
+  app.use('/logos', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
+  app.use('/audio', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
 
   // Configuración manual de archivos estáticos para uploads
   app.use(
