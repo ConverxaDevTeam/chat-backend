@@ -65,9 +65,6 @@ import { CoreModule } from '@modules/core/core.module';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'scripts'),
       serveRoot: '/files',
-      serveStaticOptions: {
-        index: false,
-      },
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads', 'audio'),

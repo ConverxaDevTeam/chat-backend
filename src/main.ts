@@ -5,14 +5,11 @@ import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { urlencoded, json } from 'express';
-import * as express from 'express';
-import * as path from 'path';
 import * as pg from 'pg';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import { winstonLogger } from '@infrastructure/loggers/winston.logger';
 import { HttpExceptionFilter } from '@infrastructure/filters/global-exception.filter';
 import { WebChatSocketGateway } from '@modules/socket/socket.gateway';
-import { NestExpressApplication } from '@nestjs/platform-express';
 import * as cors from 'cors';
 
 export const logger = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'production' ? winstonLogger : new Logger('backend-chat');
@@ -33,7 +30,7 @@ async function bootstrap() {
   pg.defaults.parseInputDatesAsUTC = false;
   pg.types.setTypeParser(1114, (stringValue: string) => new Date(`${stringValue}Z`));
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+  const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'debug', 'log', 'verbose'],
   });
 
@@ -63,75 +60,28 @@ async function bootstrap() {
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,
-    origin: (origin, callback) => {
-      const allowedOrigins: (string | RegExp)[] = [
-        'https://app-chat.converxa.net',
-        'https://internal-app.converxa.net',
-        'https://back-chat.converxa.net',
-        'https://ci3.googleusercontent.com',
-        'https://drlntz6nkra23p6khm9h89.webrelay.io',
-        'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
-        'https://wki5y7wysxt8gqj0dw0yzh.webrelay.io',
-      ];
-
-      // Localhost solo en desarrollo
-      if (process.env.NODE_ENV === 'development') {
-        allowedOrigins.push(/http\:\/\/localhost\:\d{1,5}$/);
-      }
-
-      // Si no hay origin (requests directos como Postman) o está en la lista permitida
-      if (!origin || allowedOrigins.some((allowed) => (typeof allowed === 'string' ? allowed === origin : (allowed as RegExp).test(origin)))) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin:
+      process.env.NODE_ENV === 'development'
+        ? [/http\:\/\/localhost\:\d{1,5}$/]
+        : [
+            'https://app-chat.converxa.net',
+            'https://internal-app.converxa.net',
+            'https://back-chat.converxa.net',
+            'https://ci3.googleusercontent.com',
+            'https://drlntz6nkra23p6khm9h89.webrelay.io',
+            'https://qdn4t4csc2ryljnzjdyfd3.webrelay.io',
+            'https://wki5y7wysxt8gqj0dw0yzh.webrelay.io',
+          ],
   });
 
-  // Configuración manual de CORS para archivos estáticos públicos usando express middleware
-  app.use('/files', (req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    if (req.method === 'OPTIONS') {
-      res.sendStatus(200);
-    } else {
-      next();
-    }
-  });
-
-  // Configuración de CORS específica para otros archivos estáticos públicos
-  app.use('/assets', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
-  app.use('/images', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
-  app.use('/logos', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
-  app.use('/audio', cors({ origin: '*', methods: ['GET', 'HEAD', 'OPTIONS'] }));
-
-  // Configuración manual de archivos estáticos para uploads
-  app.use(
-    '/users',
-    express.static(path.join(process.cwd(), 'uploads', 'users'), {
-      index: false,
-      dotfiles: 'deny',
-    }),
-  );
-  app.use(
-    '/organizations',
-    express.static(path.join(process.cwd(), 'uploads', 'organizations'), {
-      index: false,
-      dotfiles: 'deny',
-    }),
-  );
-  app.use(
-    '/templates',
-    express.static(path.join(process.cwd(), 'uploads', 'templates'), {
-      index: false,
-      dotfiles: 'deny',
-    }),
-  );
+  // Configuración de CORS específica para '/sofia-chat'
+  app.use('/files', cors());
+  app.use('/assets', cors());
+  app.use('/images', cors());
 
   app.setGlobalPrefix('api');
 
-  const config = new DocumentBuilder().setTitle('Converxa API').setDescription('Converxa API documentation').addBearerAuth().setVersion('1.0').build();
+  const config = new DocumentBuilder().setTitle('SofiaChat API').setDescription('SofiaChat API docuemntation').addBearerAuth().setVersion('1.0').build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('doc', app, document);
 
