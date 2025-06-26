@@ -43,17 +43,22 @@ export class SocketGateway {
 
   // Manejar la conexión de un cliente
   async handleConnection(@ConnectedSocket() client: Socket) {
+    this.logger.verbose(`[SOCKET-CONNECTION] Nueva conexión entrante - SocketID: ${client.id}`);
     const accessToken = client.handshake.query?.token as string;
+    this.logger.verbose(`[SOCKET-AUTH] Validando token - Token presente: ${!!accessToken}`);
     const accessTokenData = await this.authService.validateAccessTokenSocket(accessToken);
 
     if (!accessTokenData) {
+      this.logger.error(`[SOCKET-ERROR] Token inválido - Desconectando cliente: ${client.id}`);
       client.disconnect(true);
       return;
     }
 
     const socketId = client.id;
     const userId = accessTokenData.userId;
+    this.logger.verbose(`[SOCKET-AUTH] Token válido - UserID: ${userId}, SocketID: ${socketId}`);
     this.socketService.handleConnection(socketId, client, userId);
+    this.logger.verbose(`[SOCKET-CONNECTION] Conexión establecida exitosamente - UserID: ${userId}`);
   }
 
   // Manejar la desconexión de un cliente
