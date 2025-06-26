@@ -222,15 +222,15 @@ jobs:
             echo "=== VERIFICACIÓN DE SALUD ==="
             echo "Verificando endpoints básicos:"
 
-            echo -n "BLUE (3003): "
-            if curl -sf http://localhost:3003/api/health >/dev/null 2>&1; then
+            echo -n "BLUE (3002): "
+            if curl -sf http://localhost:3002/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
             else
                 echo "❌ NO SALUDABLE"
             fi
 
-            echo -n "GREEN (3002): "
-            if curl -sf http://localhost:3002/api/health >/dev/null 2>&1; then
+            echo -n "GREEN (3003): "
+            if curl -sf http://localhost:3003/api/health >/dev/null 2>&1; then
                 echo "✅ SALUDABLE"
             else
                 echo "❌ NO SALUDABLE"
