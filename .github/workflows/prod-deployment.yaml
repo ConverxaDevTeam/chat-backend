@@ -101,10 +101,23 @@ jobs:
             echo "Último commit: $(git log --oneline -1)"
             git status --short
 
+            echo "=== VERIFICACIÓN DE TYPESCRIPT ==="
+            echo "Instalando dependencias para verificación..."
+            npm install --production=false
+
+            echo "Verificando errores de TypeScript..."
+            if npm run build:check; then
+                echo "✅ Verificación de TypeScript exitosa"
+            else
+                echo "❌ Errores de TypeScript encontrados"
+                echo "El deployment se cancela para evitar código roto en producción"
+                exit 1
+            fi
+
             # Create environment file with proper quoting
             cat > .env << 'ENV_EOF'
             NODE_ENV=production
-            LOG_LEVEL=production
+            LOG_LEVEL=verbose
             TYPEORM_HOST=converxa-prod-db-do-user-23433311-0.k.db.ondigitalocean.com
             TYPEORM_PORT=25060
             TYPEORM_USERNAME=doadmin
