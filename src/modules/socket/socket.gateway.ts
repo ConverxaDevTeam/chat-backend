@@ -64,17 +64,23 @@ export class SocketGateway {
 
   @SubscribeMessage('message')
   handleMessage(@MessageBody() data: { room: string; text: string; identifier?: agentIdentifier; images?: string[] }, @ConnectedSocket() client: Socket): void {
+    this.logger.verbose(`[SOCKET-MESSAGE] Mensaje recibido - Room: ${data?.room}, Text: ${data?.text?.substring(0, 50)}..., ClientID: ${client.id}`);
     try {
       const { room, text, identifier, images = [] } = data;
+      this.logger.verbose(`[SOCKET-MESSAGE] Cliente tiene acceso a rooms: ${Array.from(client.rooms)}`);
       if (!client.rooms.has(room)) {
+        this.logger.error(`[SOCKET-ERROR] Cliente no tiene acceso al room: ${room}`);
         return;
       }
+      this.logger.verbose(`[SOCKET-MESSAGE] Procesando mensaje en room: ${room}`);
       if (room.startsWith('test-chat-')) {
         if (!identifier) throw new Error('No se pudo obtener el identificador del agente');
+        this.logger.verbose(`[SOCKET-MESSAGE] Enviando a chatbot - Room: ${room}, Identifier: ${identifier?.type}`);
         this.socketService.sendToChatBot(text, room, identifier, -1, images);
       }
+      this.logger.verbose(`[SOCKET-MESSAGE] Mensaje procesado exitosamente`);
     } catch (error) {
-      this.logger.error(`Error handling message: ${error}`);
+      this.logger.error(`[SOCKET-ERROR] Error handling message: ${error}`);
       this.server.emit('error', { message: 'Error handling message' });
     }
   }
