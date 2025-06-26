@@ -56,15 +56,16 @@ export class SocketService {
       loadRelationIds: true,
       where: { user: { id: userId } },
     });
-
+    this.logger.debug(`User ${userId} is part of ${userOrg.length} organizations`);
     for (const org of userOrg) {
       socket.join(`organization-${org.organization}`);
     }
-
+    this.logger.debug(`User ${userId} joined ${userOrg.length} organizations`);
     // Cuando un cliente se une a un room
     socket.on('join', (room: string) => {
       // El room se crea de manera implícita si no existe
       socket.join(room);
+      this.logger.debug(`User ${userId} joined room ${room}`);
     });
 
     // Cuando un cliente deja un room
