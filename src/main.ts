@@ -74,11 +74,9 @@ async function bootstrap() {
           ],
   });
 
-  // Configuración de CORS específica para '/sofia-chat'
   app.use('/files', cors());
   app.use('/assets', cors());
   app.use('/images', cors());
-  app.use('/organizations', cors());
 
   app.setGlobalPrefix('api');
 
@@ -94,5 +92,3 @@ async function bootstrap() {
   webChatSocketGateway.bindServer(httpServer);
 }
 bootstrap();
-// Test commit
-// Test commit

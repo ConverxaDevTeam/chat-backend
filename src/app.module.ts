@@ -74,6 +74,13 @@ import { CoreModule } from '@modules/core/core.module';
       rootPath: join(__dirname, '..', '..', 'uploads', 'images'),
       serveRoot: '/images',
     }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'uploads', 'organizations'),
+      serveRoot: '/organizations',
+      serveStaticOptions: {
+        index: false,
+      },
+    }),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
