@@ -21,6 +21,8 @@ export enum StatisticsDisplayType {
   BAR = 'BAR',
   AREA = 'AREA',
   METRIC = 'METRIC',
+  METRIC_AVG = 'METRIC_AVG',
+  METRIC_ACUM = 'METRIC_ACUM',
 }
 
 export enum TimeRange {
