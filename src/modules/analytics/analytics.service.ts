@@ -50,12 +50,13 @@ export class AnalyticsService {
   }
 
   private async getTotalUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    // Users who had activity (messages/conversations) on each day
     const result = await this.dataSource
       .createQueryBuilder()
       .select('DATE(messages.created_at)', 'day')
-      .addSelect('COUNT(DISTINCT ChatUsers.id)', 'count')
-      .from(ChatUser, 'ChatUsers')
-      .innerJoin('ChatUsers.conversations', 'conv')
+      .addSelect('COUNT(DISTINCT chatusers.id)', 'count')
+      .from(ChatUser, 'chatusers')
+      .innerJoin('chatusers.conversations', 'conv')
       .innerJoin('conv.messages', 'messages')
       .innerJoin('conv.departamento', 'departamento')
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
@@ -94,6 +95,7 @@ export class AnalyticsService {
   }
 
   private async getRecurringUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    // Users who had activity on a day but were NOT registered that same day
     const users = await this.dataSource
       .createQueryBuilder()
       .select('DATE(messages.created_at)', 'day')
@@ -105,19 +107,7 @@ export class AnalyticsService {
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
       .andWhere(dto.startDate ? 'messages.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
       .andWhere(dto.endDate ? 'messages.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('chatUser2.id')
-          .from(ChatUser, 'chatUser2')
-          .innerJoin('chatUser2.conversations', 'conv2')
-          .innerJoin('conv2.messages', 'messages2')
-          .innerJoin('messages2.chatSession', 'session2')
-          .where(dto.startDate ? 'session2.created_at < :startDate' : '1=1', { startDate: dto.startDate })
-          .groupBy('chatUser2.id')
-          .getQuery();
-        return 'chatUser.id IN ' + subQuery;
-      })
+      .andWhere('DATE(chatUser.created_at) != DATE(messages.created_at)')
       .groupBy('day')
       .orderBy('day', 'ASC')
       .getRawMany();
