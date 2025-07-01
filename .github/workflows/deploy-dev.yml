@@ -3,7 +3,7 @@ name: Auto deploy converxa-backend-v2 development in VPS
 on:
   push:
     branches:
-      - develop-v1-bk
+      - develop-v1
     paths:
       - '.github/workflows/**'
       - 'index.html'
