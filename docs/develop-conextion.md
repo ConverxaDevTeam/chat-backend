@@ -1,4 +1,4 @@
-ip: 137.184.227.234\
+develop: 137.184.227.234
 prod: 24.144.110.166
 rama: develop-v1
 para conectar puedes usar

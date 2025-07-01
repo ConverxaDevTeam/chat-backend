@@ -3,7 +3,7 @@ name: Blue-Green Deployment for Sofia Chat Backend
 on:
   push:
     branches:
-      - develop-v1
+      - develop-v1-bk
     paths:
       - '.github/workflows/**'
       - 'package.json'
