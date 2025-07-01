@@ -12,6 +12,7 @@ on:
       - 'scripts/**'
       - 'src/**'
       - 'vite.config.js'
+  workflow_dispatch:
 
 jobs:
   deploy:
