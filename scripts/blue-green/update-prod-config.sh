@@ -36,24 +36,34 @@ if [[ "$TARGET_COLOR" != "blue" && "$TARGET_COLOR" != "green" ]]; then
 fi
 
 # Determinar puerto según color
+# Blue=3002, Green=3003
 if [[ "$TARGET_COLOR" == "blue" ]]; then
-    TARGET_PORT="3001"
-else
     TARGET_PORT="3002"
+    INTERNAL_PORT="3003"  # Puerto inactivo para pruebas internas
+else
+    TARGET_PORT="3003"
+    INTERNAL_PORT="3002"  # Puerto inactivo para pruebas internas
 fi
 
-log_info "Actualizando configuración de producción para apuntar a $TARGET_COLOR (puerto $TARGET_PORT)"
+# Detectar entorno para logging
+if [ -f "/root/repos/sofia-chat-backend-v2/docker-compose.prod.yml" ] && [ "$NODE_ENV" = "production" ]; then
+    log_info "Entorno: PRODUCCIÓN"
+else
+    log_info "Entorno: DESARROLLO"
+fi
+
+log_info "Actualizando configuración de nginx para apuntar a $TARGET_COLOR (puerto $TARGET_PORT)"
 
 # Crear configuración de Nginx para producción
 cat > "$CONFIG_FILE" << EOL
 # Configuración para HTTPS (backend)
 server {
     listen 443 ssl;
-    server_name dev-sofia-chat.sofiacall.com;
+    server_name back.sofiachat.com back-chat-v2.sofiacall.com;
 
     # Certificados SSL
-    ssl_certificate /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/dev-sofia-chat.sofiacall.com/privkey.pem; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/back.sofiachat.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/back.sofiachat.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
@@ -90,20 +100,71 @@ server {
 # Redirección de HTTP a HTTPS (backend)
 server {
     listen 80;
-    server_name dev-sofia-chat.sofiacall.com;
+    server_name back.sofiachat.com back-chat-v2.sofiacall.com;
+
+    # Redirige todo el tráfico HTTP a HTTPS
+    return 301 https://\$host\$request_uri;
+}
+
+# Configuración para HTTPS (internal testing)
+server {
+    listen 443 ssl;
+    server_name internal-back.sofiachat.com;
+
+    # Certificados SSL
+    ssl_certificate /etc/letsencrypt/live/internal-back.sofiachat.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/internal-back.sofiachat.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+    location / {
+        proxy_pass http://localhost:$INTERNAL_PORT;  # Redirige al backend inactivo para pruebas
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # Configuración para WebSockets (WSS)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_cache_bypass \$http_upgrade;
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+
+        # Headers adicionales
+        proxy_set_header X-Deployment-Color $([ "$TARGET_COLOR" = "blue" ] && echo "green" || echo "blue");
+        proxy_set_header X-Environment "internal-testing";
+    }
+
+    # Health check endpoint
+    location /health {
+        proxy_pass http://localhost:$INTERNAL_PORT/api/health;
+        proxy_set_header Host \$host;
+        access_log off;
+    }
+}
+
+# Redirección de HTTP a HTTPS (internal testing)
+server {
+    listen 80;
+    server_name internal-back.sofiachat.com;
 
     # Redirige todo el tráfico HTTP a HTTPS
     return 301 https://\$host\$request_uri;
 }
 EOL
 
-log_info "Configuración de producción actualizada exitosamente"
-log_info "Producción ahora apunta a: $TARGET_COLOR (puerto $TARGET_PORT)"
+log_info "Configuración de nginx actualizada exitosamente"
+log_info "Nginx ahora apunta a: $TARGET_COLOR (puerto $TARGET_PORT)"
 
 # Verificar configuración
 if nginx -t; then
     log_info "Configuración de Nginx válida"
-    
+
     # Recargar nginx para aplicar cambios
     if systemctl reload nginx; then
         log_info "Nginx recargado exitosamente"
