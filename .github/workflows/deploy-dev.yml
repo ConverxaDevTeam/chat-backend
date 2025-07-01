@@ -77,6 +77,7 @@ jobs:
             MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
             VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
+            DEPLOYMENT_COLOR = green
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ secrets.DEV_CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
             EOF
             node src/config/install-pgvector.js
