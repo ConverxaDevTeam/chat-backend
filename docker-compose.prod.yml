@@ -1,7 +1,7 @@
 version: '3.7'
 
 services:
-  # Blue Environment (Default/Primary)
+  # Blue Environment (Primary Production)
   sofia-chat-backend-blue:
     container_name: sofia-chat-backend-blue
     build:
@@ -12,6 +12,7 @@ services:
       - .env
     environment:
       - DEPLOYMENT_COLOR=blue
+      - NODE_ENV=production
     ports:
       - '3002:3001'
     networks:
@@ -24,9 +25,9 @@ services:
       interval: 10s
       timeout: 10s
       retries: 4
-      start_period: 3s
+      start_period: 5s
 
-  # Green Environment (Secondary/Staging)
+  # Green Environment (Secondary Production)
   sofia-chat-backend-green:
     container_name: sofia-chat-backend-green
     build:
@@ -37,6 +38,7 @@ services:
       - .env
     environment:
       - DEPLOYMENT_COLOR=green
+      - NODE_ENV=production
     ports:
       - '3003:3001'
     networks:
@@ -51,7 +53,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 4
-      start_period: 3s
+      start_period: 5s
 
 networks:
   sofia_chat_network:
