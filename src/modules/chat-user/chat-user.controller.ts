@@ -3,7 +3,13 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger'
 
 import { ChatUserService } from './chat-user.service';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
+import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 import { ChatUserType } from '@models/ChatUser.entity';
+import { User } from '@models/User.entity';
+import { GetUser } from '@infrastructure/decorators/get-user.decorator';
+import { Roles } from '@infrastructure/decorators/role-protected.decorator';
+import { OrganizationRoleType } from '@models/UserOrganization.entity';
+import { ChatUsersOrganizationDto } from './dto/chat-users-organization.dto';
 
 @Controller('chat-user')
 @ApiTags('chat-user')
@@ -74,5 +80,15 @@ export class ChatUserController {
         message: `Dato personalizado ${field} guardado correctamente`,
       };
     }
+  }
+
+  @UseGuards(JwtAuthGuard, JwtAuthRolesGuard)
+  @ApiOperation({ summary: 'Obtener chat users de una organización con su conversación más reciente' })
+  @Roles(OrganizationRoleType.HITL, OrganizationRoleType.OWNER, OrganizationRoleType.USER)
+  @ApiBearerAuth()
+  @Get('organization/:organizationId')
+  async getChatUsersByOrganization(@GetUser() user: User, @Param('organizationId', ParseIntPipe) organizationId: number, @Query() searchParams: ChatUsersOrganizationDto) {
+    const result = await this.chatUserService.findChatUsersByOrganizationWithLastConversation(organizationId, user, searchParams);
+    return result;
   }
 }
