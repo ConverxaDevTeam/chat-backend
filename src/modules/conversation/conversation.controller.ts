@@ -22,8 +22,8 @@ export class ConversationController {
   @UseGuards(JwtAuthRolesGuard)
   @Roles(OrganizationRoleType.HITL, OrganizationRoleType.OWNER, OrganizationRoleType.USER)
   async getConversationsByOrganizationId(@GetUser() user: User, @Param('organizationId', ParseIntPipe) organizationId: number, @Query() searchParams: SearchConversationDto) {
-    const conversations = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user, searchParams);
-    return { ok: true, conversations };
+    const result = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user, searchParams);
+    return result;
   }
 
   @ApiOperation({ summary: 'get conversation by organization id and conversation id' })

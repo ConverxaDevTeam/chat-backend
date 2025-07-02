@@ -10,7 +10,7 @@ import { Integration, IntegrationType } from '@models/Integration.entity';
 import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { DepartmentService } from '@modules/department/department.service';
 import { MessageType } from '@models/Message.entity';
-import { SearchConversationDto } from './dto/search-conversation.dto';
+import { SearchConversationDto, PaginationMeta, ConversationListResponse } from './dto/search-conversation.dto';
 import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 import { NotificationStatus } from '@models/notification.entity';
 import { Notification } from '@models/notification.entity';
@@ -132,12 +132,17 @@ export class ConversationService {
     return await this.conversationRepository.save(conversation);
   }
 
-  async findByOrganizationIdAndUserId(organizationId: number, user: User, searchParams?: SearchConversationDto): Promise<any[]> {
+  async findByOrganizationIdAndUserId(organizationId: number, user: User, searchParams?: SearchConversationDto): Promise<ConversationListResponse> {
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
 
     if (!userOrganization) {
       throw new BadRequestException('El usuario no pertenece a esta organización');
     }
+
+    // Configuración de paginación
+    const page = searchParams?.page || 1;
+    const limit = searchParams?.limit || 20;
+    const offset = (page - 1) * limit;
 
     const queryBuilder = this.conversationRepository
       .createQueryBuilder('c')
@@ -149,12 +154,22 @@ export class ConversationService {
         'null as avatar',
         'c."userId" as user_id',
         'cu.secret as secret',
+        'cu.name as user_name',
+        'cu.email as user_email',
+        'cu.phone as user_phone',
         'lm.id as message_id',
         'lm.created_at as message_created_at',
         'lm.text as message_text',
         'lm.type as message_type',
         'COALESCE(uc.unread_count, 0) as unread_messages',
         'd.name as department',
+        'c.type as integration_type',
+        `CASE
+          WHEN c.need_human = false THEN 'ia'
+          WHEN c.need_human = true AND c."userId" IS NULL THEN 'pendiente'
+          WHEN c.need_human = true AND c."userId" IS NOT NULL THEN 'asignado'
+          ELSE 'ia'
+        END as status`,
       ])
       .leftJoin(
         (qb) =>
@@ -205,6 +220,7 @@ export class ConversationService {
       queryBuilder.andWhere('c."userId" = :userId', { userId: user.id });
     }
 
+    // Filtros existentes (mantener compatibilidad)
     if (searchParams?.conversationId) {
       queryBuilder.andWhere('c.id = :conversationId', { conversationId: searchParams.conversationId });
     }
@@ -217,7 +233,117 @@ export class ConversationService {
       queryBuilder.andWhere('c.type = :type', { type: searchParams.type });
     }
 
-    return queryBuilder.getRawMany();
+    // Nuevos filtros
+    if (searchParams?.search) {
+      queryBuilder.andWhere('(LOWER(cu.name) LIKE LOWER(:search) OR LOWER(cu.email) LIKE LOWER(:search) OR cu.phone LIKE :search)', { search: `%${searchParams.search}%` });
+    }
+
+    if (searchParams?.department) {
+      queryBuilder.andWhere('LOWER(d.name) LIKE LOWER(:department)', { department: `%${searchParams.department}%` });
+    }
+
+    if (searchParams?.integrationType) {
+      // Mapear tipos de integración a tipos de conversación
+      const conversationTypeMap = {
+        chat_web: 'chat_web',
+        whatsapp: 'whatsapp',
+        whatsapp_manual: 'whatsapp',
+        messenger: 'messenger',
+        messenger_manual: 'messenger',
+        slack: 'slack',
+      };
+
+      const conversationType = conversationTypeMap[searchParams.integrationType];
+      if (conversationType) {
+        queryBuilder.andWhere('c.type = :conversationType', { conversationType });
+      }
+    }
+
+    if (searchParams?.needHuman !== undefined) {
+      queryBuilder.andWhere('c.need_human = :needHuman', { needHuman: searchParams.needHuman });
+    }
+
+    if (searchParams?.assignedToUser !== undefined) {
+      if (searchParams.assignedToUser) {
+        queryBuilder.andWhere('c."userId" IS NOT NULL');
+      } else {
+        queryBuilder.andWhere('c."userId" IS NULL');
+      }
+    }
+
+    if (searchParams?.assignedUserId) {
+      queryBuilder.andWhere('c."userId" = :assignedUserId', { assignedUserId: searchParams.assignedUserId });
+    }
+
+    if (searchParams?.status) {
+      switch (searchParams.status) {
+        case 'ia':
+          queryBuilder.andWhere('c.need_human = false');
+          break;
+        case 'pendiente':
+          queryBuilder.andWhere('c.need_human = true AND c."userId" IS NULL');
+          break;
+        case 'asignado':
+          queryBuilder.andWhere('c.need_human = true AND c."userId" IS NOT NULL');
+          break;
+      }
+    }
+
+    if (searchParams?.dateFrom) {
+      queryBuilder.andWhere('c.created_at >= :dateFrom', { dateFrom: searchParams.dateFrom });
+    }
+
+    if (searchParams?.dateTo) {
+      queryBuilder.andWhere('c.created_at <= :dateTo', { dateTo: searchParams.dateTo });
+    }
+
+    // Ordenamiento
+    const sortBy = searchParams?.sortBy || 'created_at';
+    const sortOrder = searchParams?.sortOrder || 'DESC';
+
+    if (sortBy === 'department') {
+      queryBuilder.orderBy('d.name', sortOrder);
+    } else {
+      queryBuilder.orderBy(`c.${sortBy}`, sortOrder);
+    }
+
+    // Contar total de elementos
+    const totalItems = await queryBuilder.getCount();
+
+    // Aplicar paginación
+    const conversations = await queryBuilder.limit(limit).offset(offset).getRawMany();
+
+    // Calcular metadatos de paginación
+    const totalPages = Math.ceil(totalItems / limit);
+    const pagination: PaginationMeta = {
+      currentPage: page,
+      totalPages,
+      totalItems,
+      itemsPerPage: limit,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    };
+
+    // Filtros aplicados para el response
+    const appliedFilters = {
+      ...(searchParams?.search && { search: searchParams.search }),
+      ...(searchParams?.department && { department: searchParams.department }),
+      ...(searchParams?.integrationType && { integrationType: searchParams.integrationType }),
+      ...(searchParams?.needHuman !== undefined && { needHuman: searchParams.needHuman }),
+      ...(searchParams?.assignedToUser !== undefined && { assignedToUser: searchParams.assignedToUser }),
+      ...(searchParams?.assignedUserId && { assignedUserId: searchParams.assignedUserId }),
+      ...(searchParams?.status && { status: searchParams.status }),
+      ...(searchParams?.dateFrom && { dateFrom: searchParams.dateFrom }),
+      ...(searchParams?.dateTo && { dateTo: searchParams.dateTo }),
+      ...(searchParams?.type && { type: searchParams.type }),
+    };
+
+    return {
+      ok: true,
+      conversations,
+      pagination,
+      appliedFilters,
+    };
   }
 
   async getConversationByIntegrationIdAndByIdentified(integrationId: number, identified: string, type: IntegrationType): Promise<Conversation | null> {
