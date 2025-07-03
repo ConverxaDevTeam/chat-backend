@@ -6,6 +6,7 @@ import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 import { ChatUserDataService } from '@modules/chat-user-data/chat-user-data.service';
 import { User } from '@models/User.entity';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
+import { Message } from '@models/Message.entity';
 
 import {
   ChatUsersOrganizationDto,
@@ -21,10 +22,12 @@ export class ChatUserService {
 
   constructor(
     @InjectRepository(ChatUser)
-    private readonly chatUserRepository: Repository<ChatUser>,
+    private chatUserRepository: Repository<ChatUser>,
     @InjectRepository(UserOrganization)
-    private readonly userOrganizationRepository: Repository<UserOrganization>,
-    private readonly chatUserDataService: ChatUserDataService,
+    private userOrganizationRepository: Repository<UserOrganization>,
+    @InjectRepository(Message)
+    private messageRepository: Repository<Message>,
+    private chatUserDataService: ChatUserDataService,
   ) {}
 
   async findByIdWithSecret(id: number): Promise<string | null> {
@@ -169,6 +172,7 @@ export class ChatUserService {
     hasUnreadMessages?: boolean,
     dateFrom?: string,
     dateTo?: string,
+    includeMessages?: boolean,
   ): Promise<{
     users: Array<{
       standardInfo: Partial<ChatUser>;
@@ -185,6 +189,16 @@ export class ChatUserService {
         department: string;
         last_activity: string;
         status: string;
+        messages?: Array<{
+          id: number;
+          text: string;
+          type: string;
+          format: string;
+          created_at: string;
+          images?: string[];
+          audio?: string;
+          time?: number;
+        }>;
       };
     }>;
     total: number;
@@ -303,7 +317,7 @@ export class ChatUserService {
         );
 
         // Obtener última conversación con información completa
-        const lastConversation = await this.getLastConversationInfo(chatUser.id, organizationId);
+        const lastConversation = await this.getLastConversationInfo(chatUser.id, organizationId, includeMessages);
 
         const result: any = {
           standardInfo: chatUser,
@@ -343,6 +357,7 @@ export class ChatUserService {
   private async getLastConversationInfo(
     chatUserId: number,
     organizationId?: number,
+    includeMessages?: boolean,
   ): Promise<{
     conversation_id: number;
     last_message_text: string;
@@ -355,6 +370,16 @@ export class ChatUserService {
     department: string;
     last_activity: string;
     status: string;
+    messages?: Array<{
+      id: number;
+      text: string;
+      type: string;
+      format: string;
+      created_at: string;
+      images?: string[];
+      audio?: string;
+      time?: number;
+    }>;
   } | null> {
     try {
       let query = this.chatUserRepository
@@ -424,7 +449,7 @@ export class ChatUserService {
         return null;
       }
 
-      return {
+      const conversationInfo: any = {
         conversation_id: parseInt(result.conversation_id),
         last_message_text: result.last_message_text || '',
         last_message_created_at: result.last_message_created_at || result.last_activity,
@@ -437,6 +462,30 @@ export class ChatUserService {
         last_activity: result.last_activity,
         status: result.need_human === false ? 'ia' : result.need_human === true && !result.assigned_user_id ? 'pendiente' : 'asignado',
       };
+
+      // Si se solicita incluir mensajes, obtener todos los mensajes de la conversación
+      if (includeMessages) {
+        const messages = await this.messageRepository
+          .createQueryBuilder('message')
+          .select(['message.id', 'message.text', 'message.type', 'message.format', 'message.created_at', 'message.images', 'message.audio', 'message.time'])
+          .where('message.conversationId = :conversationId', { conversationId: parseInt(result.conversation_id) })
+          .andWhere('message.deleted_at IS NULL')
+          .orderBy('message.created_at', 'ASC')
+          .getMany();
+
+        conversationInfo.messages = messages.map((msg) => ({
+          id: msg.id,
+          text: msg.text || '',
+          type: msg.type,
+          format: msg.format,
+          created_at: msg.created_at ? msg.created_at.toISOString() : new Date().toISOString(),
+          images: msg.images || [],
+          audio: msg.audio || undefined,
+          time: msg.time || undefined,
+        }));
+      }
+
+      return conversationInfo;
     } catch (error) {
       this.logger.error(`Error obteniendo última conversación para chatUser ${chatUserId}:`, error);
       return null;

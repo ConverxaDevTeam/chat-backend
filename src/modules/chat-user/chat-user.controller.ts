@@ -29,6 +29,7 @@ export class ChatUserController {
   @ApiQuery({ name: 'hasUnreadMessages', required: false, description: 'Filtrar por usuarios con mensajes no leídos' })
   @ApiQuery({ name: 'dateFrom', required: false, description: 'Fecha de inicio para filtrar conversaciones (ISO 8601)' })
   @ApiQuery({ name: 'dateTo', required: false, description: 'Fecha de fin para filtrar conversaciones (ISO 8601)' })
+  @ApiQuery({ name: 'includeMessages', required: false, description: 'Incluir todos los mensajes de la última conversación (default: false)' })
   @ApiBearerAuth()
   @Get('all/info')
   async getAllUsersInfo(
@@ -43,6 +44,7 @@ export class ChatUserController {
     @Query('hasUnreadMessages') hasUnreadMessages?: string,
     @Query('dateFrom') dateFrom?: string,
     @Query('dateTo') dateTo?: string,
+    @Query('includeMessages') includeMessages?: string,
   ) {
     const pageNumber = parseInt(page, 10) || 1;
     const limitNumber = parseInt(limit, 10) || 10;
@@ -51,6 +53,7 @@ export class ChatUserController {
     // Convertir strings a booleans
     const needHumanBool = needHuman === 'true' ? true : needHuman === 'false' ? false : undefined;
     const hasUnreadMessagesBool = hasUnreadMessages === 'true' ? true : hasUnreadMessages === 'false' ? false : undefined;
+    const includeMessagesBool = includeMessages === 'true';
 
     const result = await this.chatUserService.getAllUsersWithInfo(
       pageNumber,
@@ -64,6 +67,7 @@ export class ChatUserController {
       hasUnreadMessagesBool,
       dateFrom,
       dateTo,
+      includeMessagesBool,
     );
     return {
       ok: true,
