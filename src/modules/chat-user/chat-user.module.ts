@@ -6,12 +6,13 @@ import { ChatUser } from '@models/ChatUser.entity';
 import { ChatUserDataModule } from '@modules/chat-user-data/chat-user-data.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { UserOrganization } from '@models/UserOrganization.entity';
+import { Message } from '@models/Message.entity';
 import { OrganizationModule } from '@modules/organization/organization.module';
 
 @Module({
   providers: [ChatUserService],
   controllers: [ChatUserController],
-  imports: [TypeOrmModule.forFeature([ChatUser, UserOrganization]), ChatUserDataModule, AuthModule, OrganizationModule],
+  imports: [TypeOrmModule.forFeature([ChatUser, UserOrganization, Message]), ChatUserDataModule, AuthModule, OrganizationModule],
   exports: [ChatUserService],
 })
 export class ChatUserModule {}
