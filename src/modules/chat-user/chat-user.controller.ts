@@ -17,12 +17,18 @@ export class ChatUserController {
   constructor(private readonly chatUserService: ChatUserService) {}
 
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Obtener listado de todos los usuarios de chat con información completa' })
+  @ApiOperation({ summary: 'Obtener listado de todos los usuarios de chat con información completa y última conversación' })
   @ApiQuery({ name: 'page', required: false, description: 'Número de página (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Límite de usuarios por página (default: 10)' })
   @ApiQuery({ name: 'organizationId', required: false, description: 'ID de la organización para filtrar usuarios' })
   @ApiQuery({ name: 'search', required: false, description: 'Buscar por nombre, email o teléfono' })
   @ApiQuery({ name: 'type', required: false, enum: ChatUserType, description: 'Filtrar por tipo de usuario' })
+  @ApiQuery({ name: 'sortBy', required: false, description: 'Campo para ordenar: name, email, phone, last_login, created_at, last_activity (default: last_activity)' })
+  @ApiQuery({ name: 'sortOrder', required: false, description: 'Orden: ASC o DESC (default: DESC)' })
+  @ApiQuery({ name: 'needHuman', required: false, description: 'Filtrar por conversaciones que necesitan intervención humana' })
+  @ApiQuery({ name: 'hasUnreadMessages', required: false, description: 'Filtrar por usuarios con mensajes no leídos' })
+  @ApiQuery({ name: 'dateFrom', required: false, description: 'Fecha de inicio para filtrar conversaciones (ISO 8601)' })
+  @ApiQuery({ name: 'dateTo', required: false, description: 'Fecha de fin para filtrar conversaciones (ISO 8601)' })
   @ApiBearerAuth()
   @Get('all/info')
   async getAllUsersInfo(
@@ -31,12 +37,34 @@ export class ChatUserController {
     @Query('organizationId') organizationId?: string,
     @Query('search') search?: string,
     @Query('type') type?: ChatUserType,
+    @Query('sortBy') sortBy: string = 'last_activity',
+    @Query('sortOrder') sortOrder: string = 'DESC',
+    @Query('needHuman') needHuman?: string,
+    @Query('hasUnreadMessages') hasUnreadMessages?: string,
+    @Query('dateFrom') dateFrom?: string,
+    @Query('dateTo') dateTo?: string,
   ) {
     const pageNumber = parseInt(page, 10) || 1;
     const limitNumber = parseInt(limit, 10) || 10;
     const orgId = organizationId ? parseInt(organizationId, 10) : undefined;
 
-    const result = await this.chatUserService.getAllUsersWithInfo(pageNumber, limitNumber, orgId, search, type);
+    // Convertir strings a booleans
+    const needHumanBool = needHuman === 'true' ? true : needHuman === 'false' ? false : undefined;
+    const hasUnreadMessagesBool = hasUnreadMessages === 'true' ? true : hasUnreadMessages === 'false' ? false : undefined;
+
+    const result = await this.chatUserService.getAllUsersWithInfo(
+      pageNumber,
+      limitNumber,
+      orgId,
+      search,
+      type,
+      sortBy,
+      sortOrder,
+      needHumanBool,
+      hasUnreadMessagesBool,
+      dateFrom,
+      dateTo,
+    );
     return {
       ok: true,
       ...result,

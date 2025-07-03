@@ -163,10 +163,29 @@ export class ChatUserService {
     organizationId?: number,
     search?: string,
     type?: ChatUserType,
+    sortBy: string = 'last_activity',
+    sortOrder: string = 'DESC',
+    needHuman?: boolean,
+    hasUnreadMessages?: boolean,
+    dateFrom?: string,
+    dateTo?: string,
   ): Promise<{
     users: Array<{
       standardInfo: Partial<ChatUser>;
       customData: Record<string, string>;
+      lastConversation?: {
+        conversation_id: number;
+        last_message_text: string;
+        last_message_created_at: string;
+        last_message_type: string;
+        unread_messages: number;
+        need_human: boolean;
+        assigned_user_id: number | null;
+        integration_type: string;
+        department: string;
+        last_activity: string;
+        status: string;
+      };
     }>;
     total: number;
     page: number;
@@ -219,10 +238,58 @@ export class ChatUserService {
       }
     }
 
-    // Ordenado por created_at DESC (más reciente primero)
-    queryBuilder = queryBuilder.orderBy('chatUser.created_at', 'DESC').skip(skip).take(limit);
+    // Filtros adicionales por conversaciones
+    if (needHuman !== undefined || hasUnreadMessages !== undefined || dateFrom || dateTo) {
+      if (!organizationId) {
+        queryBuilder = queryBuilder
+          .leftJoin('chatUser.conversations', 'conversation')
+          .leftJoin('conversation.departamento', 'departamento')
+          .leftJoin('departamento.organizacion', 'organizacion');
+      }
+
+      if (needHuman !== undefined) {
+        queryBuilder = queryBuilder.andWhere('conversation.need_human = :needHuman', { needHuman });
+      }
+
+      if (dateFrom) {
+        queryBuilder = queryBuilder.andWhere('conversation.created_at >= :dateFrom', { dateFrom });
+      }
+
+      if (dateTo) {
+        queryBuilder = queryBuilder.andWhere('conversation.created_at <= :dateTo', { dateTo });
+      }
+    }
+
+    // Ordenamiento mejorado
+    const orderDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    switch (sortBy) {
+      case 'name':
+        queryBuilder = queryBuilder.orderBy('chatUser.name', orderDirection);
+        break;
+      case 'email':
+        queryBuilder = queryBuilder.orderBy('chatUser.email', orderDirection);
+        break;
+      case 'phone':
+        queryBuilder = queryBuilder.orderBy('chatUser.phone', orderDirection);
+        break;
+      case 'last_login':
+        queryBuilder = queryBuilder.orderBy('chatUser.last_login', orderDirection);
+        break;
+      case 'created_at':
+        queryBuilder = queryBuilder.orderBy('chatUser.created_at', orderDirection);
+        break;
+      case 'last_activity':
+      default:
+        // Para ordenar por última actividad, necesitamos hacer un ordenamiento especial
+        queryBuilder = queryBuilder.orderBy('chatUser.created_at', orderDirection);
+        break;
+    }
+
+    queryBuilder = queryBuilder.skip(skip).take(limit);
 
     const [chatUsers, total] = await queryBuilder.getManyAndCount();
+
+    this.logger.debug(`Total de chat users encontrados: ${total}, página: ${page}, límite: ${limit}`);
 
     const usersWithInfo = await Promise.all(
       chatUsers.map(async (chatUser) => {
@@ -235,19 +302,145 @@ export class ChatUserService {
           {} as Record<string, string>,
         );
 
-        return {
+        // Obtener última conversación con información completa
+        const lastConversation = await this.getLastConversationInfo(chatUser.id, organizationId);
+
+        const result: any = {
           standardInfo: chatUser,
           customData,
         };
+
+        if (lastConversation) {
+          result.lastConversation = lastConversation;
+        }
+
+        return result;
       }),
     );
 
+    // Filtrar por mensajes no leídos si se especifica
+    let filteredUsers = hasUnreadMessages ? usersWithInfo.filter((user) => user.lastConversation && user.lastConversation.unread_messages > 0) : usersWithInfo;
+
+    // Aplicar ordenamiento por última actividad si es necesario
+    if (sortBy === 'last_activity') {
+      filteredUsers = filteredUsers.sort((a, b) => {
+        const aLastActivity = a.lastConversation?.last_activity || a.standardInfo.created_at;
+        const bLastActivity = b.lastConversation?.last_activity || b.standardInfo.created_at;
+
+        const comparison = new Date(aLastActivity).getTime() - new Date(bLastActivity).getTime();
+        return orderDirection === 'DESC' ? -comparison : comparison;
+      });
+    }
+
     return {
-      users: usersWithInfo,
-      total,
+      users: filteredUsers,
+      total: hasUnreadMessages ? filteredUsers.length : total,
       page,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil((hasUnreadMessages ? filteredUsers.length : total) / limit),
     };
+  }
+
+  private async getLastConversationInfo(
+    chatUserId: number,
+    organizationId?: number,
+  ): Promise<{
+    conversation_id: number;
+    last_message_text: string;
+    last_message_created_at: string;
+    last_message_type: string;
+    unread_messages: number;
+    need_human: boolean;
+    assigned_user_id: number | null;
+    integration_type: string;
+    department: string;
+    last_activity: string;
+    status: string;
+  } | null> {
+    try {
+      let query = this.chatUserRepository
+        .createQueryBuilder('cu')
+        .innerJoin('cu.conversations', 'c')
+        .innerJoin('c.departamento', 'd')
+        .innerJoin('c.messages', 'm')
+        .select([
+          'c.id as conversation_id',
+          'c.created_at as last_activity',
+          'c.need_human as need_human',
+          'c.type as integration_type',
+          'c."userId" as assigned_user_id',
+          'd.name as department',
+          'latest_msg.text as last_message_text',
+          'latest_msg.created_at as last_message_created_at',
+          'latest_msg.type as last_message_type',
+          'COALESCE(unread_count.count, 0) as unread_messages',
+        ])
+        .leftJoin(
+          (qb) =>
+            qb
+              .select([
+                'msg."conversationId" as "conversationId"',
+                'msg.text as text',
+                'msg.created_at as created_at',
+                'msg.type as type',
+                'ROW_NUMBER() OVER (PARTITION BY msg."conversationId" ORDER BY msg.created_at DESC) as rn',
+              ])
+              .from('Messages', 'msg')
+              .where('msg.deleted_at IS NULL'),
+          'latest_msg',
+          'latest_msg."conversationId" = c.id AND latest_msg.rn = 1',
+        )
+        .leftJoin(
+          (qb) =>
+            qb
+              .select(['unread."conversationId"', 'COUNT(*) as count'])
+              .from('Messages', 'unread')
+              .where('unread.type = :userType', { userType: 'user' })
+              .andWhere('unread.deleted_at IS NULL')
+              .andWhere(
+                `unread.created_at > COALESCE((
+                  SELECT MAX(staff.created_at)
+                  FROM "Messages" staff
+                  WHERE staff."conversationId" = unread."conversationId"
+                  AND staff.type IN ('hitl', 'agent')
+                  AND staff.deleted_at IS NULL
+                ), '1970-01-01'::timestamp)`,
+              )
+              .groupBy('unread."conversationId"'),
+          'unread_count',
+          'unread_count."conversationId" = c.id',
+        )
+        .where('cu.id = :chatUserId', { chatUserId })
+        .andWhere('c.user_deleted = false')
+        .andWhere('c.deleted_at IS NULL')
+        .andWhere('m.deleted_at IS NULL');
+
+      if (organizationId) {
+        query = query.innerJoin('d.organizacion', 'o').andWhere('o.id = :organizationId', { organizationId });
+      }
+
+      const result = await query.orderBy('c.created_at', 'DESC').limit(1).getRawOne();
+
+      if (!result) {
+        return null;
+      }
+
+      return {
+        conversation_id: parseInt(result.conversation_id),
+        last_message_text: result.last_message_text || '',
+        last_message_created_at: result.last_message_created_at || result.last_activity,
+        last_message_type: result.last_message_type || 'user',
+        unread_messages: parseInt(result.unread_messages) || 0,
+        need_human: result.need_human || false,
+        assigned_user_id: result.assigned_user_id,
+        integration_type: result.integration_type || '',
+        department: result.department || '',
+        last_activity: result.last_activity,
+        status: result.need_human === false ? 'ia' : result.need_human === true && !result.assigned_user_id ? 'pendiente' : 'asignado',
+      };
+    } catch (error) {
+      this.logger.error(`Error obteniendo última conversación para chatUser ${chatUserId}:`, error);
+      return null;
+    }
   }
 
   async findChatUsersByOrganizationWithLastConversation(organizationId: number, user: User, searchParams: ChatUsersOrganizationDto): Promise<ChatUsersOrganizationResponse> {
