@@ -9,7 +9,7 @@ import { User } from '@models/User.entity';
 import { Integration, IntegrationType } from '@models/Integration.entity';
 import { ChatUserService } from '@modules/chat-user/chat-user.service';
 import { DepartmentService } from '@modules/department/department.service';
-import { MessageType } from '@models/Message.entity';
+
 import { SearchConversationDto, PaginationMeta, ConversationListResponse } from './dto/search-conversation.dto';
 import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 import { NotificationStatus } from '@models/notification.entity';
@@ -133,6 +133,9 @@ export class ConversationService {
   }
 
   async findByOrganizationIdAndUserId(organizationId: number, user: User, searchParams?: SearchConversationDto): Promise<ConversationListResponse> {
+    // Debug log para detectar llamadas incorrectas
+    this.logger.log(`Fetching conversations for organizationId: ${organizationId}, userId: ${user.id}, filters: ${JSON.stringify(searchParams)}`);
+
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
 
     if (!userOrganization) {
@@ -174,7 +177,7 @@ export class ConversationService {
       .leftJoin(
         (qb) =>
           qb
-            .select('DISTINCT ON (m."conversationId") m.id, m."conversationId", m.created_at, m.text, m.type')
+            .select('DISTINCT ON (m."conversationId") m.id as id, m."conversationId" as "conversationId", m.created_at as created_at, m.text as text, m.type as type')
             .from('Messages', 'm')
             .orderBy('m."conversationId"', 'ASC')
             .addOrderBy('m.created_at', 'DESC'),
@@ -199,12 +202,12 @@ export class ConversationService {
                 qb
                   .select('"conversationId", MAX(created_at) as last_staff_date')
                   .from('Messages', 'staff')
-                  .where('staff.type = ANY(:staffTypes)', { staffTypes: [MessageType.HITL, MessageType.AGENT] })
+                  .where('staff.type::text = ANY(:staffTypes)', { staffTypes: ['hitl', 'agent'] })
                   .groupBy('"conversationId"'),
               'lh',
               'lh."conversationId" = m."conversationId"',
             )
-            .where('m.type = :userType', { userType: MessageType.USER })
+            .where('m.type::text = :userType', { userType: 'user' })
             .andWhere('(lh.last_staff_date IS NULL OR m.created_at > lh.last_staff_date)')
             .groupBy('m."conversationId", lh.last_staff_date'),
         'uc',
@@ -312,6 +315,13 @@ export class ConversationService {
 
     // Aplicar paginación
     const conversations = await queryBuilder.limit(limit).offset(offset).getRawMany();
+
+    // Debug log para verificar resultados
+    this.logger.log(`Found ${conversations.length} conversations for organizationId: ${organizationId}, total: ${totalItems}`);
+    if (conversations.length > 0) {
+      const conversationIds = conversations.map((c) => c.id).join(', ');
+      this.logger.log(`Conversation IDs returned: [${conversationIds}]`);
+    }
 
     // Calcular metadatos de paginación
     const totalPages = Math.ceil(totalItems / limit);
@@ -455,13 +465,16 @@ export class ConversationService {
   }
 
   async getConversationByOrganizationIdAndById(organizationId: number, conversationId: number, user: User): Promise<Conversation | null> {
+    // Debug log para detectar accesos incorrectos
+    this.logger.log(`Fetching conversation ${conversationId} from organizationId: ${organizationId} for userId: ${user.id}`);
+
     const userOrganization = await this.userOrganizationService.getUserOrganization(user, organizationId);
 
     if (!userOrganization) {
       throw new Error('El usuario no pertenece a esta organización');
     }
 
-    return await this.conversationRepository.findOne({
+    const result = await this.conversationRepository.findOne({
       select: {
         id: true,
         user: {
@@ -477,6 +490,7 @@ export class ConversationService {
           time: true,
         },
         chat_user: {
+          id: true,
           secret: true,
           phone: true,
           web: true,
@@ -501,6 +515,35 @@ export class ConversationService {
         },
       },
     });
+
+    // Debug log del resultado
+    if (result) {
+      this.logger.log(`Conversation ${conversationId} found in organizationId: ${organizationId}`);
+
+      // Verificar si es la última conversación del chatUser
+      if (result.chat_user?.id) {
+        const lastConversation = await this.conversationRepository
+          .createQueryBuilder('c')
+          .select('c.id')
+          .innerJoin('c.chat_user', 'cu')
+          .innerJoin('c.departamento', 'd')
+          .innerJoin('d.organizacion', 'o')
+          .where('cu.id = :chatUserId', { chatUserId: result.chat_user.id })
+          .andWhere('o.id = :organizationId', { organizationId })
+          .orderBy('c.created_at', 'DESC')
+          .limit(1)
+          .getOne();
+
+        // Agregar propiedad isLastConversation al resultado
+        (result as any).isLastConversation = lastConversation?.id === conversationId;
+      } else {
+        (result as any).isLastConversation = false;
+      }
+    } else {
+      this.logger.warn(`Conversation ${conversationId} NOT FOUND in organizationId: ${organizationId} - may belong to different organization`);
+    }
+
+    return result;
   }
 
   async removeIntegrationRelationships(integrationId: number) {

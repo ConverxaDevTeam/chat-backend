@@ -6,7 +6,7 @@ import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 import { ChatUserDataService } from '@modules/chat-user-data/chat-user-data.service';
 import { User } from '@models/User.entity';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
-import { MessageType } from '@models/Message.entity';
+
 import {
   ChatUsersOrganizationDto,
   ChatUsersOrganizationResponse,
@@ -345,13 +345,18 @@ export class ChatUserService {
 
     this.logger.debug(`Chat users obtenidos: ${chatUsers.length} de ${totalItems} total`);
 
-    // Obtener conversaciones más recientes para cada chat user
+    // Obtener conversaciones más recientes para cada chat user QUE TENGAN MENSAJES
     const chatUserIds = chatUsers.map((cu) => cu.id);
-    const conversationsQuery = this.chatUserRepository
+
+    this.logger.debug(`Buscando conversaciones para chat users: ${chatUserIds.join(', ')}`);
+
+    // Query para obtener conversación más reciente CON MENSAJES y el último mensaje
+    const conversationsData = await this.chatUserRepository
       .createQueryBuilder('cu')
       .innerJoin('cu.conversations', 'c')
       .innerJoin('c.departamento', 'd')
-      .leftJoin('c.messages', 'm')
+      .innerJoin('d.organizacion', 'o') // JOIN con organizacion para filtrar
+      .innerJoin('c.messages', 'm') // Solo conversaciones CON mensajes
       .select([
         'cu.id as chat_user_id',
         'c.id as conversation_id',
@@ -360,38 +365,70 @@ export class ChatUserService {
         'c.type as integration_type',
         'c."userId" as assigned_user_id',
         'd.name as department',
-        'ROW_NUMBER() OVER (PARTITION BY cu.id ORDER BY c.created_at DESC) as rn',
+        'latest_msg.text as last_message_text',
+        'latest_msg.created_at as last_message_created_at',
+        'latest_msg.type as last_message_type',
+        'COALESCE(unread_count.count, 0) as unread_messages',
       ])
-      .addSelect((subQuery) => {
-        return subQuery.select('msg.text').from('Messages', 'msg').where('msg."conversationId" = c.id').orderBy('msg.created_at', 'DESC').limit(1);
-      }, 'last_message_text')
-      .addSelect((subQuery) => {
-        return subQuery.select('msg.created_at').from('Messages', 'msg').where('msg."conversationId" = c.id').orderBy('msg.created_at', 'DESC').limit(1);
-      }, 'last_message_created_at')
-      .addSelect((subQuery) => {
-        return subQuery.select('msg.type').from('Messages', 'msg').where('msg."conversationId" = c.id').orderBy('msg.created_at', 'DESC').limit(1);
-      }, 'last_message_type')
-      .addSelect((subQuery) => {
-        return subQuery
-          .select('COUNT(*)')
-          .from('Messages', 'unread')
-          .where('unread."conversationId" = c.id')
-          .andWhere('unread.type = :userType', { userType: MessageType.USER })
-          .andWhere(
-            `unread.created_at > COALESCE((
-            SELECT MAX(staff.created_at)
-            FROM "Messages" staff
-            WHERE staff."conversationId" = c.id
-            AND staff.type = ANY(:staffTypes)
-          ), '1970-01-01')`,
-            { staffTypes: [MessageType.HITL, MessageType.AGENT] },
-          );
-      }, 'unread_messages')
+      .leftJoin(
+        (qb) =>
+          qb
+            .select([
+              'msg."conversationId" as "conversationId"',
+              'msg.text as text',
+              'msg.created_at as created_at',
+              'msg.type as type',
+              'ROW_NUMBER() OVER (PARTITION BY msg."conversationId" ORDER BY msg.created_at DESC) as rn',
+            ])
+            .from('Messages', 'msg')
+            .where('msg.deleted_at IS NULL'),
+        'latest_msg',
+        'latest_msg."conversationId" = c.id AND latest_msg.rn = 1',
+      )
+      .leftJoin(
+        (qb) =>
+          qb
+            .select(['unread."conversationId"', 'COUNT(*) as count'])
+            .from('Messages', 'unread')
+            .where('unread.type::text = :userType', { userType: 'user' })
+            .andWhere('unread.deleted_at IS NULL')
+            .andWhere(
+              `unread.created_at > COALESCE((
+                SELECT MAX(staff.created_at)
+                FROM "Messages" staff
+                WHERE staff."conversationId" = unread."conversationId"
+                AND staff.type = ANY(:staffTypes)
+                AND staff.deleted_at IS NULL
+              ), '1970-01-01')`,
+              { staffTypes: ['hitl', 'agent'] },
+            )
+            .groupBy('unread."conversationId"'),
+        'unread_count',
+        'unread_count."conversationId" = c.id',
+      )
       .where('cu.id = ANY(:chatUserIds)', { chatUserIds })
+      .andWhere('o.id = :organizationId', { organizationId }) // FILTRO POR ORGANIZACIÓN
       .andWhere('c.user_deleted = false')
-      .getRawMany();
+      .andWhere('c.deleted_at IS NULL')
+      .andWhere('m.deleted_at IS NULL') // Asegurar que los mensajes no estén eliminados
+      .orderBy('cu.id', 'ASC')
+      .addOrderBy('c.created_at', 'DESC')
+      .getRawMany()
+      .then((results) => {
+        // Obtener solo la conversación más reciente por chat user
+        const map = new Map();
+        results.forEach((row) => {
+          if (!map.has(row.chat_user_id)) {
+            map.set(row.chat_user_id, row);
+          }
+        });
+        return Array.from(map.values());
+      });
 
-    const conversationsData = await conversationsQuery.then((results) => results.filter((row) => row.rn === 1));
+    this.logger.debug(`Conversaciones encontradas: ${conversationsData.length}`);
+    if (conversationsData.length > 0) {
+      this.logger.debug('Primera conversación:', conversationsData[0]);
+    }
 
     // Crear mapa de conversaciones por chat user
     const conversationsMap = new Map();
@@ -399,52 +436,45 @@ export class ChatUserService {
       conversationsMap.set(conv.chat_user_id, conv);
     });
 
-    // Formatear resultados con datos reales
-    const formattedChatUsers = chatUsers.map((cu) => {
-      const conversation = conversationsMap.get(cu.id);
+    // Formatear resultados con datos reales - SOLO chat users que tienen conversaciones con mensajes
+    const formattedChatUsers = chatUsers
+      .map((cu) => {
+        const conversation = conversationsMap.get(cu.id);
 
-      return {
-        chat_user_id: cu.id.toString(),
-        user_name: cu.name || '',
-        user_email: cu.email || '',
-        user_phone: cu.phone || '',
-        avatar: cu.avatar,
-        secret: cu.secret || '',
-        identifier: cu.identified || '',
-        last_conversation: conversation
-          ? {
-              conversation_id: conversation.conversation_id,
-              last_message_text: conversation.last_message_text || '',
-              last_message_created_at: conversation.last_message_created_at || conversation.last_activity,
-              last_message_type: conversation.last_message_type || MessageType.USER,
-              unread_messages: parseInt(conversation.unread_messages) || 0,
-              need_human: conversation.need_human || false,
-              assigned_user_id: conversation.assigned_user_id,
-              integration_type: conversation.integration_type || '',
-              department: conversation.department || '',
-              last_activity: conversation.last_activity,
-              status:
-                conversation.need_human === false
-                  ? ConversationStatus.IA
-                  : conversation.need_human === true && !conversation.assigned_user_id
-                    ? ConversationStatus.PENDIENTE
-                    : ConversationStatus.ASIGNADO,
-            }
-          : {
-              conversation_id: 0,
-              last_message_text: '',
-              last_message_created_at: new Date().toISOString(),
-              last_message_type: MessageType.USER,
-              unread_messages: 0,
-              need_human: false,
-              assigned_user_id: null,
-              integration_type: '',
-              department: '',
-              last_activity: new Date().toISOString(),
-              status: ConversationStatus.IA,
-            },
-      };
-    });
+        // Solo incluir si tiene conversación con mensajes
+        if (!conversation) {
+          return null;
+        }
+
+        return {
+          chat_user_id: cu.id.toString(),
+          user_name: cu.name || '',
+          user_email: cu.email || '',
+          user_phone: cu.phone || '',
+          avatar: cu.avatar,
+          secret: cu.secret || '',
+          identifier: cu.identified || '',
+          last_conversation: {
+            conversation_id: conversation.conversation_id,
+            last_message_text: conversation.last_message_text || '',
+            last_message_created_at: conversation.last_message_created_at || conversation.last_activity,
+            last_message_type: conversation.last_message_type || 'user',
+            unread_messages: parseInt(conversation.unread_messages) || 0,
+            need_human: conversation.need_human || false,
+            assigned_user_id: conversation.assigned_user_id,
+            integration_type: conversation.integration_type || '',
+            department: conversation.department || '',
+            last_activity: conversation.last_activity,
+            status:
+              conversation.need_human === false
+                ? ConversationStatus.IA
+                : conversation.need_human === true && !conversation.assigned_user_id
+                  ? ConversationStatus.PENDIENTE
+                  : ConversationStatus.ASIGNADO,
+          },
+        };
+      })
+      .filter((chatUser) => chatUser !== null); // Filtrar los null
 
     // Calcular metadatos de paginación
     const totalPages = Math.ceil(totalItems / limit);
