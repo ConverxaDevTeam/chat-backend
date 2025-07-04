@@ -16,6 +16,8 @@ import {
   ConversationStatus,
 } from './dto/chat-users-organization.dto';
 
+import { BulkUpdateChatUserDto, BulkUpdateResponse } from './dto/bulk-update-chat-user.dto';
+
 @Injectable()
 export class ChatUserService {
   private readonly logger = new Logger(ChatUserService.name);
@@ -138,7 +140,13 @@ export class ChatUserService {
   }> {
     const chatUser = await this.chatUserRepository.findOne({
       where: { id: chatUserId },
-      select: ['id', 'name', 'email', 'phone', 'address', 'avatar'],
+      select: ['id', 'name', 'email', 'phone', 'address', 'avatar', 'web', 'browser', 'operating_system', 'ip', 'identified', 'type', 'last_login', 'created_at', 'updated_at'],
+    });
+
+    // Obtener el secret por separado ya que está marcado como select: false
+    const secretQuery = await this.chatUserRepository.findOne({
+      where: { id: chatUserId },
+      select: ['secret'],
     });
 
     if (!chatUser) {
@@ -155,7 +163,10 @@ export class ChatUserService {
     );
 
     return {
-      standardInfo: chatUser,
+      standardInfo: {
+        ...chatUser,
+        secret: secretQuery?.secret || undefined,
+      },
       customData,
     };
   }
@@ -489,6 +500,110 @@ export class ChatUserService {
     } catch (error) {
       this.logger.error(`Error obteniendo última conversación para chatUser ${chatUserId}:`, error);
       return null;
+    }
+  }
+
+  async bulkUpdateChatUser(id: number, updateData: BulkUpdateChatUserDto): Promise<BulkUpdateResponse> {
+    try {
+      const chatUser = await this.chatUserRepository.findOne({ where: { id } });
+
+      if (!chatUser) {
+        throw new BadRequestException('Usuario de chat no encontrado');
+      }
+
+      const result: BulkUpdateResponse = {
+        ok: true,
+        message: 'Actualización masiva completada',
+        data: {
+          standardFields: {
+            updated: [],
+            errors: [],
+          },
+          customFields: {
+            updated: [],
+            errors: [],
+          },
+        },
+      };
+
+      // Actualizar campos estándar
+      if (updateData.standardFields) {
+        // Solo campos editables por el usuario (excluir campos técnicos)
+        const editableFields = ['name', 'email', 'phone', 'address', 'avatar'];
+        const readOnlyFields = ['web', 'browser', 'operating_system', 'ip'];
+
+        for (const [field, value] of Object.entries(updateData.standardFields)) {
+          if (value !== undefined && value !== null) {
+            if (editableFields.includes(field)) {
+              try {
+                chatUser[field] = value;
+                result.data.standardFields.updated.push(field);
+                this.logger.debug(`Campo estándar ${field} actualizado a: ${value}`);
+              } catch (error) {
+                result.data.standardFields.errors.push({
+                  field,
+                  error: error.message || 'Error desconocido',
+                });
+                this.logger.error(`Error actualizando campo ${field}:`, error);
+              }
+            } else if (readOnlyFields.includes(field)) {
+              result.data.standardFields.errors.push({
+                field,
+                error: 'Este campo es de solo lectura y no puede ser editado',
+              });
+              this.logger.warn(`Intento de editar campo de solo lectura: ${field}`);
+            }
+          }
+        }
+      }
+
+      // Guardar cambios en campos estándar
+      if (result.data.standardFields.updated.length > 0) {
+        await this.chatUserRepository.save(chatUser);
+      }
+
+      // Actualizar campos personalizados
+      if (updateData.customFields) {
+        for (const [field, value] of Object.entries(updateData.customFields)) {
+          if (value !== undefined && value !== null) {
+            try {
+              await this.saveCustomUserData(id, field, value);
+              result.data.customFields.updated.push(field);
+              this.logger.debug(`Campo personalizado ${field} actualizado a: ${value}`);
+            } catch (error) {
+              result.data.customFields.errors.push({
+                field,
+                error: error.message || 'Error desconocido',
+              });
+              this.logger.error(`Error actualizando campo personalizado ${field}:`, error);
+            }
+          }
+        }
+      }
+
+      // Obtener usuario actualizado
+      const updatedUser = await this.chatUserRepository.findOne({ where: { id } });
+      result.data.updatedUser = updatedUser;
+
+      // Actualizar mensaje basado en resultados
+      const totalUpdated = result.data.standardFields.updated.length + result.data.customFields.updated.length;
+      const totalErrors = result.data.standardFields.errors.length + result.data.customFields.errors.length;
+
+      if (totalUpdated > 0 && totalErrors === 0) {
+        result.message = `Se actualizaron ${totalUpdated} campos correctamente`;
+      } else if (totalUpdated > 0 && totalErrors > 0) {
+        result.message = `Se actualizaron ${totalUpdated} campos correctamente, ${totalErrors} campos con errores`;
+      } else if (totalErrors > 0) {
+        result.message = `Error: No se pudo actualizar ningún campo (${totalErrors} errores)`;
+        result.ok = false;
+      } else {
+        result.message = 'No se proporcionaron campos para actualizar';
+      }
+
+      return result;
+    } catch (error) {
+      this.logger.error(`Error en actualización masiva del usuario ${id}:`, error);
+      throw new BadRequestException(`Error actualizando usuario: ${error.message}`);
     }
   }
 

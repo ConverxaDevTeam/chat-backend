@@ -1,5 +1,5 @@
 import { Controller, Get, Put, Param, Body, ParseIntPipe, UseGuards, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiBody } from '@nestjs/swagger';
 
 import { ChatUserService } from './chat-user.service';
 import { JwtAuthGuard } from '@modules/auth/guards/jwt-auth.guard';
@@ -10,6 +10,7 @@ import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { ChatUsersOrganizationDto } from './dto/chat-users-organization.dto';
+import { BulkUpdateChatUserDto, BulkUpdateResponse } from './dto/bulk-update-chat-user.dto';
 
 @Controller('chat-user')
 @ApiTags('chat-user')
@@ -88,21 +89,32 @@ export class ChatUserController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Actualizar información del usuario de chat (solo administradores)' })
+  @ApiOperation({
+    summary: 'Actualizar un campo del usuario de chat',
+    description: 'Permite actualizar campos editables: name, email, phone, address, avatar. Los campos técnicos (web, browser, operating_system, ip) son de solo lectura.',
+  })
   @ApiBearerAuth()
   @Put(':id/info')
   async updateUserInfo(@Param('id', ParseIntPipe) id: number, @Body() updateData: { field: string; value: string }) {
     const { field, value } = updateData;
 
     // Campos estándar que se pueden actualizar directamente
-    const standardFields = ['name', 'email', 'phone', 'address', 'avatar'];
+    const editableFields = ['name', 'email', 'phone', 'address', 'avatar'];
 
-    if (standardFields.includes(field)) {
+    // Campos técnicos de solo lectura (no editables por el usuario)
+    const readOnlyFields = ['web', 'browser', 'operating_system', 'ip'];
+
+    if (editableFields.includes(field)) {
       const updatedUser = await this.chatUserService.updateUserInfo(id, field, value);
       return {
         ok: true,
         message: `Campo ${field} actualizado correctamente`,
         data: updatedUser,
+      };
+    } else if (readOnlyFields.includes(field)) {
+      return {
+        ok: false,
+        message: `El campo ${field} es de solo lectura y no puede ser editado`,
       };
     } else {
       // Guardar como dato personalizado
@@ -112,6 +124,58 @@ export class ChatUserController {
         message: `Dato personalizado ${field} guardado correctamente`,
       };
     }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Actualizar múltiples campos del usuario de chat (actualización masiva)' })
+  @ApiBody({
+    type: BulkUpdateChatUserDto,
+    description: 'Datos para actualización masiva del usuario de chat',
+    examples: {
+      'ejemplo-completo': {
+        summary: 'Actualización completa',
+        description: 'Ejemplo actualizando campos estándar y personalizados',
+        value: {
+          standardFields: {
+            name: 'Juan Pérez',
+            email: 'juan.perez@ejemplo.com',
+            phone: '+1234567890',
+            address: 'Calle 123, Ciudad',
+          },
+          customFields: {
+            empresa: 'Mi Empresa SA',
+            ciudad: 'Buenos Aires',
+            edad: '30',
+          },
+        },
+      },
+      'solo-estandar': {
+        summary: 'Solo campos estándar',
+        description: 'Ejemplo actualizando solo campos estándar',
+        value: {
+          standardFields: {
+            name: 'María García',
+            email: 'maria@ejemplo.com',
+          },
+        },
+      },
+      'solo-personalizado': {
+        summary: 'Solo campos personalizados',
+        description: 'Ejemplo actualizando solo campos personalizados',
+        value: {
+          customFields: {
+            empresa: 'Nueva Empresa',
+            puesto: 'Gerente',
+          },
+        },
+      },
+    },
+  })
+  @ApiBearerAuth()
+  @Put(':id/bulk-update')
+  async bulkUpdateUserInfo(@Param('id', ParseIntPipe) id: number, @Body() updateData: BulkUpdateChatUserDto): Promise<BulkUpdateResponse> {
+    const result = await this.chatUserService.bulkUpdateChatUser(id, updateData);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard, JwtAuthRolesGuard)
