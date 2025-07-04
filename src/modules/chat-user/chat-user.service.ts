@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ChatUser, ChatUserType } from '@models/ChatUser.entity';
 import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 import { ChatUserDataService } from '@modules/chat-user-data/chat-user-data.service';
+import { ChatUserOptimizedService } from './chat-user-optimized.service';
 import { User } from '@models/User.entity';
 import { OrganizationRoleType, UserOrganization } from '@models/UserOrganization.entity';
 import { Message } from '@models/Message.entity';
@@ -30,6 +31,7 @@ export class ChatUserService {
     @InjectRepository(Message)
     private messageRepository: Repository<Message>,
     private chatUserDataService: ChatUserDataService,
+    private chatUserOptimizedService: ChatUserOptimizedService,
   ) {}
 
   async findByIdWithSecret(id: number): Promise<string | null> {
@@ -216,6 +218,10 @@ export class ChatUserService {
     page: number;
     totalPages: number;
   }> {
+    // TEMPORALMENTE DESHABILITADA LA OPTIMIZACIÓN PARA DEPURAR
+    // return await this.chatUserOptimizedService.getAllUsersWithInfoOptimized(...);
+
+    // USANDO MÉTODO ORIGINAL (CON N+1 QUERIES) PARA VERIFICAR FUNCIONAMIENTO
     const skip = (page - 1) * limit;
 
     let queryBuilder = this.chatUserRepository
