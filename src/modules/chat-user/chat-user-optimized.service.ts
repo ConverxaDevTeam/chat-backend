@@ -63,9 +63,31 @@ export class ChatUserOptimizedService {
     const skip = (page - 1) * limit;
 
     try {
-      // PASO 1: Obtener usuarios con filtros simples
-      const users = await this.getUsersWithFilters(skip, limit, search, type, sortBy, sortOrder);
-      const total = await this.countUsersWithFilters(search, type);
+      let users: ChatUser[];
+      let total: number;
+
+      if (organizationId) {
+        // Si hay filtro de organización, obtener solo usuarios que tengan conversaciones en esa organización
+        const usersWithConversations = await this.getUsersWithConversationsInOrganization(
+          organizationId,
+          skip,
+          limit,
+          search,
+          type,
+          sortBy,
+          sortOrder,
+          needHuman,
+          hasUnreadMessages,
+          dateFrom,
+          dateTo,
+        );
+        users = usersWithConversations.users;
+        total = usersWithConversations.total;
+      } else {
+        // Sin filtro de organización, obtener usuarios normalmente
+        users = await this.getUsersWithFilters(skip, limit, search, type, sortBy, sortOrder);
+        total = await this.countUsersWithFilters(search, type);
+      }
 
       this.logger.debug(`Total de chat users encontrados: ${total}, página: ${page}, límite: ${limit}`);
 
@@ -135,6 +157,161 @@ export class ChatUserOptimizedService {
     }
   }
 
+  private async getUsersWithConversationsInOrganization(
+    organizationId: number,
+    skip: number,
+    limit: number,
+    search?: string,
+    type?: ChatUserType,
+    sortBy?: string,
+    sortOrder?: string,
+    needHuman?: boolean,
+    hasUnreadMessages?: boolean,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Promise<{ users: ChatUser[]; total: number }> {
+    try {
+      // Primero obtener la conversación más reciente de cada usuario en la organización
+      const latestConversationsQuery = `
+        WITH latest_conversations AS (
+          SELECT DISTINCT ON (c."chatUserId")
+            c."chatUserId",
+            c.id as conv_id,
+            c.created_at as conv_created_at,
+            c.updated_at as conv_updated_at,
+            c.need_human as conv_need_human,
+            c.type as conv_type,
+            c."userId" as conv_user_id,
+            d.name as conv_department
+          FROM "Conversations" c
+          INNER JOIN "departamento" d ON d.id = c."departamentoId"
+          INNER JOIN "Organizations" org ON org.id = d.organization_id
+          WHERE c.user_deleted = false
+            AND c.deleted_at IS NULL
+            AND org.id = $1
+          ORDER BY c."chatUserId", c.updated_at DESC, c.created_at DESC
+        )
+        SELECT
+          cu.id, cu.name, cu.email, cu.phone, cu.address, cu.avatar, cu.type, cu.created_at, cu.last_login,
+          lc.conv_id, lc.conv_created_at, lc.conv_updated_at, lc.conv_need_human, lc.conv_type, lc.conv_user_id, lc.conv_department,
+          COUNT(*) OVER() as total_count
+        FROM "ChatUsers" cu
+        INNER JOIN latest_conversations lc ON lc."chatUserId" = cu.id
+        WHERE 1=1
+      `;
+
+      const queryParams: any[] = [organizationId];
+      let paramIndex = 2;
+      let filterConditions: string[] = [];
+
+      // Aplicar filtros de usuario
+      if (search) {
+        filterConditions.push(`(cu.name ILIKE $${paramIndex} OR cu.email ILIKE $${paramIndex} OR cu.phone ILIKE $${paramIndex})`);
+        queryParams.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      if (type) {
+        filterConditions.push(`cu.type = $${paramIndex}`);
+        queryParams.push(type);
+        paramIndex++;
+      }
+
+      // Aplicar filtros de conversación (sobre la más reciente)
+      if (needHuman !== undefined) {
+        filterConditions.push(`lc.conv_need_human = $${paramIndex}`);
+        queryParams.push(needHuman);
+        paramIndex++;
+      }
+
+      if (dateFrom) {
+        filterConditions.push(`lc.conv_created_at >= $${paramIndex}`);
+        queryParams.push(dateFrom);
+        paramIndex++;
+      }
+
+      if (dateTo) {
+        filterConditions.push(`lc.conv_created_at <= $${paramIndex}`);
+        queryParams.push(dateTo);
+        paramIndex++;
+      }
+
+      // Filtro por hasUnreadMessages (sobre la conversación más reciente)
+      if (hasUnreadMessages !== undefined) {
+        if (hasUnreadMessages) {
+          filterConditions.push(`EXISTS (
+            SELECT 1 FROM "Messages" unread_m
+            WHERE unread_m."conversationId" = lc.conv_id
+            AND unread_m.type = 'user'
+            AND unread_m.deleted_at IS NULL
+            AND unread_m.created_at > COALESCE((
+              SELECT MAX(staff_m.created_at)
+              FROM "Messages" staff_m
+              WHERE staff_m."conversationId" = lc.conv_id
+              AND staff_m.type IN ('hitl', 'agent')
+              AND staff_m.deleted_at IS NULL
+            ), '1970-01-01'::timestamp)
+          )`);
+        } else {
+          filterConditions.push(`NOT EXISTS (
+            SELECT 1 FROM "Messages" unread_m
+            WHERE unread_m."conversationId" = lc.conv_id
+            And unread_m.type = 'user'
+            AND unread_m.deleted_at IS NULL
+            AND unread_m.created_at > COALESCE((
+              SELECT MAX(staff_m.created_at)
+              FROM "Messages" staff_m
+              WHERE staff_m."conversationId" = lc.conv_id
+              AND staff_m.type IN ('hitl', 'agent')
+              AND staff_m.deleted_at IS NULL
+            ), '1970-01-01'::timestamp)
+          )`);
+        }
+      }
+
+      // Agregar condiciones WHERE si hay filtros
+      let finalQuery = latestConversationsQuery;
+      if (filterConditions.length > 0) {
+        finalQuery += ` AND ${filterConditions.join(' AND ')}`;
+      }
+
+      // Ordenamiento
+      const orderField = sortBy === 'name' ? 'cu.name' : sortBy === 'email' ? 'cu.email' : 'cu.created_at';
+      const orderDirection = sortOrder?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+      finalQuery += ` ORDER BY ${orderField} ${orderDirection}`;
+
+      // Paginación
+      finalQuery += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      queryParams.push(limit, skip);
+
+      this.logger.debug(`Query SQL: ${finalQuery}`);
+      this.logger.debug(`Query params: ${JSON.stringify(queryParams)}`);
+
+      const results = await this.chatUserRepository.manager.query(finalQuery, queryParams);
+      this.logger.debug(`Query results: ${results.length} rows`);
+
+      const users = results.map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        phone: row.phone,
+        address: row.address,
+        avatar: row.avatar,
+        type: row.type,
+        created_at: row.created_at,
+        last_login: row.last_login,
+      }));
+
+      const total = results.length > 0 ? parseInt(results[0].total_count) : 0;
+
+      this.logger.debug(`Usuarios con conversaciones en org ${organizationId}: ${users.length} de ${total}`);
+      return { users, total };
+    } catch (error) {
+      this.logger.error('Error en getUsersWithConversationsInOrganization:', error);
+      return { users: [], total: 0 };
+    }
+  }
+
   private async getUsersWithFilters(skip: number, limit: number, search?: string, type?: ChatUserType, sortBy?: string, sortOrder?: string): Promise<ChatUser[]> {
     try {
       // Simplificar para debug - usar find básico
@@ -185,36 +362,44 @@ export class ChatUserOptimizedService {
     if (userIds.length === 0) return new Map();
 
     try {
-      const query = this.chatUserRepository.manager
-        .createQueryBuilder()
-        .select('DISTINCT ON (c.chatUserId) c.chatUserId', 'chatUserId')
-        .addSelect('c.id', 'id')
-        .addSelect('c.created_at', 'created_at')
-        .addSelect('c.need_human', 'need_human')
-        .addSelect('c.type', 'type')
-        .addSelect('c.userId', 'assigned_user_id')
-        .addSelect('d.name', 'department')
-        .from('Conversations', 'c')
-        .leftJoin('c.departamento', 'd')
-        .where('c.chatUserId IN (:...userIds)', { userIds })
-        .andWhere('c.user_deleted = :userDeleted', { userDeleted: false })
-        .andWhere('c.deleted_at IS NULL')
-        .orderBy('c.chatUserId')
-        .addOrderBy('c.created_at', 'DESC');
+      // Usar SQL directo por simplicidad - el QueryBuilder tiene problemas con DISTINCT ON
+      const queryParams: any[] = [userIds];
+      let sqlQuery = `
+        SELECT DISTINCT ON (c."chatUserId")
+          c."chatUserId" as "chatUserId",
+          c.id as id,
+          c.created_at as created_at,
+          c.need_human as need_human,
+          c.type as type,
+          c."userId" as assigned_user_id,
+          d.name as department
+        FROM "Conversations" c
+        LEFT JOIN "departamento" d ON d.id = c."departamentoId"
+        WHERE c."chatUserId" = ANY($1)
+          AND c.user_deleted = false
+          AND c.deleted_at IS NULL
+      `;
 
       // Filtrar por organización si se especifica
       if (organizationId) {
-        query.leftJoin('d.organizacion', 'o').andWhere('o.id = :organizationId', { organizationId });
+        sqlQuery += ` AND EXISTS (
+          SELECT 1 FROM "departamento" dept
+          LEFT JOIN "Organizations" org ON org.id = dept.organization_id
+          WHERE dept.id = c."departamentoId" AND org.id = $2
+        )`;
+        queryParams.push(organizationId);
       }
 
-      const conversations = await query.getRawMany();
-      this.logger.debug(`Conversaciones raw encontradas: ${conversations.length}`);
+      sqlQuery += ` ORDER BY c."chatUserId", c.created_at DESC`;
+
+      const conversations = await this.chatUserRepository.manager.query(sqlQuery, queryParams);
+      this.logger.debug(`Conversaciones raw encontradas: ${conversations.length} para usuarios: ${userIds.join(',')}`);
 
       const conversationMap = new Map();
       conversations.forEach((conv) => {
         conversationMap.set(conv.chatUserId, {
           id: conv.id,
-          created_at: conv.created_at?.toISOString() || new Date().toISOString(),
+          created_at: conv.created_at?.toISOString ? conv.created_at.toISOString() : new Date(conv.created_at).toISOString(),
           need_human: conv.need_human,
           type: conv.type,
           assigned_user_id: conv.assigned_user_id,
@@ -222,6 +407,7 @@ export class ChatUserOptimizedService {
         });
       });
 
+      this.logger.debug(`Mapa de conversaciones creado: ${conversationMap.size}`);
       return conversationMap;
     } catch (error) {
       this.logger.error('Error obteniendo conversaciones:', error);
