@@ -7,7 +7,14 @@ import { Message, MessageType } from '@models/Message.entity';
 import { User } from '@models/User.entity';
 import { ChatUserDataService } from '@modules/chat-user-data/chat-user-data.service';
 import { ChatUserOptimizedService } from './chat-user-optimized.service';
-import { ChatUsersOrganizationDto, ChatUsersOrganizationResponse, PaginationMeta, ConversationStatus, ChatUserWithLastConversation } from './dto/chat-users-organization.dto';
+import {
+  ChatUsersOrganizationDto,
+  ChatUsersOrganizationResponse,
+  PaginationMeta,
+  ConversationStatus,
+  ChatUserWithLastConversation,
+  INTEGRATION_TO_CONVERSATION_TYPE_MAP,
+} from './dto/chat-users-organization.dto';
 import { BulkUpdateChatUserDto, BulkUpdateResponse } from './dto/bulk-update-chat-user.dto';
 import { WebhookFacebookDto } from '@modules/facebook/dto/webhook-facebook.dto';
 
@@ -433,6 +440,73 @@ export class ChatUserService {
         paramIndex++;
       }
 
+      if (searchParams?.integrationType) {
+        const conversationType = INTEGRATION_TO_CONVERSATION_TYPE_MAP[searchParams.integrationType];
+        if (conversationType) {
+          filterConditions.push(`lc.integration_type = $${paramIndex}`);
+          queryParams.push(conversationType);
+          paramIndex++;
+        }
+      }
+
+      if (searchParams?.integrationType) {
+        const conversationType =
+          searchParams.integrationType === 'whatsapp_manual' ? 'whatsapp' : searchParams.integrationType === 'messenger_manual' ? 'messenger' : searchParams.integrationType;
+        filterConditions.push(`lc.integration_type = $${paramIndex}`);
+        queryParams.push(conversationType);
+        paramIndex++;
+      }
+
+      if (searchParams?.status) {
+        switch (searchParams.status) {
+          case 'ia':
+            filterConditions.push(`lc.need_human = false`);
+            break;
+          case 'pendiente':
+            filterConditions.push(`lc.need_human = true AND lc.assigned_user_id IS NULL`);
+            break;
+          case 'asignado':
+            filterConditions.push(`lc.need_human = true AND lc.assigned_user_id IS NOT NULL`);
+            break;
+        }
+      }
+
+      if (searchParams?.department) {
+        filterConditions.push(`lc.department ILIKE $${paramIndex}`);
+        queryParams.push(`%${searchParams.department}%`);
+        paramIndex++;
+      }
+
+      if (searchParams?.dateFrom) {
+        filterConditions.push(`lc.last_message_created_at >= $${paramIndex}`);
+        queryParams.push(searchParams.dateFrom);
+        paramIndex++;
+      }
+
+      if (searchParams?.dateTo) {
+        filterConditions.push(`lc.last_message_created_at <= $${paramIndex}`);
+        queryParams.push(searchParams.dateTo);
+        paramIndex++;
+      }
+
+      if (searchParams?.hasUnreadMessages !== undefined) {
+        const unreadCondition = `EXISTS (
+          SELECT 1 FROM "Messages" unread_m
+          WHERE unread_m."conversationId" = lc.conversation_id
+          AND unread_m.type = 'user'
+          AND unread_m.deleted_at IS NULL
+          AND unread_m.created_at > COALESCE((
+            SELECT MAX(staff_m.created_at)
+            FROM "Messages" staff_m
+            WHERE staff_m."conversationId" = lc.conversation_id
+            AND staff_m.type IN ('hitl', 'agent')
+            AND staff_m.deleted_at IS NULL
+          ), '1970-01-01'::timestamp)
+        )`;
+
+        filterConditions.push(searchParams.hasUnreadMessages ? unreadCondition : `NOT (${unreadCondition})`);
+      }
+
       // Agregar filtros si existen
       let finalQuery = query;
       if (filterConditions.length > 0) {
@@ -503,6 +577,7 @@ export class ChatUserService {
         ...(searchParams?.searchValue && { searchValue: searchParams.searchValue }),
         ...(searchParams?.needHuman !== undefined && { needHuman: searchParams.needHuman }),
         ...(searchParams?.assignedToMe && { assignedToMe: searchParams.assignedToMe }),
+        ...(searchParams?.integrationType && { integrationType: searchParams.integrationType }),
       };
 
       return {
