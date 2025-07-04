@@ -22,15 +22,18 @@ export class ConversationController {
   @UseGuards(JwtAuthRolesGuard)
   @Roles(OrganizationRoleType.HITL, OrganizationRoleType.OWNER, OrganizationRoleType.USER)
   async getConversationsByOrganizationId(@GetUser() user: User, @Param('organizationId', ParseIntPipe) organizationId: number, @Query() searchParams: SearchConversationDto) {
-    const conversations = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user, searchParams);
-    return { ok: true, conversations };
+    const result = await this.conversationService.findByOrganizationIdAndUserId(organizationId, user, searchParams);
+    return result;
   }
 
   @ApiOperation({ summary: 'get conversation by organization id and conversation id' })
   @Get(':organizationId/:conversationId')
   async getConversationByOrganizationIdAndById(@GetUser() user: User, @Param('organizationId') organizationId: number, @Param('conversationId') conversationId: number) {
     const conversation = await this.conversationService.getConversationByOrganizationIdAndById(organizationId, conversationId, user);
-    return conversation;
+    if (!conversation) {
+      return { ok: false, error: 'Conversation not found or does not belong to this organization', conversation: null };
+    }
+    return { ok: true, conversation };
   }
 
   @ApiOperation({ summary: 'Assign a conversation to a user (HITL)' })
