@@ -218,157 +218,21 @@ export class ChatUserService {
     page: number;
     totalPages: number;
   }> {
-    // TEMPORALMENTE DESHABILITADA LA OPTIMIZACIÓN PARA DEPURAR
-    // return await this.chatUserOptimizedService.getAllUsersWithInfoOptimized(...);
-
-    // USANDO MÉTODO ORIGINAL (CON N+1 QUERIES) PARA VERIFICAR FUNCIONAMIENTO
-    const skip = (page - 1) * limit;
-
-    let queryBuilder = this.chatUserRepository
-      .createQueryBuilder('chatUser')
-      .select([
-        'chatUser.id',
-        'chatUser.name',
-        'chatUser.email',
-        'chatUser.phone',
-        'chatUser.address',
-        'chatUser.avatar',
-        'chatUser.type',
-        'chatUser.created_at',
-        'chatUser.last_login',
-      ]);
-
-    // Filtro por organización
-    if (organizationId) {
-      queryBuilder = queryBuilder
-        .leftJoin('chatUser.conversations', 'conversation')
-        .leftJoin('conversation.departamento', 'departamento')
-        .leftJoin('departamento.organizacion', 'organizacion')
-        .where('organizacion.id = :organizationId', { organizationId });
-    }
-
-    // Buscador por name, email, phone
-    if (search) {
-      if (organizationId) {
-        queryBuilder = queryBuilder.andWhere('(chatUser.name ILIKE :search OR chatUser.email ILIKE :search OR chatUser.phone ILIKE :search)', {
-          search: `%${search}%`,
-        });
-      } else {
-        queryBuilder = queryBuilder.where('(chatUser.name ILIKE :search OR chatUser.email ILIKE :search OR chatUser.phone ILIKE :search)', {
-          search: `%${search}%`,
-        });
-      }
-    }
-
-    // Filtro por type
-    if (type) {
-      if (organizationId || search) {
-        queryBuilder = queryBuilder.andWhere('chatUser.type = :type', { type });
-      } else {
-        queryBuilder = queryBuilder.where('chatUser.type = :type', { type });
-      }
-    }
-
-    // Filtros adicionales por conversaciones
-    if (needHuman !== undefined || hasUnreadMessages !== undefined || dateFrom || dateTo) {
-      if (!organizationId) {
-        queryBuilder = queryBuilder
-          .leftJoin('chatUser.conversations', 'conversation')
-          .leftJoin('conversation.departamento', 'departamento')
-          .leftJoin('departamento.organizacion', 'organizacion');
-      }
-
-      if (needHuman !== undefined) {
-        queryBuilder = queryBuilder.andWhere('conversation.need_human = :needHuman', { needHuman });
-      }
-
-      if (dateFrom) {
-        queryBuilder = queryBuilder.andWhere('conversation.created_at >= :dateFrom', { dateFrom });
-      }
-
-      if (dateTo) {
-        queryBuilder = queryBuilder.andWhere('conversation.created_at <= :dateTo', { dateTo });
-      }
-    }
-
-    // Ordenamiento mejorado
-    const orderDirection = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-    switch (sortBy) {
-      case 'name':
-        queryBuilder = queryBuilder.orderBy('chatUser.name', orderDirection);
-        break;
-      case 'email':
-        queryBuilder = queryBuilder.orderBy('chatUser.email', orderDirection);
-        break;
-      case 'phone':
-        queryBuilder = queryBuilder.orderBy('chatUser.phone', orderDirection);
-        break;
-      case 'last_login':
-        queryBuilder = queryBuilder.orderBy('chatUser.last_login', orderDirection);
-        break;
-      case 'created_at':
-        queryBuilder = queryBuilder.orderBy('chatUser.created_at', orderDirection);
-        break;
-      case 'last_activity':
-      default:
-        // Para ordenar por última actividad, necesitamos hacer un ordenamiento especial
-        queryBuilder = queryBuilder.orderBy('chatUser.created_at', orderDirection);
-        break;
-    }
-
-    queryBuilder = queryBuilder.skip(skip).take(limit);
-
-    const [chatUsers, total] = await queryBuilder.getManyAndCount();
-
-    this.logger.debug(`Total de chat users encontrados: ${total}, página: ${page}, límite: ${limit}`);
-
-    const usersWithInfo = await Promise.all(
-      chatUsers.map(async (chatUser) => {
-        const customDataArray = await this.chatUserDataService.findAllByUser(chatUser.id);
-        const customData = customDataArray.reduce(
-          (acc, item) => {
-            acc[item.key] = item.value;
-            return acc;
-          },
-          {} as Record<string, string>,
-        );
-
-        // Obtener última conversación con información completa
-        const lastConversation = await this.getLastConversationInfo(chatUser.id, organizationId, includeMessages);
-
-        const result: any = {
-          standardInfo: chatUser,
-          customData,
-        };
-
-        if (lastConversation) {
-          result.lastConversation = lastConversation;
-        }
-
-        return result;
-      }),
-    );
-
-    // Filtrar por mensajes no leídos si se especifica
-    let filteredUsers = hasUnreadMessages ? usersWithInfo.filter((user) => user.lastConversation && user.lastConversation.unread_messages > 0) : usersWithInfo;
-
-    // Aplicar ordenamiento por última actividad si es necesario
-    if (sortBy === 'last_activity') {
-      filteredUsers = filteredUsers.sort((a, b) => {
-        const aLastActivity = a.lastConversation?.last_activity || a.standardInfo.created_at;
-        const bLastActivity = b.lastConversation?.last_activity || b.standardInfo.created_at;
-
-        const comparison = new Date(aLastActivity).getTime() - new Date(bLastActivity).getTime();
-        return orderDirection === 'DESC' ? -comparison : comparison;
-      });
-    }
-
-    return {
-      users: filteredUsers,
-      total: hasUnreadMessages ? filteredUsers.length : total,
+    // OPTIMIZACIÓN: Usar servicio optimizado que hace 1-2 queries en lugar de N+1
+    return await this.chatUserOptimizedService.getAllUsersWithInfoOptimized(
       page,
-      totalPages: Math.ceil((hasUnreadMessages ? filteredUsers.length : total) / limit),
-    };
+      limit,
+      organizationId,
+      search,
+      type,
+      sortBy,
+      sortOrder,
+      needHuman,
+      hasUnreadMessages,
+      dateFrom,
+      dateTo,
+      includeMessages,
+    );
   }
 
   private async getLastConversationInfo(
