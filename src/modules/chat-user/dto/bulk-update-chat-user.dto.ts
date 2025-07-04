@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEmail, IsObject, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsObject, ValidateNested, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class StandardFieldsDto {
@@ -10,6 +10,7 @@ export class StandardFieldsDto {
 
   @ApiPropertyOptional({ description: 'Email del usuario' })
   @IsOptional()
+  @ValidateIf((obj, value) => value !== '' && value !== null && value !== undefined)
   @IsEmail({}, { message: 'Debe ser un email válido' })
   email?: string;
 
