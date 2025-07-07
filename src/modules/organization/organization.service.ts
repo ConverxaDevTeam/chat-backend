@@ -148,9 +148,7 @@ export class OrganizationService {
       role: OrganizationRoleType.USER,
     });
 
-    if (responseCreateUser.password) {
-      await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, responseCreateUser.password, organization.name);
-    }
+    await this.emailService.sendNewOrganizationEmail(responseCreateUser.user.email, responseCreateUser.password ?? 'Tu contraseña actual', organization.name);
 
     return responseCreateUser.user;
   }
