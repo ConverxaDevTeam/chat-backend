@@ -121,7 +121,7 @@ jobs:
             URL_WSS=${{ secrets.URL_WSS }}
             URL_WEBHOOK_WA=${{ secrets.URL_WEBHOOK_WA }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID }}
+            FACEBOOK_APP_ID=1219212166345748
             FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_APP_SECRET }}
             FACEBOOK_WEBHOOK_SECRET=${{ secrets.FACEBOOK_WEBHOOK_SECRET }}
             FACEBOOK_GRAPH_API=${{ secrets.FACEBOOK_GRAPH_API }}
