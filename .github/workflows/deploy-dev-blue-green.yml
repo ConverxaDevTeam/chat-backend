@@ -39,29 +39,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Copy blue-green-simple script to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          source: 'scripts/blue-green/blue-green-simple.sh'
-          target: '/opt/sofia-chat/'
-          strip_components: 2
+      # - name: Copy blue-green-simple script to server
+      #   uses: appleboy/scp-action@master
+      #   with:
+      #     host: ${{ env.DEPLOY_HOST }}
+      #     username: ${{ env.DEPLOY_USER }}
+      #     key: ${{ env.SSH_KEY }}
+      #     port: 22
+      #     source: 'scripts/blue-green/blue-green-simple.sh'
+      #     target: '/opt/sofia-chat/'
+      #     strip_components: 2
 
-      - name: Copy helper scripts to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          source: 'scripts/blue-green/update-prod-config.sh'
-          target: '/opt/sofia-chat/scripts/'
-          strip_components: 2
-
-      - name: Make scripts executable
+      - name: Verify blue-green scripts exist
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.DEPLOY_HOST }}
@@ -71,7 +60,7 @@ jobs:
           script: |
             chmod +x /opt/sofia-chat/blue-green-simple.sh
             chmod +x /opt/sofia-chat/scripts/*.sh
-            echo "Blue-green scripts updated and made executable"
+            echo "✅ Scripts de blue-green verificados y permisos establecidos"
 
       - name: Update repository and environment
         uses: appleboy/ssh-action@master
