@@ -40,40 +40,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Copy blue-green-simple script to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          source: 'scripts/blue-green/blue-green-simple.sh'
-          target: '/opt/sofia-chat/'
-          strip_components: 2
-
-      - name: Copy helper scripts to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          source: 'scripts/blue-green/update-prod-config.sh'
-          target: '/opt/sofia-chat/scripts/'
-          strip_components: 2
-
-      - name: Make scripts executable
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          script: |
-            chmod +x /opt/sofia-chat/blue-green-simple.sh
-            chmod +x /opt/sofia-chat/scripts/*.sh
-            echo "Blue-green scripts updated and made executable"
-
       - name: Update repository and environment
         uses: appleboy/ssh-action@master
         with:
@@ -117,15 +83,15 @@ jobs:
             NODEMAILER_USER=${{ secrets.NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.NODEMAILER_PASS }}
             NODEMAILER_FROM=${{ secrets.NODEMAILER_FROM }}
-            URL_FILES=${{ secrets.URL_FILES }}
-            URL_WSS=${{ secrets.URL_WSS }}
+            URL_FILES=https://back.sofiachat.com
+            URL_WSS=wss://back.sofiachat.com/api/socket/web-chat
             URL_WEBHOOK_WA=${{ secrets.URL_WEBHOOK_WA }}
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             FACEBOOK_APP_ID=1219212166345748
             FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_APP_SECRET }}
             FACEBOOK_WEBHOOK_SECRET=${{ secrets.FACEBOOK_WEBHOOK_SECRET }}
             FACEBOOK_GRAPH_API=${{ secrets.FACEBOOK_GRAPH_API }}
-            APP_URL=${{ secrets.APP_URL }}
+              APP_URL=https://back.sofiachat.com
             URL_FRONTEND=${{ secrets.URL_FRONTEND }}
             MAILGUN_API_KEY=${{ secrets.MAILGUN_API_KEY }}
             MAILGUN_DOMAIN=${{ secrets.MAILGUN_DOMAIN }}
