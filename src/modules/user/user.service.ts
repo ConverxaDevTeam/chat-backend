@@ -82,7 +82,7 @@ export class UserService {
   }
 
   async getUserForEmailOrCreate(email: string) {
-    const user = await this.userRepository.findOne({ where: { email } });
+    let user = await this.userRepository.findOne({ where: { email } });
 
     if (!user) {
       const newUser = new User();
@@ -91,12 +91,24 @@ export class UserService {
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(password, salt);
       newUser.password = hashedPassword;
-      await this.userRepository.save(newUser);
 
-      if (newUser.password) {
-        await this.emailService.sendUserWellcome(newUser.email, password);
+      try {
+        await this.userRepository.save(newUser);
+
+        if (newUser.password) {
+          await this.emailService.sendUserWellcome(newUser.email, password);
+        }
+        return { created: true, user: newUser, password };
+      } catch (error) {
+        // Si hay error de duplicación, intentamos buscar el usuario nuevamente
+        if (error.message.includes('duplicate key value violates unique constraint')) {
+          user = await this.userRepository.findOne({ where: { email } });
+          if (user) {
+            return { created: false, user };
+          }
+        }
+        throw error;
       }
-      return { created: true, user: newUser, password };
     }
 
     return { created: false, user };
