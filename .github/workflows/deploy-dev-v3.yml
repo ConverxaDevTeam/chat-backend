@@ -49,13 +49,13 @@ jobs:
               sudo apt-get update
               sudo apt-get install -y nginx
             fi
-            
+
             # Create Nginx configuration for the backend
             cat > /tmp/dev-app.sofiachat.com.conf << 'EOL'
             server {
                 listen 80;
                 server_name dev-app.sofiachat.com;
-                
+
                 location / {
                     proxy_pass http://localhost:3001;
                     proxy_http_version 1.1;
@@ -69,27 +69,27 @@ jobs:
                 }
             }
             EOL
-            
+
             # Move the configuration file to Nginx sites-available
             sudo mv /tmp/dev-app.sofiachat.com.conf /etc/nginx/sites-available/dev-app.sofiachat.com.conf
-            
+
             # Create a symbolic link to sites-enabled if it doesn't exist
             if [ ! -f /etc/nginx/sites-enabled/dev-app.sofiachat.com.conf ]; then
               sudo ln -s /etc/nginx/sites-available/dev-app.sofiachat.com.conf /etc/nginx/sites-enabled/
             fi
-            
+
             # Test Nginx configuration
             sudo nginx -t
-            
+
             # Install Certbot if not already installed
             if ! command -v certbot &> /dev/null; then
               sudo apt-get update
               sudo apt-get install -y certbot python3-certbot-nginx
             fi
-            
+
             # Obtain and configure SSL certificate
             sudo certbot --nginx -d dev-app.sofiachat.com --non-interactive --agree-tos --email frank@pixeldigita.com
-            
+
             # Reload Nginx to apply changes
             sudo systemctl reload nginx
 
@@ -134,6 +134,10 @@ jobs:
             MAILGUN_FROM=${{ secrets.DEV2_MAILGUN_FROM }}
             VOYAGE_API_KEY=${{ secrets.DEV2_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.DEV2_CLAUDE_API_KEY }}
+            SOCIAL_LINK_X=https://x.com/SOF_IA_CHAT
+            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/sof-ia-chat
+            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/sof.ia_llm/
+            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/sofiachat.conecta
             EOF
             node src/config/install-pgvector.js
             docker-compose build
