@@ -145,6 +145,10 @@ jobs:
             BASE_MODEL_API_KEY=${{ secrets.PROD_BASE_MODEL_API_KEY }}
             FREE_CONVERSATION_LIMIT=50
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=frank@pixeldigita.com
+            SOCIAL_LINK_X=https://x.com/SOF_IA_CHAT
+            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/sof-ia-chat
+            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/sof.ia_llm/
+            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/sofiachat.conecta
             ENV_EOF
 
       - name: Execute Blue-Green Action
