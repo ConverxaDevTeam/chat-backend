@@ -3,14 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { Message, MessageType, MessageFormatType } from '../../models/Message.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { agentIdentifier, AgentIdentifierType, AgenteType } from 'src/interfaces/agent';
-import { SofiaLLMService } from '../../services/llm-agent/sofia-llm.service';
+import { ConverxaLLMService } from '../../services/llm-agent/converxa-llm.service';
 import { ClaudeSonetService } from '../../services/llm-agent/claude-sonet.service';
 import { BaseAgent } from '../../services/llm-agent/base-agent';
 import { Agente } from '@models/agent/Agente.entity';
 import { Repository } from 'typeorm';
 import { Funcion } from '@models/agent/Function.entity';
 import { Conversation } from '@models/Conversation.entity';
-import { SofiaConversationConfig } from 'src/interfaces/conversation.interface';
+import { ConverxaConversationConfig } from 'src/interfaces/conversation.interface';
 import { FunctionCallService } from './function-call.service';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
@@ -101,12 +101,12 @@ export class AgentService {
     private readonly configService: ConfigService,
   ) {
     this.agentServiceFactory = {
-      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) => {
+      [AgenteType.CONVERXA_ASISTENTE]: (identifier, config) => {
         // Asegurar que DBagentId esté presente
         if (!config.DBagentId) {
-          throw new Error('DBagentId debe estar definido cuando se crea SofiaLLMService');
+          throw new Error('DBagentId debe estar definido cuando se crea ConverxaLLMService');
         }
-        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
+        return new ConverxaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
       },
       [AgenteType.CLAUDE]: (identifier, config) =>
         new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config, this.configService),
@@ -374,17 +374,17 @@ export class AgentService {
   }
 
   async processMessageWithConversation(message: string, conversation: Conversation, images: string[], chatUserId?: number): Promise<AgentResponse | null> {
-    let config = conversation.config as SofiaConversationConfig;
+    let config = conversation.config as ConverxaConversationConfig;
     let identifier = { type: AgentIdentifierType.CHAT } as agentIdentifier;
     const isConfigured = !!config;
     // Si no hay config, crear una configuración por defecto de tipo CHAT y obtener los IDs
     if (!isConfigured) {
       config = {
-        type: AgenteType.SOFIA_ASISTENTE,
+        type: AgenteType.CONVERXA_ASISTENTE,
         agentIdentifier: {
           type: AgentIdentifierType.CHAT,
         },
-      } as SofiaConversationConfig;
+      } as ConverxaConversationConfig;
     } else {
       if (!config.agentIdentifier.agentId || !config.agentIdentifier.threatId) {
         throw new Error('No se pudo obtener el identificador del agente');
@@ -394,7 +394,7 @@ export class AgentService {
         type: AgentIdentifierType.CHAT,
         threatId: config.agentIdentifier.threatId,
         LLMAgentId: config.agentIdentifier.agentId,
-        agent: config.type || AgenteType.SOFIA_ASISTENTE,
+        agent: config.type || AgenteType.CONVERXA_ASISTENTE,
       } as agentIdentifier;
     }
 

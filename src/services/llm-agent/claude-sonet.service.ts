@@ -591,7 +591,7 @@ export class ClaudeSonetService extends BaseAgent {
   }
 
   /**
-   * Renderiza la función sofia__save_user_info específica para Claude
+   * Renderiza la función converxa__save_user_info específica para Claude
    */
   private renderSaveUserInfoForClaude(): any {
     const functionDefinition = this.renderSaveUserInfo();

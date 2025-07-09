@@ -176,9 +176,10 @@ export class FunctionCallService {
         const resultMessage = tipo_hitl && mensaje ? `Conversación escalada con tipo HITL: ${tipo_hitl}` : 'conversacion enviada a agente humano';
         return { message: resultMessage };
       }
+      const user_info_name = 'converxa__save_user_info';
 
       // Función para guardar información del usuario
-      if (functionName === 'sofia__save_user_info') {
+      if (functionName === user_info_name) {
         const { campo, valor } = params;
 
         if (!campo || !valor) {
@@ -206,7 +207,7 @@ export class FunctionCallService {
             await this.systemEventsService.create({
               type: EventType.FUNCTION_EXECUTION_COMPLETED,
               metadata: {
-                functionName: 'sofia__save_user_info',
+                functionName: user_info_name,
                 campo,
                 valor,
                 chatUserId,
@@ -225,7 +226,7 @@ export class FunctionCallService {
             await this.systemEventsService.create({
               type: EventType.FUNCTION_EXECUTION_COMPLETED,
               metadata: {
-                functionName: 'sofia__save_user_info',
+                functionName: user_info_name,
                 campo,
                 valor,
                 chatUserId,
@@ -244,7 +245,7 @@ export class FunctionCallService {
           await this.systemEventsService.create({
             type: EventType.FUNCTION_EXECUTION_FAILED,
             metadata: {
-              functionName: 'sofia__save_user_info',
+              functionName: user_info_name,
               campo,
               valor,
               chatUserId,

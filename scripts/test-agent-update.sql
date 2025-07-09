@@ -48,7 +48,7 @@ WHERE NOT EXISTS (SELECT 1 FROM departamento WHERE name = 'Soporte Test' AND org
 INSERT INTO agente (name, type, config, can_escalate_to_human, departamento_id, created_at, updated_at)
 SELECT
     'Agente Ventas',
-    'SOFIA_ASISTENTE',
+    'CONVERXA',
     '{"agentId": "asst_test_ventas_123", "organizationId": 1, "DBagentId": null}',
     true,
     d.id,
@@ -61,7 +61,7 @@ AND NOT EXISTS (SELECT 1 FROM agente WHERE departamento_id = d.id);
 INSERT INTO agente (name, type, config, can_escalate_to_human, departamento_id, created_at, updated_at)
 SELECT
     'Agente Soporte',
-    'SOFIA_ASISTENTE',
+    'CONVERXA_ASISTENTE',
     '{"agentId": "asst_test_soporte_456", "organizationId": 1, "DBagentId": null}',
     true,
     d.id,

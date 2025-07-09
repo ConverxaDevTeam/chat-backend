@@ -3,15 +3,15 @@ import { FunctionResponse } from './function.interface';
 
 export const UserFunctionPrefix = 'user__';
 
-export const HitlName = 'sofia__hitl';
+export const HitlName = 'converxa__hitl';
 
 export enum AgenteType {
-  SOFIA_ASISTENTE = 'sofia_asistente',
+  CONVERXA_ASISTENTE = 'converxa_asistente',
   CLAUDE = 'claude',
 }
 
-export interface SofiaLLMConfig {
-  type: AgenteType.SOFIA_ASISTENTE;
+export interface ConverxaLLMConfig {
+  type: AgenteType.CONVERXA_ASISTENTE;
   config: {
     instruccion: string;
     agentId?: string;

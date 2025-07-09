@@ -157,10 +157,10 @@ jobs:
             VOYAGE_API_KEY=${{ secrets.PROD_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.PROD_CLAUDE_API_KEY }}
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ env.CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
-            SOCIAL_LINK_X=https://x.com/SOF_IA_CHAT
-            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/sof-ia-chat
-            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/sof.ia_llm/
-            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/sofiachat.conecta
+            SOCIAL_LINK_X=https://x.com/converxa_ia
+            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/converxa-ia/
+            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/converxa-ia/
+            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/converxa-ia
             ENV_EOF
 
             # Ensure pgvector is installed

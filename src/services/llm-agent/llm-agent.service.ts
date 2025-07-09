@@ -25,7 +25,7 @@ export class LlmAgentService {
       }
       agent = await this.createAgent({
         name: 'default agent',
-        type: AgenteType.SOFIA_ASISTENTE,
+        type: AgenteType.CONVERXA_ASISTENTE,
         organization_id: organizacion_id,
         config: {
           instruccion: 'Eres un asistente para registrar las quejas de los usuarios',

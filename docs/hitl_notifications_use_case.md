@@ -20,9 +20,9 @@ sequenceDiagram
     System->>OpenAI: Actualizar agente con nueva función HITL
     Owner->>System: Asignar usuarios a tipo HITL
     System->>OpenAI: Actualizar agente con tipos disponibles
-    
+
     Note over Agent, System: Proceso de Escalamiento
-    Agent->>System: sofia__hitl(tipo_hitl?, mensaje?)
+    Agent->>System: converxa__hitl(tipo_hitl?, mensaje?)
     System->>System: ¿Existen tipos HITL configurados?
     alt Tipos HITL disponibles
         System->>System: Mostrar tipos disponibles a IA
@@ -33,7 +33,7 @@ sequenceDiagram
         System->>System: Escalamiento general
         System->>System: Notificar a toda la organización
     end
-    
+
     Note over HitlUser, System: Respuesta del Usuario
     HitlUser->>System: Marcar notificación como leída
     HitlUser->>System: Tomar acción en conversación
@@ -56,7 +56,7 @@ sequenceDiagram
   - `organization_id`: Organización
 
 ### Funciones del Agente
-- **sofia__hitl**: Función consolidada de escalamiento
+- **converxa__hitl**: Función consolidada de escalamiento
   - Parámetros opcionales: `tipo_hitl`, `mensaje`
   - Comportamiento inteligente:
     - Si la organización tiene tipos HITL: la IA puede elegir entre los tipos disponibles
@@ -115,7 +115,7 @@ sequenceDiagram
 }
 ```
 
-### Función sofia__hitl
+### Función converxa__hitl
 ```typescript
 {
   tipo_hitl?: string; // Opcional - mostrado dinámicamente según tipos disponibles
@@ -127,7 +127,7 @@ sequenceDiagram
 
 1. **Permisos**: Solo usuarios con rol OWNER pueden crear y gestionar tipos HITL
 2. **Validación**: Un usuario solo puede ser asignado a tipos HITL de su organización
-3. **Escalamiento Inteligente**: 
+3. **Escalamiento Inteligente**:
    - Con tipos HITL: notificación dirigida a usuarios especializados
    - Sin tipos HITL: escalamiento general a toda la organización
    - Fallback automático si no hay usuarios del tipo específico
@@ -171,7 +171,7 @@ sequenceDiagram
 
 ### Arquitectura Refactorizada
 - **BaseAgent**: Contiene lógica genérica para obtener tipos HITL usando `getHitlTypes()`
-- **SofiaLLMService**: Implementa renderizado específico para OpenAI con `renderHITL()`
+- **ConverxaLLMService**: Implementa renderizado específico para OpenAI con `renderHITL()`
 - **ClaudeSonetService**: Implementa renderizado específico para Anthropic con `renderHITLForClaude()`
 - **FunctionCallService**: Maneja ejecución de escalamientos HITL con logs detallados
 - **AgentManagerService**: Event listeners para actualización automática de múltiples agentes
@@ -185,9 +185,9 @@ sequenceDiagram
 - **hitl-types.module.ts**: Simplificado, solo controller, importa CoreModule
 - **hitl-types.service.ts**: Sistema de eventos en lugar de llamadas directas a AgentManager
 - **agent-manager.service.ts**: Event listeners y actualización de TODOS los agentes por organización
-- **function-call.service.ts**: Función sofia__hitl consolidada con lógica inteligente y logs detallados
+- **function-call.service.ts**: Función converxa__hitl consolidada con lógica inteligente y logs detallados
 - **base-agent.ts**: Método genérico `getHitlTypes()` para obtener tipos HITL por organización
-- **sofia-llm.service.ts**: Renderizado específico OpenAI con definición dinámica según tipos disponibles
+- **converxa-llm.service.ts**: Renderizado específico OpenAI con definición dinámica según tipos disponibles
 - **claude-sonet.service.ts**: Renderizado específico Anthropic con soporte completo HITL
 - **agentServer.ts**: Integración de HitlTypesService como dependencia en ambos agentes
 - **user.service.ts**: Método findById corregido para retornar todas las organizaciones
@@ -209,8 +209,8 @@ sequenceDiagram
 - **CoreModule**: HitlTypesService centralizado sin dependencias circulares
 - **EventEmitterModule**: Sistema de eventos para actualización de agentes desacoplada
 - **TypeORM**: Configurado con relaciones y validaciones apropiadas
-- **OpenAI Integration**: Función sofia__hitl con parámetros dinámicos según tipos disponibles
-- **Anthropic Integration**: Función sofia__hitl con soporte completo para Claude
+- **OpenAI Integration**: Función converxa__hitl con parámetros dinámicos según tipos disponibles
+- **Anthropic Integration**: Función converxa__hitl con soporte completo para Claude
 - **BaseAgent**: Dependencia HitlTypesService inyectada para acceso genérico a tipos HITL
 - **AgentManagerService**: Listeners de eventos para actualización automática de agentes
 
@@ -221,12 +221,12 @@ sequenceDiagram
 - Todos los endpoints CRUD funcionando
 - Validaciones de permisos (solo OWNER puede gestionar)
 - Asignación y remoción de usuarios HITL
-- Función sofia__hitl consolidada con lógica inteligente
+- Función converxa__hitl consolidada con lógica inteligente
 - Sistema de notificaciones integrado con escalamiento específico y general
 - Verificación de permisos por organización específica
 - Integración completa con servicios de agente (AgentService y AgentManagerService)
 - **Refactorización de Responsabilidades**: BaseAgent maneja lógica genérica, servicios específicos manejan formato de API
-- **Soporte Multi-Proveedor**: SofiaLLM (OpenAI) y ClaudeSonet (Anthropic) ambos soportan HITL
+- **Soporte Multi-Proveedor**: ConverxaLLM (OpenAI) y ClaudeSonet (Anthropic) ambos soportan HITL
 - **Logs de Debugging**: Sistema completo de logs con prefijo [HITL DEBUG] para troubleshooting
 - **Actualización Multi-Agente**: Sistema actualiza TODOS los agentes de TODOS los departamentos de una organización
 - **Sistema de Eventos**: Arquitectura desacoplada con EventEmitter para actualización automática de agentes
@@ -237,12 +237,12 @@ sequenceDiagram
 - **GetOrganization decorator**: Corregido parseInt(organizationId, 10) en lugar de parseInt(organizationId, -1)
 - **JwtAuthRolesGuard**: Implementada verificación de roles por organización específica extraída de URL
 - **UserOrganization.entity**: Agregado campo organizationId explícito para compatibilidad
-- **Consolidación de Funciones**: Eliminada sofia__hitl_notify, toda la lógica consolidada en sofia__hitl
-- **Definición Dinámica**: sofia__hitl ahora muestra parámetros dinámicamente según tipos HITL disponibles
+- **Consolidación de Funciones**: Eliminada converxa__hitl_notify, toda la lógica consolidada en converxa__hitl
+- **Definición Dinámica**: converxa__hitl ahora muestra parámetros dinámicamente según tipos HITL disponibles
 - **Módulos**: HitlTypesModule correctamente importado en AgentModule y AgentManagerModule
 - **Refactorización de Arquitectura**: Movida lógica genérica a BaseAgent, manteniendo compatibilidad específica por proveedor
 - **Inyección de Dependencias**: HitlTypesService correctamente inyectado en BaseAgent y propagado a servicios específicos
-- **Compatibilidad Multi-Proveedor**: ClaudeSonetService actualizado para soportar HITL con mismo comportamiento que SofiaLLM
+- **Compatibilidad Multi-Proveedor**: ClaudeSonetService actualizado para soportar HITL con mismo comportamiento que ConverxaLLM
 - **Actualización Multi-Departamento**: Corregido para actualizar TODOS los agentes de TODOS los departamentos en una organización
 - **Event-Driven Architecture**: Implementado sistema de eventos para desacoplar actualización de agentes
 - **CoreModule Integration**: HitlTypesService movido a CoreModule eliminando dependencias circulares

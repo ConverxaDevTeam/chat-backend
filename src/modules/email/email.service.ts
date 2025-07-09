@@ -62,7 +62,7 @@ export class EmailService {
     const messageData = {
       from: this.configService.get<string>('mailgun.from'),
       to: email,
-      subject: 'Bienvenido a SofiaCall',
+      subject: 'Bienvenido a ConverxaCall',
       html,
     };
 

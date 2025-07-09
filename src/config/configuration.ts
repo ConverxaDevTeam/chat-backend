@@ -45,8 +45,8 @@ export default (): any => ({
   RESET_PASSWORD_CODE_EXPIRATION: process.env.RESET_PASSWORD_CODE_EXPIRATION || '15', // minutes
   socialLinks: {
     x: process.env.SOCIAL_LINK_X || 'https://x.com/SOF_IA_CHAT',
-    linkedin: process.env.SOCIAL_LINK_LINKEDIN || 'https://www.linkedin.com/company/sof-ia-chat',
-    instagram: process.env.SOCIAL_LINK_INSTAGRAM || 'https://www.instagram.com/sof.ia_llm/',
-    facebook: process.env.SOCIAL_LINK_FACEBOOK || 'https://www.facebook.com/sofiachat.conecta',
+    linkedin: process.env.SOCIAL_LINK_LINKEDIN || 'https://www.linkedin.com/company/converxa',
+    instagram: process.env.SOCIAL_LINK_INSTAGRAM || 'https://www.instagram.com/converxa/',
+    facebook: process.env.SOCIAL_LINK_FACEBOOK || 'https://www.facebook.com/converxa',
   },
 });

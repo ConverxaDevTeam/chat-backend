@@ -5,13 +5,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DeepPartial, Repository } from 'typeorm';
 import { Agente } from '@models/agent/Agente.entity';
 import { CreateAgentDto } from '../../modules/llm-agent/dto/CreateAgent.dto';
-import { AgenteType, AgentIdentifierType, ChatAgentIdentifier, CreateAgentConfig, SofiaLLMConfig } from 'src/interfaces/agent';
+import { AgenteType, AgentIdentifierType, ChatAgentIdentifier, CreateAgentConfig, ConverxaLLMConfig } from 'src/interfaces/agent';
 import { SocketService } from '@modules/socket/socket.service';
 import { FunctionCallService } from '../../modules/agent/function-call.service';
 import { Departamento } from '@models/Departamento.entity';
 import { SystemEventsService } from '@modules/system-events/system-events.service';
 import { Funcion } from '@models/agent/Function.entity';
-import { SofiaLLMService } from 'src/services/llm-agent/sofia-llm.service';
+import { ConverxaLLMService } from 'src/services/llm-agent/converxa-llm.service';
 import { ClaudeSonetService } from 'src/services/llm-agent/claude-sonet.service';
 import { BaseAgent } from 'src/services/llm-agent/base-agent';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
@@ -19,7 +19,7 @@ import { HitlTypesService } from '@modules/hitl-types/hitl-types.service';
 import { HitlEventType, HitlEvent } from 'src/interfaces/hitl-events';
 
 // Tipos para las configuraciones de agentes
-type SofiaAgente = Agente<SofiaLLMConfig>;
+type ConverxaAgente = Agente<ConverxaLLMConfig>;
 
 // Factory para crear servicios de agente según su tipo
 type AgentServiceFactory = {
@@ -32,7 +32,7 @@ export class AgentManagerService {
 
   constructor(
     @InjectRepository(Agente)
-    private readonly agenteRepository: Repository<Agente<SofiaLLMConfig>>,
+    private readonly agenteRepository: Repository<Agente<ConverxaLLMConfig>>,
     @Inject(forwardRef(() => SocketService))
     private readonly socketService: SocketService,
     private readonly functionCallService: FunctionCallService,
@@ -42,24 +42,24 @@ export class AgentManagerService {
     private readonly configService: ConfigService,
   ) {
     this.agentServiceFactory = {
-      [AgenteType.SOFIA_ASISTENTE]: (identifier, config) => {
+      [AgenteType.CONVERXA_ASISTENTE]: (identifier, config) => {
         // Validar que DBagentId esté presente
         if (!config.DBagentId) {
-          throw new Error('DBagentId debe estar definido cuando se crea SofiaLLMService');
+          throw new Error('DBagentId debe estar definido cuando se crea ConverxaLLMService');
         }
-        return new SofiaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
+        return new ConverxaLLMService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config);
       },
       [AgenteType.CLAUDE]: (identifier, config) =>
         new ClaudeSonetService(this.functionCallService, this.systemEventsService, this.integrationRouterService, this.hitlTypesService, identifier, config, this.configService),
     };
   }
 
-  private buildAgentConfig(agente: SofiaAgente, organizationId: number, organizationName: string): CreateAgentConfig {
+  private buildAgentConfig(agente: ConverxaAgente, organizationId: number, organizationName: string): CreateAgentConfig {
     if (!agente.config?.instruccion) {
       throw new Error('La configuración del agente debe incluir una instrucción no vacía');
     }
     return {
-      name: `sofia_${agente.departamento.id}_${agente.name}`,
+      name: `converxa_${agente.departamento.id}_${agente.name}`,
       instruccion: agente.config.instruccion,
       agentId: agente.config.agentId ?? '',
       DBagentId: agente.id,
@@ -88,21 +88,21 @@ export class AgentManagerService {
     const plainConfig = config ? { ...config } : undefined;
     const agente = await this.agenteRepository.save({
       ...rest,
-      type: createAgentDto.type as AgenteType.SOFIA_ASISTENTE,
+      type: createAgentDto.type as AgenteType.CONVERXA_ASISTENTE,
       config: plainConfig,
       departamento: departamento_id ? ({ id: departamento_id } as Partial<Departamento>) : undefined,
     });
 
     // Inicializar la configuración según el tipo de agente
     switch (agente.type) {
-      case AgenteType.SOFIA_ASISTENTE: {
-        const sofiaConfig: SofiaLLMConfig = {
-          type: AgenteType.SOFIA_ASISTENTE,
+      case AgenteType.CONVERXA_ASISTENTE: {
+        const converxaConfig: ConverxaLLMConfig = {
+          type: AgenteType.CONVERXA_ASISTENTE,
           config: {
             instruccion: createAgentDto.config?.instruccion || '',
           },
         };
-        agente.config = sofiaConfig.config;
+        agente.config = converxaConfig.config;
         break;
       }
     }
@@ -119,12 +119,12 @@ export class AgentManagerService {
     }
 
     // Inicializar el agente según su tipo
-    const sofiaAgent = agente as Agente<SofiaLLMConfig>;
-    console.log('on create agent', sofiaAgent);
-    const sofiaConfig = this.buildAgentConfig(sofiaAgent, createAgentDto.organization_id, agente.departamento?.organizacion?.name || 'DefaultOrg');
+    const converxaAgent = agente as Agente<ConverxaLLMConfig>;
+    console.log('on create agent', converxaAgent);
+    const converxaConfig = this.buildAgentConfig(converxaAgent, createAgentDto.organization_id, agente.departamento?.organizacion?.name || 'DefaultOrg');
     const identifier: ChatAgentIdentifier = {
       type: AgentIdentifierType.CHAT,
-      agentId: sofiaConfig.agentId,
+      agentId: converxaConfig.agentId,
     };
 
     // Usar el factory para crear el servicio de agente según el tipo
@@ -133,12 +133,12 @@ export class AgentManagerService {
       throw new BadRequestException(`Tipo de agente no soportado: ${agente.type}`);
     }
 
-    const llmService = createAgentService(identifier, sofiaConfig);
+    const llmService = createAgentService(identifier, converxaConfig);
     await llmService.init();
-    sofiaAgent.config.agentId = llmService.getAgentId();
+    converxaAgent.config.agentId = llmService.getAgentId();
 
     // Guardar el ID del asistente
-    const savedAgente = await this.agenteRepository.save(sofiaAgent);
+    const savedAgente = await this.agenteRepository.save(converxaAgent);
     const agenteWithRelations = await this.agenteRepository.findOne({
       where: { id: savedAgente.id },
       relations: ['funciones', 'departamento', 'departamento.organizacion'],
@@ -181,15 +181,15 @@ export class AgentManagerService {
       throw new BadRequestException('Agente sin organización asignada');
     }
 
-    const previousConfig: SofiaLLMConfig['config'] = agente.config as SofiaLLMConfig['config'];
+    const previousConfig: ConverxaLLMConfig['config'] = agente.config as ConverxaLLMConfig['config'];
 
     // Actualizar según el tipo de agente
-    const sofiaAgent = agente as SofiaAgente;
-    Object.assign(sofiaAgent, updateData);
+    const converxaAgent = agente as ConverxaAgente;
+    Object.assign(converxaAgent, updateData);
 
     // Actualizar el asistente si cambió la configuración
-    if (JSON.stringify(previousConfig) !== JSON.stringify(sofiaAgent.config)) {
-      const config = this.buildAgentConfig(sofiaAgent, agente.departamento?.organizacion?.id, agente.departamento?.organizacion?.name || 'DefaultOrg');
+    if (JSON.stringify(previousConfig) !== JSON.stringify(converxaAgent.config)) {
+      const config = this.buildAgentConfig(converxaAgent, agente.departamento?.organizacion?.id, agente.departamento?.organizacion?.name || 'DefaultOrg');
       const identifier: ChatAgentIdentifier = {
         type: AgentIdentifierType.CHAT,
         agentId: previousConfig.agentId,
@@ -209,14 +209,14 @@ export class AgentManagerService {
       }
       await llmService.updateAgent(config, previousConfig.agentId);
     }
-    if (sofiaAgent.config && !sofiaAgent.config.agentId) {
-      const prevSofiaConfig = previousConfig;
-      sofiaAgent.config.agentId = prevSofiaConfig?.agentId;
+    if (converxaAgent.config && !converxaAgent.config.agentId) {
+      const prevConverxaConfig = previousConfig;
+      converxaAgent.config.agentId = prevConverxaConfig?.agentId;
     }
-    const updatedSofiaAgent = await this.agenteRepository.save(sofiaAgent);
+    const updatedConverxaAgent = await this.agenteRepository.save(converxaAgent);
     // Emit update event
     this.emitUpdateEvent(id, userId);
-    return updatedSofiaAgent;
+    return updatedConverxaAgent;
   }
 
   async updateEscalateToHuman(id: number, canEscalateToHuman: boolean): Promise<Agente> {
@@ -260,7 +260,7 @@ export class AgentManagerService {
     if (!DBagentId) {
       throw new Error('DBagentId debe estar definido para actualizar funciones');
     }
-    const llmService = new SofiaLLMService(
+    const llmService = new ConverxaLLMService(
       this.functionCallService,
       this.systemEventsService,
       this.integrationRouterService,
@@ -358,32 +358,32 @@ export class AgentManagerService {
   }
 
   async getAudioText(audioName: string) {
-    return SofiaLLMService.getAudioText(audioName);
+    return ConverxaLLMService.getAudioText(audioName);
   }
 
   async textToAudio(text: string): Promise<string> {
-    return SofiaLLMService.textToAudio(text);
+    return ConverxaLLMService.textToAudio(text);
   }
 
   // Métodos para operaciones de vectorStore
   async createVectorStore(agentId: number): Promise<string> {
-    return SofiaLLMService.createVectorStore(agentId);
+    return ConverxaLLMService.createVectorStore(agentId);
   }
 
   async deleteVectorStore(vectorStoreId: string): Promise<void> {
-    return SofiaLLMService.deleteVectorStore(vectorStoreId);
+    return ConverxaLLMService.deleteVectorStore(vectorStoreId);
   }
 
   async uploadFileToVectorStore(file: Express.Multer.File, vectorStoreId: string): Promise<string> {
-    return SofiaLLMService.uploadFileToVectorStore(file, vectorStoreId);
+    return ConverxaLLMService.uploadFileToVectorStore(file, vectorStoreId);
   }
 
   async deleteFileFromVectorStore(fileId: string): Promise<void> {
-    return SofiaLLMService.deleteFileFromVectorStore(fileId);
+    return ConverxaLLMService.deleteFileFromVectorStore(fileId);
   }
 
   async updateAssistantToolResources(assistantId: string, vectorStoreId: string | null, data: { funciones: Funcion[]; add: boolean; hitl: boolean }): Promise<void> {
-    return SofiaLLMService.updateAssistantToolResources(assistantId, vectorStoreId, data);
+    return ConverxaLLMService.updateAssistantToolResources(assistantId, vectorStoreId, data);
   }
 
   private emitUpdateEvent(agentId: number, userId: number): void {
