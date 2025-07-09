@@ -40,7 +40,6 @@ jobs:
         with:
           fetch-depth: 0
 
-
       - name: Update repository and environment
         uses: appleboy/ssh-action@master
         with:
@@ -68,13 +67,10 @@ jobs:
             echo "Último commit: $(git log --oneline -1)"
             git status --short
 
-
-
             # Create environment file with proper quoting
             cat > .env << 'ENV_EOF'
             NODE_ENV=production
-<<<<<<<< HEAD:.github/workflows/prod-deployment.yaml
-            LOG_LEVEL=verbose
+            LOG_LEVEL=production
             TYPEORM_HOST=converxa-prod-db-do-user-23433311-0.k.db.ondigitalocean.com
             TYPEORM_PORT=25060
             TYPEORM_USERNAME=doadmin
@@ -83,13 +79,13 @@ jobs:
             TYPEORM_SSL=true
             JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
             JWT_SECRET_KEY_REFRESH=${{ secrets.PROD_JWT_SECRET_KEY_REFRESH }}
-            NODEMAILER_HOST=smtp.mailgun.org
-            NODEMAILER_PORT=465
+            NODEMAILER_HOST=smtp.gmail.com
+            NODEMAILER_PORT=587
             NODEMAILER_USER=${{ secrets.PROD_NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.PROD_NODEMAILER_PASS }}
-            NODEMAILER_FROM=hola@sofiacall.com
-            URL_FILES=https://back-chat.converxa.net
-            URL_WSS=wss://back-chat.converxa.net/api/socket/web-chat
+            NODEMAILER_FROM=noreply@converxa.net
+            URL_FILES=https://back-chat.converxa.net/files
+            URL_WSS=wss://back-chat.converxa.net
             URL_WEBHOOK_WA=https://back-chat.converxa.net/webhook/whatsapp
             OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}
             FACEBOOK_APP_ID=your-facebook-app-id
@@ -99,56 +95,20 @@ jobs:
             APP_URL=https://back-chat.converxa.net
             URL_FRONTEND=https://app-chat.converxa.net
             MAILGUN_API_KEY=${{ secrets.PROD_MAILGUN_API_KEY }}
-            MAILGUN_DOMAIN=sofiallm.com
-            MAILGUN_FROM=hola@sofiallm.com
+            MAILGUN_DOMAIN=converxa.net
+            MAILGUN_FROM=noreply@converxa.net
             SLACK_CLIENT_ID=your-slack-client-id
             SLACK_CLIENT_SECRET=your-slack-client-secret
             SLACK_REDIRECT_URI=https://back-chat.converxa.net/auth/slack/callback
             VOYAGE_API_KEY=${{ secrets.PROD_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.PROD_CLAUDE_API_KEY }}
-========
-            LOG_LEVEL=production
-            TYPEORM_HOST=${{ secrets.TYPEORM_HOST }}
-            TYPEORM_PORT=${{ secrets.TYPEORM_PORT }}
-            TYPEORM_USERNAME=${{ secrets.TYPEORM_USERNAME }}
-            TYPEORM_PASSWORD=${{ secrets.TYPEORM_PASSWORD }}
-            TYPEORM_DB_NAME=${{ secrets.TYPEORM_DB_NAME }}
-            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            JWT_SECRET_KEY_REFRESH=${{ secrets.JWT_SECRET_KEY_REFRESH }}
-            NODEMAILER_HOST=${{ secrets.NODEMAILER_HOST }}
-            NODEMAILER_PORT=${{ secrets.NODEMAILER_PORT }}
-            NODEMAILER_USER=${{ secrets.NODEMAILER_USER }}
-            NODEMAILER_PASS=${{ secrets.NODEMAILER_PASS }}
-            NODEMAILER_FROM=${{ secrets.NODEMAILER_FROM }}
-            URL_FILES=https://back.sofiachat.com
-            URL_WSS=wss://back.sofiachat.com/api/socket/web-chat
-            URL_WEBHOOK_WA=${{ secrets.URL_WEBHOOK_WA }}
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            FACEBOOK_APP_ID=1219212166345748
-            FACEBOOK_APP_SECRET=${{ secrets.FACEBOOK_APP_SECRET }}
-            FACEBOOK_WEBHOOK_SECRET=${{ secrets.FACEBOOK_WEBHOOK_SECRET }}
-            FACEBOOK_GRAPH_API=${{ secrets.FACEBOOK_GRAPH_API }}
-              APP_URL=https://back.sofiachat.com
-            URL_FRONTEND=${{ secrets.URL_FRONTEND }}
-            MAILGUN_API_KEY=${{ secrets.MAILGUN_API_KEY }}
-            MAILGUN_DOMAIN=${{ secrets.MAILGUN_DOMAIN }}
-            MAILGUN_FROM=${{ secrets.MAILGUN_FROM }}
-            SLACK_CLIENT_ID=${{ secrets.SLACK_CLIENT_ID }}
-            SLACK_CLIENT_SECRET=${{ secrets.SLACK_CLIENT_SECRET }}
-            SLACK_REDIRECT_URI=${{ secrets.SLACK_REDIRECT_URI }}
-            VOYAGE_API_KEY=${{ secrets.VOYAGE_API_KEY }}
-            CLAUDE_API_KEY=${{ secrets.CLAUDE_API_KEY }}
->>>>>>>> a49ae43 (Set production Facebook app ID to hardcoded value):.github/workflows/deploy-production.yaml
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            PINECONE_API_KEY=${{ secrets.PROD_PINECONE_API_KEY }}
-            BASE_MODEL_API_KEY=${{ secrets.PROD_BASE_MODEL_API_KEY }}
-            FREE_CONVERSATION_LIMIT=50
-            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=frank@pixeldigita.com
-            SOCIAL_LINK_X=https://x.com/SOF_IA_CHAT
-            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/sof-ia-chat
-            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/sof.ia_llm/
-            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/sofiachat.conecta
+            GOOGLE_CLIENT_ID=your-google-client-id
+            GOOGLE_CLIENT_SECRET=your-google-client-secret
+            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=admin@converxa.net
+            SOCIAL_LINK_X=https://x.com/converxa_ia
+            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/converxa-ia/
+            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/converxa-ia/
+            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/converxa-ia
             ENV_EOF
 
       - name: Execute Blue-Green Action
