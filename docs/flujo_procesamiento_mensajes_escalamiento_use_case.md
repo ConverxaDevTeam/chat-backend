@@ -13,7 +13,7 @@ graph TD
     C -->|No| E[AgentService.processMessageWithConversation]
     E --> F[BaseAgent.response]
     F --> G[LLMService ejecuta agente]
-    G --> H{¿Agente llama sofia__hitl?}
+    G --> H{¿Agente llama converxa__hitl?}
     H -->|No| I[Respuesta normal del agente]
     H -->|Sí| J[FunctionCallService.executeFunctionCall]
     J --> K{¿Tiene tipos HITL configurados?}
@@ -54,7 +54,7 @@ graph TD
 
 ### FunctionCallService.executeFunctionCall()
 - **Ubicación**: `src/modules/agent/function-call.service.ts`
-- **Responsabilidad**: Ejecutar función sofia__hitl y manejar escalamientos
+- **Responsabilidad**: Ejecutar función converxa__hitl y manejar escalamientos
 - **Tipos**: Escalamiento específico vs general
 
 ### NotificationService

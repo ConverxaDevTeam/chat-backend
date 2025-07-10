@@ -37,8 +37,8 @@ frontend_internal_api_url = "https://internal-dev-converxa.converxa.com"
 
 # === DOMINIOS CONFIGURADOS AUTOMÁTICAMENTE ===
 # Backend:
-#   - Producción: dev-sofia-chat.converxa.com
-#   - Pruebas: internal-dev-sofia-chat.converxa.com
+#   - Producción: dev-converxa-chat.converxa.com
+#   - Pruebas: internal-dev-converxa-chat.converxa.com
 # Frontend:
-#   - Producción: app-sofia-chat.converxa.com
-#   - Pruebas: internal-app-sofia-chat.converxa.com
+#   - Producción: app-converxa-chat.converxa.com
+#   - Pruebas: internal-app-converxa-chat.converxa.com

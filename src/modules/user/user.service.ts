@@ -124,12 +124,17 @@ export class UserService {
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(password, salt);
       newUser.password = hashedPassword;
-      await this.userRepository.save(newUser);
 
-      if (newUser.password) {
-        await this.emailService.sendUserWellcome(newUser.email, password);
+      try {
+        await this.userRepository.save(newUser);
+
+        if (newUser.password) {
+          await this.emailService.sendUserWellcome(newUser.email, password);
+        }
+        return { created: true, user: newUser, password };
+      } catch (error) {
+        throw error;
       }
-      return { created: true, user: newUser, password };
     }
 
     return { created: false, user };

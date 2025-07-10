@@ -53,12 +53,16 @@ export class EmailService {
       link: this.configService.get<string>('url.frontend'),
       frontendBaseUrl: this.configService.get<string>('url.frontend'),
       backendBaseUrl,
+      linkedinLink: this.configService.get<string>('socialLinks.linkedin'),
+      instagramLink: this.configService.get<string>('socialLinks.instagram'),
+      facebookLink: this.configService.get<string>('socialLinks.facebook'),
+      xLink: this.configService.get<string>('socialLinks.x'),
     });
 
     const messageData = {
       from: this.configService.get<string>('mailgun.from'),
       to: email,
-      subject: 'Bienvenido a SofiaCall',
+      subject: 'Bienvenido a ConverxaCall',
       html,
     };
 
@@ -78,6 +82,10 @@ export class EmailService {
       link: frontendUrl,
       frontendBaseUrl: frontendUrl,
       backendBaseUrl,
+      linkedinLink: this.configService.get<string>('socialLinks.linkedin'),
+      instagramLink: this.configService.get<string>('socialLinks.instagram'),
+      facebookLink: this.configService.get<string>('socialLinks.facebook'),
+      xLink: this.configService.get<string>('socialLinks.x'),
     });
 
     await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), {
@@ -100,10 +108,10 @@ export class EmailService {
       frontendBaseUrl: frontendUrl,
       backendBaseUrl,
       resetPasswordLink: `${frontendUrl}/reset-password/change?code=${code}&email=${encodeURIComponent(email)}`,
-      linkedinLink: 'https://linkedin.com/company/converxa',
-      whatsappLink: 'https://whatsapp.com/converxa',
-      instagramLink: 'https://instagram.com/converxa',
-      facebookLink: 'https://facebook.com/converxa',
+      linkedinLink: this.configService.get<string>('socialLinks.linkedin'),
+      instagramLink: this.configService.get<string>('socialLinks.instagram'),
+      facebookLink: this.configService.get<string>('socialLinks.facebook'),
+      xLink: this.configService.get<string>('socialLinks.x'),
     });
 
     await this.mailgun.messages.create(this.configService.get<string>('mailgun.domain'), {
@@ -127,6 +135,10 @@ export class EmailService {
       currentYear,
       frontendBaseUrl: this.configService.get<string>('url.frontend'),
       backendBaseUrl,
+      linkedinLink: this.configService.get<string>('socialLinks.linkedin'),
+      instagramLink: this.configService.get<string>('socialLinks.instagram'),
+      facebookLink: this.configService.get<string>('socialLinks.facebook'),
+      xLink: this.configService.get<string>('socialLinks.x'),
     });
 
     const messageData = {
@@ -153,10 +165,10 @@ export class EmailService {
         isCustomPlan: changeTypeDto.type === OrganizationType.CUSTOM,
         daysToUpdate: changeTypeDto.daysToUpdate,
         link: `${frontendBaseUrl}/admin/organizations/${organization.id}`,
-        linkedinLink: 'https://www.linkedin.com/company/converxa/',
-        whatsappLink: 'https://wa.me/56962378459',
-        instagramLink: 'https://www.instagram.com/converxa/',
-        facebookLink: 'https://www.facebook.com/sofia.chat.ai',
+        linkedinLink: this.configService.get<string>('socialLinks.linkedin'),
+        instagramLink: this.configService.get<string>('socialLinks.instagram'),
+        facebookLink: this.configService.get<string>('socialLinks.facebook'),
+        xLink: this.configService.get<string>('socialLinks.x'),
         backendBaseUrl,
       });
 

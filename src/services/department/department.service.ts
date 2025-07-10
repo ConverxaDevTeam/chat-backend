@@ -141,7 +141,7 @@ export class DepartmentService {
       department.agente = await this.agentManagerService.createAgent({
         name: 'default agent',
         departamento_id: department.id,
-        type: AgenteType.SOFIA_ASISTENTE,
+        type: AgenteType.CONVERXA_ASISTENTE,
         organization_id: department.organizacion.id,
         config: {
           instruccion: 'Eres un asistente para registrar las quejas de los usuarios',

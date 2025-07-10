@@ -9,8 +9,8 @@ export interface ConversationConfigBase {
   };
 }
 
-export interface SofiaConversationConfig extends ConversationConfigBase {
-  type: AgenteType.SOFIA_ASISTENTE;
+export interface ConverxaConversationConfig extends ConversationConfigBase {
+  type: AgenteType.CONVERXA_ASISTENTE;
   agentIdentifier: {
     agentId?: string;
     type: AgentIdentifierType.CHAT | AgentIdentifierType.THREAT;

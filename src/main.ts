@@ -80,7 +80,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
-  const config = new DocumentBuilder().setTitle('SofiaChat API').setDescription('SofiaChat API docuemntation').addBearerAuth().setVersion('1.0').build();
+  const config = new DocumentBuilder().setTitle('Converxa Chat API').setDescription('ConverxaChat API documentation').addBearerAuth().setVersion('1.0').build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('doc', app, document);
 

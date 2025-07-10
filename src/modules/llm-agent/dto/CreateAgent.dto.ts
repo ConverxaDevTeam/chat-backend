@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import { AgenteType } from 'src/interfaces/agent';
 
 // DTOs para configuraciones específicas
-export class SofiaConfigDto {
+export class ConverxaConfigDto {
   @IsString()
   instruccion: string;
 
@@ -29,6 +29,6 @@ export class CreateAgentDto {
   @IsOptional()
   @IsObject()
   @ValidateNested()
-  @Type(() => SofiaConfigDto)
-  config?: SofiaConfigDto;
+  @Type(() => ConverxaConfigDto)
+  config?: ConverxaConfigDto;
 }

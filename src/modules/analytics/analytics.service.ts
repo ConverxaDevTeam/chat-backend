@@ -24,6 +24,7 @@ export class AnalyticsService {
       [AnalyticType.TOTAL_USERS]: () => this.getTotalUsers(dto),
       [AnalyticType.NEW_USERS]: () => this.getNewUsers(dto),
       [AnalyticType.RECURRING_USERS]: () => this.getRecurringUsers(dto),
+      [AnalyticType.USERS_WITHOUT_MESSAGES]: () => this.getUsersWithoutMessages(dto),
       [AnalyticType.TOTAL_MESSAGES]: () => this.getTotalMessages(dto),
       [AnalyticType.MESSAGES_BY_WHATSAPP]: () => this.getMessagesByType(dto, IntegrationType.WHATSAPP),
       [AnalyticType.MESSAGES_BY_FACEBOOK]: () => this.getMessagesByType(dto, IntegrationType.MESSENGER),
@@ -50,12 +51,13 @@ export class AnalyticsService {
   }
 
   private async getTotalUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    // Users who had activity (messages/conversations) on each day
     const result = await this.dataSource
       .createQueryBuilder()
       .select('DATE(messages.created_at)', 'day')
-      .addSelect('COUNT(DISTINCT ChatUsers.id)', 'count')
-      .from(ChatUser, 'ChatUsers')
-      .innerJoin('ChatUsers.conversations', 'conv')
+      .addSelect('COUNT(DISTINCT chatusers.id)', 'count')
+      .from(ChatUser, 'chatusers')
+      .innerJoin('chatusers.conversations', 'conv')
       .innerJoin('conv.messages', 'messages')
       .innerJoin('conv.departamento', 'departamento')
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
@@ -73,15 +75,19 @@ export class AnalyticsService {
   }
 
   private async getNewUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
-    const users = await this.chatUserRepository
-      .createQueryBuilder('chatusers')
+    // Users registered on each day AND sent messages
+    const users = await this.dataSource
+      .createQueryBuilder()
       .select('DATE(chatusers.created_at)', 'day')
       .addSelect('COUNT(DISTINCT chatusers.id)', 'count')
+      .from(ChatUser, 'chatusers')
       .innerJoin('chatusers.conversations', 'conv')
+      .innerJoin('conv.messages', 'messages')
       .innerJoin('conv.departamento', 'departamento')
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
       .andWhere(dto.startDate ? 'chatusers.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
       .andWhere(dto.endDate ? 'chatusers.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .andWhere('DATE(chatusers.created_at) = DATE(messages.created_at)')
       .groupBy('day')
       .orderBy('day', 'ASC')
       .getRawMany();
@@ -94,6 +100,7 @@ export class AnalyticsService {
   }
 
   private async getRecurringUsers(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    // Users who had activity on a day but were NOT registered that same day
     const users = await this.dataSource
       .createQueryBuilder()
       .select('DATE(messages.created_at)', 'day')
@@ -105,25 +112,38 @@ export class AnalyticsService {
       .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
       .andWhere(dto.startDate ? 'messages.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
       .andWhere(dto.endDate ? 'messages.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
-      .andWhere((qb) => {
-        const subQuery = qb
-          .subQuery()
-          .select('chatUser2.id')
-          .from(ChatUser, 'chatUser2')
-          .innerJoin('chatUser2.conversations', 'conv2')
-          .innerJoin('conv2.messages', 'messages2')
-          .innerJoin('messages2.chatSession', 'session2')
-          .where(dto.startDate ? 'session2.created_at < :startDate' : '1=1', { startDate: dto.startDate })
-          .groupBy('chatUser2.id')
-          .getQuery();
-        return 'chatUser.id IN ' + subQuery;
-      })
+      .andWhere('DATE(chatUser.created_at) != DATE(messages.created_at)')
       .groupBy('day')
       .orderBy('day', 'ASC')
       .getRawMany();
 
     return users.map(({ day, count }) => ({
       type: AnalyticType.RECURRING_USERS,
+      created_at: new Date(day),
+      value: Number(count),
+    }));
+  }
+
+  private async getUsersWithoutMessages(dto: GetAnalyticsDto): Promise<StatisticEntry[]> {
+    // Users registered each day but never sent any messages
+    const users = await this.dataSource
+      .createQueryBuilder()
+      .select('DATE(chatusers.created_at)', 'day')
+      .addSelect('COUNT(DISTINCT chatusers.id)', 'count')
+      .from(ChatUser, 'chatusers')
+      .innerJoin('chatusers.conversations', 'conv')
+      .innerJoin('conv.departamento', 'departamento')
+      .leftJoin('conv.messages', 'messages')
+      .where('departamento.organization_id = :organizationId', { organizationId: dto.organizationId })
+      .andWhere(dto.startDate ? 'chatusers.created_at >= :startDate' : '1=1', { startDate: dto.startDate })
+      .andWhere(dto.endDate ? 'chatusers.created_at <= :endDate' : '1=1', { endDate: dto.endDate })
+      .andWhere('messages.id IS NULL')
+      .groupBy('day')
+      .orderBy('day', 'ASC')
+      .getRawMany();
+
+    return users.map(({ day, count }) => ({
+      type: AnalyticType.USERS_WITHOUT_MESSAGES,
       created_at: new Date(day),
       value: Number(count),
     }));

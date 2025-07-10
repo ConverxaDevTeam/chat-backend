@@ -42,7 +42,7 @@ export class InitialSchema1742486080661 implements MigrationInterface {
     await queryRunner.query(
       `CREATE TABLE "knowledge_base" ("id" SERIAL NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "fileId" character varying(50) NOT NULL, "expirationTime" integer, "filename" character varying(255) NOT NULL, "agent_id" integer, CONSTRAINT "PK_19d3f52f6da1501b7e235f1da5c" PRIMARY KEY ("id"))`,
     );
-    await queryRunner.query(`CREATE TYPE "public"."agente_type_enum" AS ENUM('sofia_asistente', 'claude')`);
+    await queryRunner.query(`CREATE TYPE "public"."agente_type_enum" AS ENUM('converxa_asistente', 'claude')`);
     await queryRunner.query(
       `CREATE TABLE "agente" ("id" SERIAL NOT NULL, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "name" character varying(255) NOT NULL, "type" "public"."agente_type_enum" NOT NULL, "config" json, "canEscalateToHuman" boolean NOT NULL DEFAULT true, "departamento_id" integer, CONSTRAINT "REL_7cefc7a63f060d6a45ea01997e" UNIQUE ("departamento_id"), CONSTRAINT "PK_47af256a3a46207eab30a0b126e" PRIMARY KEY ("id"))`,
     );

@@ -414,12 +414,12 @@ export abstract class BaseAgent {
   }
 
   /**
-   * Renderiza la función sofia__save_user_info para guardar información del usuario
+   * Renderiza la función converxa__save_user_info para guardar información del usuario
    * Método genérico que debe ser usado por todos los agentes
    */
   protected renderSaveUserInfo(): any {
     return {
-      name: 'sofia__save_user_info',
+      name: 'converxa__save_user_info',
       description: 'Guarda información personal del usuario durante la conversación. Usar solo cuando el usuario proporcione información voluntariamente.',
       parameters: {
         type: 'object',

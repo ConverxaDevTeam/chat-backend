@@ -3,7 +3,7 @@ name: Auto deploy converxa-backend-v2 development in VPS
 on:
   push:
     branches:
-      - develop-v1-bk
+      - develop-v1
     paths:
       - '.github/workflows/**'
       - 'index.html'
@@ -12,6 +12,7 @@ on:
       - 'scripts/**'
       - 'src/**'
       - 'vite.config.js'
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -76,7 +77,12 @@ jobs:
             MAILGUN_FROM=${{ secrets.DEV_MAILGUN_FROM }}
             VOYAGE_API_KEY=${{ secrets.DEV_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.DEV_CLAUDE_API_KEY }}
+            DEPLOYMENT_COLOR = green
             CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=${{ secrets.DEV_CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL }}
+            SOCIAL_LINK_X=https://x.com/converxa_ia
+            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/converxa-ia/
+            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/converxa-ia/
+            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/converxa-ia
             EOF
             node src/config/install-pgvector.js
             docker-compose build

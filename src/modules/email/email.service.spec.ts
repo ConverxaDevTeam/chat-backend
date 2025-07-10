@@ -53,7 +53,7 @@ describe('EmailService', () => {
       expect(sendMailMock).toHaveBeenCalledWith({
         from: 'no-reply@example.com',
         to: email,
-        subject: 'Bienvenido a SofiaCall',
+        subject: 'Bienvenido a ConverxaCall',
         html: expect.any(String),
       });
     });

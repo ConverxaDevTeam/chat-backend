@@ -40,40 +40,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Copy blue-green-simple script to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          source: 'scripts/blue-green/blue-green-simple.sh'
-          target: /opt/converxa-chat/
-          strip_components: 2
-
-      - name: Copy helper scripts to server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          source: 'scripts/blue-green/update-prod-config.sh'
-          target: '/opt/converxa/scripts/'
-          strip_components: 2
-
-      - name: Make scripts executable
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ env.DEPLOY_HOST }}
-          username: ${{ env.DEPLOY_USER }}
-          key: ${{ env.SSH_KEY }}
-          port: 22
-          script: |
-            chmod +x /opt/converxa-chat/blue-green-simple.sh
-            chmod +x /opt/converxa-chat/scripts/*.sh
-            echo "Blue-green scripts updated and made executable"
-
       - name: Update repository and environment
         uses: appleboy/ssh-action@master
         with:
@@ -101,12 +67,10 @@ jobs:
             echo "Último commit: $(git log --oneline -1)"
             git status --short
 
-
-
             # Create environment file with proper quoting
             cat > .env << 'ENV_EOF'
             NODE_ENV=production
-            LOG_LEVEL=verbose
+            LOG_LEVEL=production
             TYPEORM_HOST=converxa-prod-db-do-user-23433311-0.k.db.ondigitalocean.com
             TYPEORM_PORT=25060
             TYPEORM_USERNAME=doadmin
@@ -115,13 +79,13 @@ jobs:
             TYPEORM_SSL=true
             JWT_SECRET_KEY=${{ secrets.PROD_JWT_SECRET_KEY }}
             JWT_SECRET_KEY_REFRESH=${{ secrets.PROD_JWT_SECRET_KEY_REFRESH }}
-            NODEMAILER_HOST=smtp.mailgun.org
-            NODEMAILER_PORT=465
+            NODEMAILER_HOST=smtp.gmail.com
+            NODEMAILER_PORT=587
             NODEMAILER_USER=${{ secrets.PROD_NODEMAILER_USER }}
             NODEMAILER_PASS=${{ secrets.PROD_NODEMAILER_PASS }}
-            NODEMAILER_FROM=hola@sofiacall.com
-            URL_FILES=https://back-chat.converxa.net
-            URL_WSS=wss://back-chat.converxa.net/api/socket/web-chat
+            NODEMAILER_FROM=noreply@converxa.net
+            URL_FILES=https://back-chat.converxa.net/files
+            URL_WSS=wss://back-chat.converxa.net
             URL_WEBHOOK_WA=https://back-chat.converxa.net/webhook/whatsapp
             OPENAI_API_KEY=${{ secrets.PROD_OPENAI_API_KEY }}
             FACEBOOK_APP_ID=your-facebook-app-id
@@ -131,19 +95,20 @@ jobs:
             APP_URL=https://back-chat.converxa.net
             URL_FRONTEND=https://app-chat.converxa.net
             MAILGUN_API_KEY=${{ secrets.PROD_MAILGUN_API_KEY }}
-            MAILGUN_DOMAIN=sofiallm.com
-            MAILGUN_FROM=hola@sofiallm.com
+            MAILGUN_DOMAIN=converxa.net
+            MAILGUN_FROM=noreply@converxa.net
             SLACK_CLIENT_ID=your-slack-client-id
             SLACK_CLIENT_SECRET=your-slack-client-secret
             SLACK_REDIRECT_URI=https://back-chat.converxa.net/auth/slack/callback
             VOYAGE_API_KEY=${{ secrets.PROD_VOYAGE_API_KEY }}
             CLAUDE_API_KEY=${{ secrets.PROD_CLAUDE_API_KEY }}
-            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-            PINECONE_API_KEY=${{ secrets.PROD_PINECONE_API_KEY }}
-            BASE_MODEL_API_KEY=${{ secrets.PROD_BASE_MODEL_API_KEY }}
-            FREE_CONVERSATION_LIMIT=50
-            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=frank@pixeldigita.com
+            GOOGLE_CLIENT_ID=your-google-client-id
+            GOOGLE_CLIENT_SECRET=your-google-client-secret
+            CUSTOM_PLAN_REQUEST_RECIPIENT_EMAIL=admin@converxa.net
+            SOCIAL_LINK_X=https://x.com/converxa_ia
+            SOCIAL_LINK_LINKEDIN=https://www.linkedin.com/company/converxa-ia/
+            SOCIAL_LINK_INSTAGRAM=https://www.instagram.com/converxa-ia/
+            SOCIAL_LINK_FACEBOOK=https://www.facebook.com/converxa-ia
             ENV_EOF
 
       - name: Execute Blue-Green Action

@@ -8,14 +8,14 @@ Sistema que permite al agente recopilar y almacenar información personal del us
 ```mermaid
 sequenceDiagram
     participant User as Usuario
-    participant Agent as Agente Sofia
+    participant Agent as Agente Converxa
     participant System as Sistema
     participant ChatUser as ChatUser
     participant UserData as UserData (KV)
 
     Note over User, UserData: Recopilación de Información
     User->>Agent: Proporciona información personal
-    Agent->>System: sofia__save_user_info(campo, valor)
+    Agent->>System: converxa__save_user_info(campo, valor)
 
     alt Campo estándar (name, email, phone, address)
         System->>ChatUser: Actualizar campo directo
@@ -54,7 +54,7 @@ sequenceDiagram
   - `updated_at`: Fecha de actualización
 
 ### Funciones del Agente
-- **sofia__save_user_info**: Función para guardar información del usuario
+- **converxa__save_user_info**: Función para guardar información del usuario
   - Parámetros:
     - `campo`: string - Nombre del campo (ej: "name", "email", "empresa")
     - `valor`: string - Valor a guardar
@@ -111,9 +111,9 @@ sequenceDiagram
 ### Archivos Modificados
 - **ChatUser.entity.ts**: Agregar relación OneToMany con ChatUserData
 - **chat-user.service.ts**: Extender con métodos para información completa
-- **function-call.service.ts**: Agregar función sofia__save_user_info
+- **function-call.service.ts**: Agregar función converxa__save_user_info
 - **base-agent.ts**: Incluir definición de función para agentes
-- **sofia-llm.service.ts**: Renderizado para OpenAI
+- **converxa-llm.service.ts**: Renderizado para OpenAI
 - **claude-sonet.service.ts**: Renderizado para Anthropic
 
 ### Base de Datos

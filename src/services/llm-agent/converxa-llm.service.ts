@@ -129,7 +129,7 @@ export class ConverxaLLMService extends BaseAgent {
     try {
       const assistantName = `${environment}_${config.name || 'ConverxaAssistant'}_${organizationName}`;
       const tools = buildToolsArray({ funciones: config?.funciones ?? [] });
-      console.log('render HITL tools', tools);
+
       await this.renderHITL(true, tools, config.organizationId);
       this.renderSaveUserInfoForOpenAI(tools);
       const assistant = await this.openai.beta.assistants.create({
