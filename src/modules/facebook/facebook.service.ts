@@ -303,7 +303,11 @@ export class FacebookService {
         webhookFacebookDto.entry[0].messaging[0].message.attachments[0].type === 'audio' &&
         webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url
       ) {
-        message = await this.messageService.createMessageAudio(actualConversation, text, MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
+        message = await this.messageService.createMessage(actualConversation, '', MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id, {
+          platform: IntegrationType.MESSENGER,
+          format: MessageFormatType.AUDIO,
+          audio_url: webhookFacebookDto.entry[0].messaging[0].message.attachments[0].payload.url,
+        });
       } else {
         console.log('Invalid object', webhookFacebookDto);
         return;
@@ -401,7 +405,11 @@ export class FacebookService {
         writer.on('finish', () => resolve());
         writer.on('error', reject);
       });
-      return await this.messageService.createMessageAudio(actualConversation, '', MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id);
+      return await this.messageService.createMessage(actualConversation, '', MessageType.USER, integration.departamento.organizacion.id, actualConversation?.user?.id, {
+        platform: IntegrationType.WHATSAPP,
+        format: MessageFormatType.AUDIO,
+        audio_url: uniqueName,
+      });
     }
 
     throw new BadRequestException('Message type not found');
