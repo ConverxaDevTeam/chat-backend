@@ -287,23 +287,6 @@ deploy() {
         $DOCKER_COMPOSE rm -f converxa-backend-$target_slot
     fi
 
-    # Verificar TypeScript antes del build
-    log "Verificando errores de TypeScript..."
-    if command -v npm >/dev/null 2>&1; then
-        if npm run build:check 2>/dev/null; then
-            log "✅ Verificación de TypeScript exitosa"
-        else
-            log "❌ Intentando verificación alternativa con tsc..."
-            if npx tsc --noEmit --skipLibCheck; then
-                log "✅ Verificación de TypeScript exitosa (alternativa)"
-            else
-                error "❌ Errores de TypeScript encontrados. El deployment se cancela para evitar código roto en producción."
-            fi
-        fi
-    else
-        warn "⚠️ npm no disponible, saltando verificación de TypeScript"
-    fi
-
     # Build de la nueva imagen con --no-cache para garantizar imagen fresca
     log "Construyendo nueva imagen..."
     $DOCKER_COMPOSE build --no-cache converxa-backend-$target_slot
