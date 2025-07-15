@@ -10,6 +10,16 @@ export enum OrganizationType {
   CUSTOM = 'custom',
 }
 
+export enum WizardStatus {
+  ORGANIZATION = 'organization',
+  DEPARTMENT = 'department',
+  AGENT = 'agent',
+  KNOWLEDGE = 'knowledge',
+  CHAT = 'chat',
+  INTEGRATION = 'integration',
+  LINK_WEB = 'link_web',
+}
+
 @Entity({ name: 'Organizations' })
 export class Organization extends BaseEntity {
   @Column({ type: 'varchar', length: 255, nullable: false })
@@ -32,6 +42,9 @@ export class Organization extends BaseEntity {
 
   @Column({ type: 'int', default: 0 })
   conversationCount: number;
+
+  @Column({ type: 'enum', enum: WizardStatus, default: WizardStatus.ORGANIZATION })
+  wizardStatus: WizardStatus;
 
   @DeleteDateColumn()
   deletedAt: Date;
