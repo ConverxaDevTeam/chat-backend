@@ -1,4 +1,4 @@
-import { Organization, OrganizationType } from '@models/Organization.entity';
+import { Organization, OrganizationType, WizardStatus } from '@models/Organization.entity';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -271,5 +271,32 @@ export class OrganizationService {
 
     // Actualizar el rol
     return this.userOrganizationService.updateUserRole(targetUserId, organizationId, organizationRole);
+  }
+
+  /**
+   * Actualiza el estado del wizard de una organización
+   * @param organizationId ID de la organización
+   * @param wizardStatus Nuevo estado del wizard
+   * @param user Usuario que realiza la actualización
+   * @returns void
+   */
+  async updateWizardStatus(organizationId: number, wizardStatus: WizardStatus, user: User): Promise<void> {
+    // Verificar que el usuario tiene permisos en la organización
+    const userRole = await this.getRolInOrganization(user, organizationId);
+    if (!userRole) {
+      throw new ForbiddenException('No tienes permisos para actualizar esta organización');
+    }
+
+    // Verificar que la organización existe
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+    });
+
+    if (!organization) {
+      throw new NotFoundException('Organización no encontrada');
+    }
+
+    // Actualizar el estado del wizard
+    await this.organizationRepository.update(organizationId, { wizardStatus });
   }
 }
