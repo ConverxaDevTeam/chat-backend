@@ -3,12 +3,13 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { JwtAuthRolesGuard } from '@modules/auth/guards/jwt-auth-roles.guard';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { UpdateWizardStatusDto } from './dto/update-wizard-status.dto';
 import { GetUser } from '@infrastructure/decorators/get-user.decorator';
 import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
 import { UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Organization, OrganizationType } from '@models/Organization.entity';
+import { Organization, OrganizationType, WizardStatus } from '@models/Organization.entity';
 import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard';
@@ -165,6 +166,14 @@ export class OrganizationController {
   @Patch(':organizationId/agent-type')
   async updateAgentType(@Param('organizationId') organizationId: number, @Body('agentType') agentType: AgenteType) {
     await this.organizationService.updateAgentType(organizationId, agentType);
+    return { ok: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Actualizar el estado del wizard de la organización' })
+  @Patch(':organizationId/wizard-status')
+  async updateWizardStatus(@Param('organizationId') organizationId: number, @Body() updateWizardStatusDto: UpdateWizardStatusDto, @GetUser() user: User) {
+    await this.organizationService.updateWizardStatus(organizationId, updateWizardStatusDto.wizardStatus, user);
     return { ok: true };
   }
 }
