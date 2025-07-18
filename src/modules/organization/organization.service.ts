@@ -70,7 +70,7 @@ export class OrganizationService {
     });
   }
 
-  async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File, isSuperUser: boolean = false): Promise<Organization> {
+  async createOrganization(createOrganizationDto: CreateOrganizationDto, file: Express.Multer.File, isSuperUser: boolean = false, requestingUser?: User): Promise<Organization> {
     // Obtener el usuario por email
     const responseCreateUser = await this.userService.getUserForEmailOrCreate(createOrganizationDto.email);
     const user = responseCreateUser.user;
@@ -93,7 +93,10 @@ export class OrganizationService {
     }
 
     // Crear la organización
-    const organization = this.organizationRepository.create(createOrganizationDto);
+    const organization = this.organizationRepository.create({
+      ...createOrganizationDto,
+      wizardStatus: WizardStatus.DEPARTMENT, // Cambiar al segundo estado del wizard
+    });
     await this.organizationRepository.save(organization);
 
     // Guardar el logo
@@ -101,12 +104,21 @@ export class OrganizationService {
     organization.logo = logoUrl;
     await this.organizationRepository.save(organization);
 
-    // Asignar el usuario como propietario de la organización
+    // Asignar el usuario del DTO como propietario de la organización
     await this.userOrganizationService.create({
       organization,
       user: user,
       role: OrganizationRoleType.OWNER,
     });
+
+    // Si hay un usuario solicitante (el del token) y es diferente al del DTO, asignarlo como USR_TECNICO
+    if (requestingUser && requestingUser.id !== user.id) {
+      await this.userOrganizationService.create({
+        organization,
+        user: requestingUser,
+        role: OrganizationRoleType.USR_TECNICO,
+      });
+    }
 
     // Crear límites según el tipo de organización
     if (organization.type === OrganizationType.FREE || organization.type === OrganizationType.CUSTOM) {
