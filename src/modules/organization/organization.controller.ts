@@ -9,7 +9,7 @@ import { User } from '@models/User.entity';
 import { UserOrganizationService } from './UserOrganization.service';
 import { UploadedFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { Organization, OrganizationType, WizardStatus } from '@models/Organization.entity';
+import { Organization, OrganizationType } from '@models/Organization.entity';
 import { Roles } from '@infrastructure/decorators/role-protected.decorator';
 import { OrganizationRoleType } from '@models/UserOrganization.entity';
 import { SuperAdminGuard } from '@modules/auth/guards/super-admin.guard';
@@ -86,15 +86,20 @@ export class OrganizationController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'crear una organización' })
   @Post('')
   @UseInterceptors(FileInterceptor('logo'))
   async createOrganization(@Body() createOrganizationDto: CreateOrganizationDto, @UploadedFile() file: Express.Multer.File, @GetUser() user: User) {
-    // Verificar si el usuario es USR_TECNICO o no tiene organizaciones
+    // Verificar roles y permisos del usuario
     const userOrganizations = await this.userOrganizationService.getMyOrganizations(user);
     const isUserTecnico = userOrganizations.some((uo) => uo.role === OrganizationRoleType.USR_TECNICO);
+    const isOwner = userOrganizations.some((uo) => uo.role === OrganizationRoleType.OWNER);
     const hasNoOrganizations = userOrganizations.length === 0;
+
+    // Prohibir explícitamente a los OWNERS crear organizaciones
+    if (isOwner && !user.is_super_admin) {
+      throw new ConflictException('Los propietarios no pueden crear organizaciones adicionales. Contacta al administrador si necesitas ayuda.');
+    }
 
     // Si no es USR_TECNICO y ya tiene organizaciones, no permitir crear más
     if (!isUserTecnico && !hasNoOrganizations && !user.is_super_admin) {
@@ -103,7 +108,7 @@ export class OrganizationController {
 
     // Pasar el flag de superusuario al servicio
     const isSuperUser = user.is_super_admin;
-    const organization = await this.organizationService.createOrganization(createOrganizationDto, file, isSuperUser);
+    const organization = await this.organizationService.createOrganization(createOrganizationDto, file, isSuperUser, user);
     return { ok: true, organization };
   }
 

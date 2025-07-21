@@ -43,9 +43,13 @@ export class OrganizationLimitService {
 
     // Configurar valores predeterminados según el tipo de organización
     if (organization.type === OrganizationType.FREE) {
+      // Obtener el límite de departamentos desde la configuración
+      const defaultDepartmentLimit = this.configService.get<number>('organizationLimits.defaultDepartmentLimit', 5);
+
       // Para FREE, los valores son fijos: 50 conversaciones, 15 días, no mensual
       limit = this.organizationLimitRepository.create({
         conversationLimit: 50,
+        departmentLimit: defaultDepartmentLimit,
         durationDays: 15,
         isMonthly: false,
         organizationId: createDto.organizationId,
@@ -127,11 +131,15 @@ export class OrganizationLimitService {
     // Crear límites por defecto según el tipo de organización
     let limitData: Partial<OrganizationLimit>;
 
+    // Obtener el límite de departamentos desde la configuración
+    const defaultDepartmentLimit = this.configService.get<number>('organizationLimits.defaultDepartmentLimit', 5);
+
     if (organization.type === OrganizationType.FREE) {
       // Obtener el límite de conversaciones FREE desde las variables de entorno
       const freeConversationLimit = parseInt(this.configService.get('FREE_CONVERSATION_LIMIT', '50'));
       limitData = {
         conversationLimit: freeConversationLimit,
+        departmentLimit: defaultDepartmentLimit,
         durationDays: 15,
         isMonthly: false,
       };
@@ -139,6 +147,7 @@ export class OrganizationLimitService {
       // Para CUSTOM
       limitData = {
         conversationLimit: 100, // Valor por defecto para CUSTOM
+        departmentLimit: defaultDepartmentLimit,
         durationDays: 30,
         isMonthly: true,
       };
@@ -354,6 +363,62 @@ export class OrganizationLimitService {
       daysRemaining,
       type: organization.type,
       organization: hasReachedLimit ? undefined : updatedOrg,
+    };
+  }
+
+  /**
+   * Verifica si una organización ha alcanzado su límite de departamentos
+   * @param organizationId ID de la organización a verificar
+   * @returns Un objeto con información sobre el límite y si se ha alcanzado
+   */
+  async hasReachedDepartmentLimit(organizationId: number): Promise<{
+    hasReachedLimit: boolean;
+    limit?: number;
+    current?: number;
+    type?: OrganizationType;
+  }> {
+    // Obtener la organización con sus departamentos
+    const organization = await this.organizationRepository.findOne({
+      where: { id: organizationId },
+      relations: ['departamentos'],
+    });
+
+    if (!organization) {
+      throw new NotFoundException(`Organización con ID ${organizationId} no encontrada`);
+    }
+
+    // Para PRODUCTION y MVP no hay límites
+    if (organization.type === OrganizationType.PRODUCTION || organization.type === OrganizationType.MVP) {
+      return {
+        hasReachedLimit: false,
+        type: organization.type,
+      };
+    }
+
+    // Obtener los límites de la organización
+    const limit = await this.organizationLimitRepository.findOne({
+      where: { organizationId },
+    });
+
+    if (!limit) {
+      // Si no hay límites configurados pero es FREE o CUSTOM, crear límites por defecto
+      if (organization.type === OrganizationType.FREE || organization.type === OrganizationType.CUSTOM) {
+        await this.createDefaultLimitForOrganization(organization);
+        // Llamar recursivamente para obtener los límites recién creados
+        return this.hasReachedDepartmentLimit(organizationId);
+      }
+      return { hasReachedLimit: false };
+    }
+
+    // Contar departamentos activos (no eliminados)
+    const currentCount = organization.departamentos?.filter((dept) => !dept.deleted_at).length || 0;
+    const hasReachedLimit = currentCount >= limit.departmentLimit;
+
+    return {
+      hasReachedLimit,
+      limit: limit.departmentLimit,
+      current: currentCount,
+      type: organization.type,
     };
   }
 }

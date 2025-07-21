@@ -49,4 +49,7 @@ export default (): any => ({
     instagram: process.env.SOCIAL_LINK_INSTAGRAM || 'https://www.instagram.com/sof.ia_llm/',
     facebook: process.env.SOCIAL_LINK_FACEBOOK || 'https://www.facebook.com/sofiachat.conecta',
   },
+  organizationLimits: {
+    defaultDepartmentLimit: process.env.DEFAULT_DEPARTMENT_LIMIT ? parseInt(process.env.DEFAULT_DEPARTMENT_LIMIT, 10) : 5,
+  },
 });
