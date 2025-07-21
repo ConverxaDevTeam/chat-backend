@@ -52,4 +52,7 @@ export default (): any => ({
   organizationLimits: {
     defaultDepartmentLimit: process.env.DEFAULT_DEPARTMENT_LIMIT ? parseInt(process.env.DEFAULT_DEPARTMENT_LIMIT, 10) : 5,
   },
+  organizationLimits: {
+    defaultDepartmentLimit: process.env.DEFAULT_DEPARTMENT_LIMIT ? parseInt(process.env.DEFAULT_DEPARTMENT_LIMIT, 10) : 5,
+  },
 });
