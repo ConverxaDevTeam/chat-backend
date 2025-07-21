@@ -3,7 +3,7 @@ import { Conversation, ConversationType } from '@models/Conversation.entity';
 import { IntegrationType } from '@models/Integration.entity';
 import { MessageType } from '@models/Message.entity';
 import { ConversationService } from '@modules/conversation/conversation.service';
-import { DepartmentService } from '@modules/department/department.service';
+import { DepartmentService } from 'src/services/department/department.service';
 import { IntegrationRouterService } from '@modules/integration-router/integration.router.service';
 import { IntegrationService } from '@modules/integration/integration.service';
 import { MessageService } from '@modules/message/message.service';
@@ -63,7 +63,7 @@ export class SlackService {
           </script>
         `);
       }
-      const department = await this.departmentService.getDepartmentById(metadata.department_id);
+      const department = await this.departmentService.findOne(metadata.department_id);
       if (!department) {
         return res.send(`
         <script>
