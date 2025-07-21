@@ -49,4 +49,7 @@ export default (): any => ({
     instagram: process.env.SOCIAL_LINK_INSTAGRAM || 'https://www.instagram.com/converxa/',
     facebook: process.env.SOCIAL_LINK_FACEBOOK || 'https://www.facebook.com/converxa',
   },
+  organizationLimits: {
+    defaultDepartmentLimit: process.env.DEFAULT_DEPARTMENT_LIMIT ? parseInt(process.env.DEFAULT_DEPARTMENT_LIMIT, 10) : 5,
+  },
 });
