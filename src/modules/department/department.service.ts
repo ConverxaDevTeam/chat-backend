@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Departamento } from '@models/Departamento.entity';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { Organization } from '@models/Organization.entity';
+import { OrganizationLimitService } from '../organization/organization-limit.service';
 
 @Injectable()
 export class DepartmentService {
@@ -12,6 +13,7 @@ export class DepartmentService {
     private readonly departmentRepository: Repository<Departamento>,
     @InjectRepository(Organization)
     private readonly organizationRepository: Repository<Organization>,
+    private readonly organizationLimitService: OrganizationLimitService,
   ) {}
 
   async create(createDepartmentDto: CreateDepartmentDto): Promise<Departamento> {
@@ -21,6 +23,15 @@ export class DepartmentService {
 
     if (!organization) {
       throw new NotFoundException(`Organization with ID ${createDepartmentDto.organizacion_id} not found`);
+    }
+
+    // Verificar límite de departamentos antes de crear
+    const limitCheck = await this.organizationLimitService.hasReachedDepartmentLimit(createDepartmentDto.organizacion_id);
+
+    if (limitCheck.hasReachedLimit) {
+      throw new BadRequestException(
+        `Has alcanzado el límite máximo de ${limitCheck.limit} departamentos para esta organización. ` + `Actualmente tienes ${limitCheck.current} departamentos.`,
+      );
     }
 
     const department = this.departmentRepository.create({
