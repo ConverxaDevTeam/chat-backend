@@ -8,6 +8,12 @@ export class CreateOrganizationLimitDto {
   @IsNotEmpty()
   conversationLimit: number;
 
+  @ApiProperty({ description: 'Límite de departamentos para la organización', example: 5 })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  departmentLimit?: number;
+
   @ApiProperty({ description: 'Duración en días del límite', example: 15 })
   @IsInt()
   @Min(1)
@@ -31,6 +37,12 @@ export class UpdateOrganizationLimitDto {
   @Min(1)
   @IsOptional()
   conversationLimit?: number;
+
+  @ApiProperty({ description: 'Límite de departamentos para la organización', example: 5 })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  departmentLimit?: number;
 
   @ApiProperty({ description: 'Duración en días del límite', example: 15 })
   @IsInt()

@@ -9,6 +9,7 @@ import { LlmAgentModule } from '@modules/llm-agent/llm-agent.module';
 import { AuthModule } from '@modules/auth/auth.module';
 import { FacebookModule } from '@modules/facebook/facebook.module';
 import { AgentManagerModule } from '@modules/agent-manager/agent-manager.module';
+import { OrganizationModule } from '@modules/organization/organization.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AgentManagerModule } from '@modules/agent-manager/agent-manager.module'
     forwardRef(() => AuthModule),
     forwardRef(() => FacebookModule),
     forwardRef(() => AgentManagerModule),
+    forwardRef(() => OrganizationModule),
   ],
   controllers: [DepartmentController],
   providers: [DepartmentService],
