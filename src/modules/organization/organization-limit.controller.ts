@@ -46,4 +46,12 @@ export class OrganizationLimitController {
   remove(@Param('organizationId') organizationId: number): Promise<void> {
     return this.organizationLimitService.remove(organizationId);
   }
+
+  @Get('organization/:organizationId/department-limit-check')
+  @Roles(OrganizationRoleType.ADMIN, OrganizationRoleType.OWNER, OrganizationRoleType.SUPERVISOR, OrganizationRoleType.USER)
+  @ApiOperation({ summary: 'Verificar límite de departamentos de una organización' })
+  @ApiResponse({ status: 200, description: 'Estado del límite de departamentos' })
+  checkDepartmentLimit(@Param('organizationId') organizationId: number) {
+    return this.organizationLimitService.hasReachedDepartmentLimit(organizationId);
+  }
 }

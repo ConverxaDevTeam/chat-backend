@@ -7,6 +7,9 @@ export class OrganizationLimit extends BaseEntity {
   @Column({ type: 'int', nullable: false, default: 50 })
   conversationLimit: number;
 
+  @Column({ type: 'int', nullable: false, default: 5 })
+  departmentLimit: number;
+
   @Column({ type: 'int', nullable: false, default: 15 })
   durationDays: number;
 

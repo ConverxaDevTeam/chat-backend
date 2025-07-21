@@ -9,14 +9,14 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Integration } from '@models/Integration.entity';
 import { Departamento } from '@models/Departamento.entity';
 import { Organization } from '@models/Organization.entity';
-import { DepartmentService } from '@modules/department/department.service';
+
 import { ConversationModule } from '@modules/conversation/conversation.module';
 import { MessageModule } from '@modules/message/message.module';
 import { SocketModule } from '@modules/socket/socket.module';
 import { IntegrationRouterModule } from '@modules/integration-router/integration.router.module';
 
 @Module({
-  providers: [SlackService, DepartmentService],
+  providers: [SlackService],
   controllers: [SlackController],
   imports: [
     TypeOrmModule.forFeature([Integration, Departamento, Organization]),
