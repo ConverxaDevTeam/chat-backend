@@ -202,7 +202,7 @@ echo "=== VERIFICACIÓN COMPLETADA ==="
 ```bash
 #!/bin/bash
 # Eliminar conversaciones de prueba (CUIDADO: solo para testing)
-export TYPEORM_HOST=localhost TYPEORM_USERNAME=postgres TYPEORM_PASSWORD=Admin TYPEORM_DATABASE=sofia_chat_v2 TYPEORM_PORT=5432
+export TYPEORM_HOST=localhost TYPEORM_USERNAME=postgres TYPEORM_PASSWORD=Admin TYPEORM_DATABASE=converxa_chat_v2 TYPEORM_PORT=5432
 
 echo "⚠️  ELIMINANDO CONVERSACIONES DE PRUEBA..."
 PGPASSWORD=$TYPEORM_PASSWORD psql -h $TYPEORM_HOST -p $TYPEORM_PORT -U $TYPEORM_USERNAME -d $TYPEORM_DATABASE -c "DELETE FROM \"Messages\" WHERE \"conversationId\" IN (SELECT id FROM \"Conversations\" WHERE type IN ('whatsapp', 'messenger') AND DATE(created_at) = CURRENT_DATE);"
@@ -212,11 +212,11 @@ echo "✅ Limpieza completada"
 
 ## 📊 **ESTADO ESPERADO AL FINAL**
 
-✅ **Webhooks funcionando** (verificación y recepción)  
-✅ **Integraciones configuradas** con departamentos asignados  
-✅ **Nuevas conversaciones creadas** para WhatsApp y Messenger  
-✅ **Mensajes procesados** con respuestas de IA generadas  
-✅ **Base de datos actualizada** con los nuevos registros  
+✅ **Webhooks funcionando** (verificación y recepción)
+✅ **Integraciones configuradas** con departamentos asignados
+✅ **Nuevas conversaciones creadas** para WhatsApp y Messenger
+✅ **Mensajes procesados** con respuestas de IA generadas
+✅ **Base de datos actualizada** con los nuevos registros
 
 ## 🔗 **Referencias**
 - 📁 Archivos test: `test/whatsapp/` y `test/facebook/`
