@@ -288,7 +288,7 @@ export class IntegrationService {
 
       return integration;
     } catch (error) {
-      throw new InternalServerErrorException('Failed to save the file');
+      throw new InternalServerErrorException('Failed to save the file', error);
     }
   }
 
