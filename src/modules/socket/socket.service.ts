@@ -225,7 +225,9 @@ export class SocketService {
   }
 
   async sendMessageToChatByOrganizationId(organizationId: number, conversationId: number, message: Message) {
+    this.logger.verbose(`[SOCKET-ORG-DEBUG] Enviando mensaje a organización ${organizationId}, conversación ${conversationId}, room: organization-${organizationId}`);
     const listRonnOrganization = await this.countClientInRoom(`organization-${organizationId}`);
+    this.logger.verbose(`[SOCKET-ORG-DEBUG] Clientes conectados en room organization-${organizationId}: ${listRonnOrganization.size}`);
     for (const clientId of listRonnOrganization) {
       this.socketServer.to(clientId).emit('message', {
         action: 'new-message',

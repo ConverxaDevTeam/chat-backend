@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatUser, ChatUserType } from '@models/ChatUser.entity';
 import { UserOrganization, OrganizationRoleType } from '@models/UserOrganization.entity';
-import { Message, MessageType } from '@models/Message.entity';
+import { Message } from '@models/Message.entity';
 import { User } from '@models/User.entity';
 import { ChatUserDataService } from '@modules/chat-user-data/chat-user-data.service';
 import { ChatUserOptimizedService } from './chat-user-optimized.service';
@@ -33,11 +33,10 @@ export class ChatUserService {
     private chatUserOptimizedService: ChatUserOptimizedService,
   ) {}
 
-  async findByIdWithSecret(id: number): Promise<ChatUser | null> {
-    return await this.chatUserRepository.findOne({
-      where: { id },
-      select: { id: true, secret: true },
-    });
+  async findByIdWithSecret(id: number): Promise<string | null> {
+    const chatUser = await this.chatUserRepository.createQueryBuilder('chatuser').addSelect('chatuser.secret').where('chatuser.id = :id', { id }).getOne();
+
+    return chatUser ? chatUser.secret : null;
   }
 
   async createChatUser(): Promise<ChatUser> {
@@ -63,10 +62,16 @@ export class ChatUserService {
   }
 
   async findById(id: number): Promise<ChatUser | null> {
-    const chatUser = await this.chatUserRepository.findOne({
-      where: { id },
-    });
-    return chatUser || null;
+    const chatUser = await this.chatUserRepository
+      .createQueryBuilder('chatUser')
+      .leftJoinAndSelect('chatUser.conversations', 'conversations', 'conversations.user_deleted = :userDeleted', {
+        userDeleted: false,
+      })
+      .leftJoinAndSelect('conversations.messages', 'messages')
+      .where('chatUser.id = :id', { id })
+      .getOne();
+
+    return chatUser;
   }
 
   async createChatUserFacebook(identified: string, type: ChatUserType): Promise<ChatUser> {
@@ -219,11 +224,6 @@ export class ChatUserService {
       dateTo,
       includeMessages,
     );
-  }
-
-  private async getLastConversationInfo(chatUserId: number, organizationId?: number): Promise<any | null> {
-    // Este método ya no se usa - se mantiene por compatibilidad
-    return null;
   }
 
   async bulkUpdateChatUser(id: number, updateData: BulkUpdateChatUserDto): Promise<BulkUpdateResponse> {
@@ -413,7 +413,7 @@ export class ChatUserService {
 
       const queryParams: any[] = [organizationId];
       let paramIndex = 2;
-      let filterConditions: string[] = [];
+      const filterConditions: string[] = [];
 
       // Aplicar filtros específicos
       if (searchParams?.searchType === 'id' && searchParams?.searchValue) {

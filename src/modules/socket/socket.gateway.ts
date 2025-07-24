@@ -189,10 +189,12 @@ export class WebChatSocketGateway implements OnModuleInit {
             }
             const secretUser = await this.chatUserService.findByIdWithSecret(Number(dataJson.user));
             this.logger.verbose(
-              `[WEBCHAT-AUTH] Verificando secreto de usuario - UserID: ${dataJson.user}, SecretValid: ${secretUser === dataJson.user_secret && secretUser !== null}`,
+              `[WEBCHAT-AUTH] Verificando secreto de usuario - UserID: ${dataJson.user}, SecretFromDB: ${secretUser}, SecretFromClient: ${dataJson.user_secret}, SecretValid: ${secretUser === dataJson.user_secret && secretUser !== null}`,
             );
             if (secretUser !== dataJson.user_secret || secretUser === null) {
+              this.logger.verbose(`[WEBCHAT-AUTH] Secreto inválido o usuario no encontrado, creando nuevo usuario`);
               const chatUser = await this.chatUserService.createChatUserWeb(origin, request.headers['user-agent']);
+              this.logger.verbose(`[WEBCHAT-AUTH] Nuevo usuario creado - ID: ${chatUser.id}, Secret: ${chatUser.secret}`);
               this.socketService.registerWebChatClient(chatUser.id, socket);
               socket.send(JSON.stringify({ action: 'set-user', user: chatUser.id, secret: chatUser.secret }));
               socket.send(JSON.stringify({ action: 'upload-conversations', conversations: [] }));
@@ -270,20 +272,21 @@ export class WebChatSocketGateway implements OnModuleInit {
 
                 const filePath = join(audioDir, uniqueName);
                 fs.writeFileSync(filePath, audioBuffer);
-                const message = await this.messageService.createMessage(conversation, '', MessageType.USER, Number(departamentoActual.organizacion), conversation?.user?.id, {
+                const message = await this.messageService.createMessage(conversation, '', MessageType.USER, Number(departamentoActual.organizacion.id), conversation?.user?.id, {
                   platform: IntegrationType.CHAT_WEB,
                   format: MessageFormatType.AUDIO,
                   audio_url: uniqueName,
                 });
                 socket.send(JSON.stringify({ action: 'message-sent', conversation_id: conversation.id, message }));
 
-                const organizationId = Number(departamentoActual.organizacion?.id || departamentoActual.organizacion);
+                const organizationId = Number(departamentoActual.organizacion.id);
                 this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, message);
                 try {
                   const response = await this.integrationRouterService.processMessage(message.text, conversation.id);
                   if (!response) return;
                   const messageAi = await this.socketService.sendMessageToUser(conversation, response.message, MessageFormatType.TEXT, MessageType.AGENT, organizationId);
                   if (!messageAi) return;
+                  this.logger.verbose(`[WEBCHAT-ORG-DEBUG] Enviando respuesta AI a organizacion ${organizationId}, conversacion ${conversation.id}`);
                   this.socketService.sendMessageToChatByOrganizationId(organizationId, conversation.id, messageAi);
                 } catch (error) {
                   this.logger.error('error:', error);
